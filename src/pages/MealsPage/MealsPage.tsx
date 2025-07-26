@@ -1,12 +1,27 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import MealCard from "../../components/MealCard/MealCard";
+import Masonry, { ResponsiveMasonry } from "react-responsive-masonry"; // Import these
 import img1 from "../../images/IMG_1.jpg";
 import img2 from "../../images/IMG_2.jpg";
 import img3 from "../../images/IMG_3.jpg";
 import img4 from "../../images/IMG_4.jpg";
 import img5 from "../../images/IMG_5.jpg";
 
-const MealsPage: React.FC = () => {
+interface MealsPageProps {
+  currentLocation?: string;
+}
+
+const MealsPage: React.FC<MealsPageProps> = ({ currentLocation }) => {
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsPageLoaded(false);
+    const timer = setTimeout(() => {
+      setIsPageLoaded(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [currentLocation]);
+
   const mealPosts = [
     {
       id: 1,
@@ -38,7 +53,7 @@ const MealsPage: React.FC = () => {
       description:
         "Full-service catering for any occasion. From small gatherings to big events, we bring the food, setup, and service so you can focus on hosting.",
       image: img4,
-      size: "large" as const,
+      size: "small" as const,
     },
     {
       id: 5,
@@ -46,146 +61,34 @@ const MealsPage: React.FC = () => {
       description:
         "Need chafing dishes, buffet tables, or utensils? Rent what you need—no frills, no fuss, no overcharging.",
       image: img5,
-      size: "small" as const,
+      size: "large" as const,
     },
-    // {
-    //   id: 6,
-    //   title: "Blog Post Six",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "large" as const,
-    // },
-    // {
-    //   id: 7,
-    //   title: "Blog Post Seven",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1099680/pexels-photo-1099680.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "small" as const,
-    // },
-    // {
-    //   id: 8,
-    //   title: "Blog Post Eight",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1410235/pexels-photo-1410235.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "small" as const,
-    // },
-    // {
-    //   id: 9,
-    //   title: "Blog Post Nine",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1633578/pexels-photo-1633578.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "large" as const,
-    // },
-    // {
-    //   id: 10,
-    //   title: "Blog Post Ten",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1092730/pexels-photo-1092730.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "small" as const,
-    // },
-    // {
-    //   id: 11,
-    //   title: "Blog Post Eleven",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "small" as const,
-    // },
-    // {
-    //   id: 12,
-    //   title: "Blog Post Twelve",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "large" as const,
-    // },
-    // {
-    //   id: 13,
-    //   title: "Blog Post Thirteen",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1438672/pexels-photo-1438672.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "small" as const,
-    // },
-    // {
-    //   id: 14,
-    //   title: "Blog Post Fourteen",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1109197/pexels-photo-1109197.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "small" as const,
-    // },
-    // {
-    //   id: 15,
-    //   title: "Blog Post Fifteen",
-    //   description:
-    //     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    //   image:
-    //     "https://images.pexels.com/photos/1211887/pexels-photo-1211887.jpeg?auto=compress&cs=tinysrgb&w=600",
-    //   size: "large" as const,
-    // },
+    // Add more items here, especially with different `size` values
+    // to see the masonry effect!
+    // For example:
+    // { id: 6, title: "Dessert Platter", description: "Sweet treats for any occasion.", image: img1, size: "small" as const },
+    // { id: 7, title: "Breakfast Bundles", description: "Start your day right.", image: img2, size: "large" as const },
+    // { id: 8, title: "Drinks & Refreshments", description: "Quench your thirst.", image: img3, size: "small" as const },
   ];
 
+
   return (
-    <div className="bg-[#EEEDEB] min-h-screen">
+    <div
+      className={`bg-[#EEEDEB] min-h-screen transition-opacity duration-700 ease-in ${
+        isPageLoaded ? "opacity-100" : "opacity-5"
+      }`}
+    >
       <div className="px-24 py-24">
-        <div className="grid grid-cols-3 gap-8 auto-rows-max">
-          {/* Column 1 */}
-          <div className="space-y-8">
-            <MealCard post={mealPosts[0]} />
-            <MealCard post={mealPosts[3]} />
-          </div>
-
-          {/* Column 2 - Center with mixed sizes */}
-          <div className="space-y-8">
-            <MealCard post={mealPosts[1]} />
-          </div>
-
-          {/* Column 3 */}
-          <div className="space-y-8">
-            <MealCard post={mealPosts[2]} />
-          </div>
-          {/* Column 1 */}
-          {/* <div className="space-y-8">
-            <MealCard post={mealPosts[0]} />
-            <MealCard post={mealPosts[4]} />
-            <MealCard post={mealPosts[7]} />
-            <MealCard post={mealPosts[10]} />
-            <MealCard post={mealPosts[13]} />
-          </div> */}
-
-          {/* Column 2 - Center with mixed sizes */}
-          {/* <div className="space-y-8">
-            <MealCard post={mealPosts[1]} />
-            <MealCard post={mealPosts[5]} />
-            <MealCard post={mealPosts[8]} />
-            <MealCard post={mealPosts[11]} />
-            <MealCard post={mealPosts[14]} />
-          </div> */}
-
-          {/* Column 3 */}
-          {/* <div className="space-y-8">
-            <MealCard post={mealPosts[2]} />
-            <MealCard post={mealPosts[3]} />
-            <MealCard post={mealPosts[6]} />
-            <MealCard post={mealPosts[9]} />
-            <MealCard post={mealPosts[12]} />
-          </div> */}
-        </div>
+        {/* Replace your current grid layout with ResponsiveMasonry */}
+        <ResponsiveMasonry
+          columnsCountBreakPoints={{ 350: 1, 750: 2, 1200: 3 }} // Example breakpoints
+        >
+          <Masonry gutter="40px">
+            {mealPosts.map((post) => (
+              <MealCard key={post.id} post={post} />
+            ))}
+          </Masonry>
+        </ResponsiveMasonry>
       </div>
     </div>
   );

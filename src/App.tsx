@@ -1,10 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import Navigation from './components/Navigation/Navigation';
-import Footer from './components/Footer/Footer';
-import MealsPage from './pages/MealsPage/MealsPage';
-import AboutPage from './pages/AboutPage/AboutPage';
-import ContactPage from './pages/ContactPage/ContactPage';
+import { useState, useEffect, useRef } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+import Navigation from "./components/Navigation/Navigation";
+import Footer from "./components/Footer/Footer";
+import MealsPage from "./pages/MealsPage/MealsPage";
+import AboutPage from "./pages/AboutPage/AboutPage";
+import ContactPage from "./pages/ContactPage/ContactPage";
 
 function AppContent() {
   const location = useLocation();
@@ -19,20 +24,23 @@ function AppContent() {
       if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
         // Scrolling down and not near the very top
         setShowNavbar(false);
-      } else if (currentScrollY < lastScrollY.current || currentScrollY <= 100) {
+      } else if (
+        currentScrollY < lastScrollY.current ||
+        currentScrollY <= 100
+      ) {
         // Scrolling up or near the very top
         setShowNavbar(true);
       }
       lastScrollY.current = currentScrollY; // Update last scroll position
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     // Initial check (useful for cases where page loads with a scroll position)
     handleScroll();
 
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []); // Empty dependency array means this effect runs once on mount
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []); 
 
   // Reset navbar visibility to true when route changes
   useEffect(() => {
@@ -46,10 +54,23 @@ function AppContent() {
       <Navigation isVisible={showNavbar} />
       <main className="pt-20">
         <Routes>
-          <Route path="/" element={<MealsPage />} />
-          <Route path="/meals" element={<MealsPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/contact" element={<ContactPage />} />
+          {/* Pass location.pathname as a prop */}
+          <Route
+            path="/"
+            element={<MealsPage currentLocation={location.pathname} />}
+          />
+          <Route
+            path="/meals"
+            element={<MealsPage currentLocation={location.pathname} />}
+          />
+          <Route
+            path="/about"
+            element={<AboutPage/>}
+          />
+          <Route
+            path="/contact"
+            element={<ContactPage/>}
+          />
         </Routes>
       </main>
       <Footer />
