@@ -1,5 +1,6 @@
 import React from "react";
-import { Facebook, Instagram } from "lucide-react";
+import { FaFacebookF } from "react-icons/fa6";
+import { AiFillInstagram } from "react-icons/ai";
 
 const AboutPage: React.FC = () => {
   return (
@@ -67,7 +68,7 @@ const AboutPage: React.FC = () => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Facebook size={24} />
+              <FaFacebookF size={20} />
             </a>
             <a
               href="https://www.instagram.com/momma_mia_caters/"
@@ -75,7 +76,7 @@ const AboutPage: React.FC = () => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Instagram size={24} />
+              <AiFillInstagram size={24} />
             </a>
           </div>
         </div>

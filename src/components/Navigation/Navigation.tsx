@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Facebook, Instagram, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { FaFacebookF } from "react-icons/fa6";
+import { AiFillInstagram } from "react-icons/ai";
 
 interface NavigationProps {
   isVisible: boolean;
@@ -79,7 +81,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Facebook size={24} />
+              <FaFacebookF size={20} />
             </a>
             <a
               href="https://www.instagram.com/momma_mia_caters/"
@@ -87,7 +89,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Instagram size={24} />
+              <AiFillInstagram size={24} />
             </a>
           </div>
 
@@ -100,7 +102,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Facebook size={24} />
+              <FaFacebookF size={20} />
             </a>
             <a
               href="https://www.instagram.com/momma_mia_caters/"
@@ -108,7 +110,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Instagram size={24} />
+              <AiFillInstagram size={24} />
             </a>
             <button
               onClick={toggleMenu}

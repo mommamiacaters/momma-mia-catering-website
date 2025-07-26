@@ -1,9 +1,12 @@
 import React from "react";
-import { Facebook, Instagram } from "lucide-react";
+import { FaFacebookF } from "react-icons/fa6";
+import { AiFillInstagram } from "react-icons/ai";
 
 const Footer: React.FC = () => {
   return (
+    // The main footer container to hold the two sections
     <footer className="bg-stone-800 text-white transition-transform duration-300">
+      {/* Top Section: Newsletter (existing content) */}
       <div className="max-w-7xl mx-auto px-16 py-24">
         <div className="text-center">
           <h3 className="text-2xl font-bold mb-4">
@@ -23,25 +26,32 @@ const Footer: React.FC = () => {
               Sign Up
             </button>
           </div>
+        </div>
+      </div>
 
-          <div className="flex justify-center space-x-6">
-            <a
-              href="https://www.facebook.com/profile.php?id=61559809667297"
-              className="text-stone-400 hover:text-white transition-colors"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Facebook size={24} />
-            </a>
-            <a
-              href="https://www.instagram.com/momma_mia_caters/"
-              className="text-stone-400 hover:text-white transition-colors"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Instagram size={24} />
-            </a>
-          </div>
+      {/* Bottom Section: Social Icons */}
+      {/* This new div will separate the social icons as requested */}
+      {/* It currently inherits background and text color from the parent footer. */}
+      {/* If you add a specific background color later, place it here. */}
+      <div className="bg-[#EEEDEB] py-32">
+        {/* Added padding for separation */}
+        <div className="max-w-7xl mx-auto flex justify-center space-x-6">
+          <a
+            href="https://www.facebook.com/profile.php?id=61559809667297"
+            className="text-black hover:text-gray-600 transition-colors"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <FaFacebookF size={20} />
+          </a>
+          <a
+            href="https://www.instagram.com/momma_mia_caters/"
+            className="text-black hover:text-gray-600 transition-colors"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <AiFillInstagram size={24} />
+          </a>
         </div>
       </div>
     </footer>

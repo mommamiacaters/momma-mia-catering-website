@@ -52,7 +52,7 @@ const MealsPage: React.FC<MealsPageProps> = ({ currentLocation }) => {
       title: "🍽️ Catering",
       description:
         "Full-service catering for any occasion. From small gatherings to big events, we bring the food, setup, and service so you can focus on hosting.",
-      image: img4,
+      image: img5,
       size: "small" as const,
     },
     {
@@ -60,7 +60,7 @@ const MealsPage: React.FC<MealsPageProps> = ({ currentLocation }) => {
       title: "🛠️ Equipment Rental",
       description:
         "Need chafing dishes, buffet tables, or utensils? Rent what you need—no frills, no fuss, no overcharging.",
-      image: img5,
+      image: img4,
       size: "large" as const,
     },
     // Add more items here, especially with different `size` values

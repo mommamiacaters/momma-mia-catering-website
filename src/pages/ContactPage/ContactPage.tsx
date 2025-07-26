@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Facebook, Instagram } from "lucide-react";
 
 const ContactPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -59,25 +58,6 @@ const ContactPage: React.FC = () => {
                 (555) 555-5555
               </a>
             </div>
-          </div>
-
-          <div className="flex space-x-4 pt-8">
-            <a
-              href="https://www.facebook.com/profile.php?id=61559809667297"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-stone-400 hover:text-white transition-colors"
-            >
-              <Facebook size={24} />
-            </a>
-            <a
-              href="https://www.instagram.com/momma_mia_caters/"
-              className="text-stone-400 hover:text-white transition-colors"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Instagram size={24} />
-            </a>
           </div>
         </div>
 
