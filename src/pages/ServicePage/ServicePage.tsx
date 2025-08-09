@@ -196,10 +196,10 @@ const ServicePage: React.FC = () => {
               Contact us today to discuss your needs and get a personalized
               quote. We're here to make your event unforgettable.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 to="/contact"
-                className="inline-block px-8 py-3 bg-brand-secondary text-brand-text font-medium transition-colors"
+                className="inline-flex items-center justify-center w-56 px-8 py-3 bg-brand-secondary text-brand-text font-medium text-center transition-colors"
               >
                 Contact Us
               </Link>
@@ -208,7 +208,7 @@ const ServicePage: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Message us on Facebook Messenger"
-                className="inline-flex items-center gap-2 px-8 py-3 border-2 border-brand-secondary text-brand-secondary font-medium hover:bg-brand-secondary hover:text-brand-text transition-colors"
+                className="inline-flex items-center justify-center gap-2 w-56 px-8 py-3 border-2 border-brand-secondary text-brand-secondary font-medium text-center hover:bg-brand-secondary hover:text-brand-text transition-colors"
               >
                 <RiMessengerFill size={20} />
                 Message Us
