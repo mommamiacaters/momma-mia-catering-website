@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
+
 import Image from "../../components/Image/Image";
 import Masonry, { ResponsiveMasonry } from "react-responsive-masonry";
 import {
@@ -151,7 +152,9 @@ const ServicePage: React.FC = () => {
                   <div
                     className="relative overflow-hidden shadow-lg"
                     role="button"
-                    aria-label={`Preview ${serviceContent.title} image ${index + 1}`}
+                    aria-label={`Preview ${serviceContent.title} image ${
+                      index + 1
+                    }`}
                     tabIndex={0}
                     onClick={() => setPreviewUrl(image)}
                     onKeyDown={(e) => {
@@ -182,7 +185,10 @@ const ServicePage: React.FC = () => {
             aria-modal="true"
             role="dialog"
           >
-            <div className="relative max-w-[95vw] max-h-[95vh]" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="relative max-w-[95vw] max-h-[95vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <img
                 src={previewUrl}
                 alt="Preview"
@@ -211,12 +217,12 @@ const ServicePage: React.FC = () => {
               quote. We're here to make your event unforgettable.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/contact"
+              <Link
+                to="/contact"
                 className="inline-block px-8 py-3 bg-stone-900 text-white font-medium hover:bg-stone-800 transition-colors"
               >
                 Get Quote
-              </a>
+              </Link>
               <a
                 href="tel:555-555-5555"
                 className="inline-block px-8 py-3 border-2 border-stone-900 text-stone-900 font-medium hover:bg-stone-900 hover:text-white transition-colors"
