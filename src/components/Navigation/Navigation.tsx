@@ -30,15 +30,18 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
     const active = isActive(path) || (path === "/meals" && isActive("/"));
     const baseClasses = `
       inline-block
-      text-black font-normal
+      text-brand-secondary font-normal
       pb-1
-      border-b-[2px]
+      md:border-b-[2px]
       transition-colors duration-300 ease-in-out
     `;
-    const activeClasses = "border-black";
-    const inactiveClasses = "border-transparent hover:border-black";
+    const activeClasses = "md:border-brand-secondary";
+    const inactiveClasses = "md:border-transparent md:hover:border-brand-secondary";
 
-    const mobileSpecificClasses = isMobileMenu ? "text-lg py-2" : "";
+    // On mobile menu, we still want underlines since it's a vertical list
+    const mobileSpecificClasses = isMobileMenu
+      ? "text-lg py-2 border-b-[2px] border-brand-secondary"
+      : "";
 
     return `${baseClasses} ${
       active ? activeClasses : inactiveClasses
@@ -47,7 +50,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 bg-[#EEEDEB] transition-transform duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 bg-brand-primary transition-transform duration-300 ${
         isVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
@@ -55,7 +58,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link to="/" className="text-lg sm:text-xl md:text-2xl font-medium text-black">
+            <Link to="/" className="text-lg sm:text-xl md:text-2xl font-medium text-brand-secondary">
               MOMMA MIA CATERS
             </Link>
           </div>
@@ -77,7 +80,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
           <div className="hidden md:flex items-center space-x-4">
             <a
               href="https://www.facebook.com/profile.php?id=61559809667297"
-              className="text-black hover:text-gray-600 transition-colors"
+              className="text-brand-secondary hover:text-brand-text transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -85,7 +88,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
             </a>
             <a
               href="https://www.instagram.com/momma_mia_caters/"
-              className="text-black hover:text-gray-600 transition-colors"
+              className="text-brand-secondary hover:text-brand-text transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -98,7 +101,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
             {/* Social icons for mobile - positioned right of hamburger */}
             <a
               href="https://www.facebook.com/profile.php?id=61559809667297"
-              className="text-black hover:text-gray-600 transition-colors"
+              className="text-brand-secondary hover:text-brand-text transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -106,7 +109,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
             </a>
             <a
               href="https://www.instagram.com/momma_mia_caters/"
-              className="text-black hover:text-gray-600 transition-colors"
+              className="text-brand-secondary hover:text-brand-text transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -114,7 +117,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
             </a>
             <button
               onClick={toggleMenu}
-              className="text-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              className="text-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-divider"
               aria-label="Toggle navigation menu"
             >
               {isMenuOpen ? <X size={30} /> : <Menu size={30} />}
@@ -125,7 +128,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
 
       {/* Mobile Menu Overlay */}
       <div
-        className={`md:hidden absolute top-full left-0 right-0 bg-[#EEEDEB] shadow-lg overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`md:hidden absolute top-full left-0 right-0 bg-brand-primary shadow-lg overflow-hidden transition-all duration-300 ease-in-out ${
           isMenuOpen ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
         }`}
       >

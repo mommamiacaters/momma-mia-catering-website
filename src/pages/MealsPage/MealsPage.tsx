@@ -68,7 +68,7 @@ const MealsPage: React.FC<MealsPageProps> = ({ currentLocation }) => {
 
   return (
     <div
-      className={`bg-[#EEEDEB] min-h-screen transition-opacity duration-700 ease-in ${
+      className={`bg-brand-secondary min-h-screen transition-opacity duration-700 ease-in ${
         isPageLoaded ? "opacity-100" : "opacity-5"
       }`}
     >

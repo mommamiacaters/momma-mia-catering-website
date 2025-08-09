@@ -4,14 +4,14 @@ import { aboutUs_1, aboutUs_2 } from "../../images";
 
 const AboutPage: React.FC = () => {
   return (
-    <div className="bg-[#EEEDEB] min-h-screen">
+    <div className="bg-brand-secondary min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 lg:px-12 pt-8 pb-16 md:pt-16 md:pb-20 lg:pt-20 lg:pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
           <div className="space-y-6">
-            <h1 className="text-4xl lg:text-5xl font-bold text-stone-900 leading-tight">
+            <h1 className="text-4xl lg:text-5xl font-bold text-brand-text leading-tight">
               About Us
             </h1>
-            <div className="space-y-4 text-stone-600 leading-loose">
+            <div className="space-y-4 text-brand-text/80 leading-loose">
               <p>
                 At Momma Mia, everything begins with one simple belief: good
                 food brings people together.
@@ -44,7 +44,7 @@ const AboutPage: React.FC = () => {
           <Image src={aboutUs_2} alt="Gourmet food preparation" />
 
           <div className="order-1 lg:order-2 space-y-6">
-            <div className="space-y-4 text-stone-600 leading-loose">
+            <div className="space-y-4 text-brand-text/80 leading-loose">
               <p>
                 Today, whether we’re serving a hundred guests at a grand
                 celebration or packing a single lunch for someone’s busy
@@ -62,25 +62,6 @@ const AboutPage: React.FC = () => {
                 <span className="font-semibold italic">joy</span>.
               </p>
             </div>
-
-            {/* <div className="flex space-x-4 pt-8">
-              <a
-                href="https://www.facebook.com/profile.php?id=61559809667297"
-                className="text-stone-400 hover:text-white transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FaFacebookF size={20} />
-              </a>
-              <a
-                href="https://www.instagram.com/momma_mia_caters/"
-                className="text-stone-400 hover:text-white transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <AiFillInstagram size={24} />
-              </a>
-            </div> */}
           </div>
         </div>
       </div>

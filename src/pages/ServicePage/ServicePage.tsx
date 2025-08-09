@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { RiMessengerFill } from "react-icons/ri";
 import { useParams, Link } from "react-router-dom";
 import Carousel from "../../components/Carousel/Carousel";
 import {
@@ -27,11 +28,9 @@ import {
   catering2,
   catering3,
   catering4,
-  catering5,
-  catering6,
   // equipment-rental
   rental1,
-  rental2,
+  // rental2,
 } from "../../images";
 
 const ServicePage: React.FC = () => {
@@ -75,21 +74,14 @@ const ServicePage: React.FC = () => {
           title: "Catering Services",
           description:
             "Full-service catering for weddings, corporate events, and special occasions. We handle everything from menu planning to setup, ensuring your event is memorable and stress-free.",
-          images: [
-            catering1,
-            catering2,
-            catering3,
-            catering4,
-            catering5,
-            catering6,
-          ],
+          images: [catering1, catering2, catering3, catering4],
         };
       case "equipment-rental":
         return {
           title: "Equipment Rental",
           description:
             "Professional-grade catering equipment available for rent. From chafing dishes and serving platters to tables and linens, we have everything you need to host the perfect event.",
-          images: [rental1, rental2],
+          images: [rental1],
         };
       default:
         return {
@@ -122,7 +114,7 @@ const ServicePage: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen bg-[#EEEDEB] transition-opacity duration-700 ease-in ${
+      className={`min-h-screen bg-brand-secondary transition-opacity duration-700 ease-in ${
         isPageLoaded ? "opacity-100" : "opacity-5"
       }`}
     >
@@ -131,21 +123,23 @@ const ServicePage: React.FC = () => {
         <div className="mb-8">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-stone-700 hover:text-stone-900"
+            className="inline-flex items-center gap-2 text-brand-text hover:text-brand-text"
             aria-label="Go back to main page"
           >
-            <span aria-hidden="true" className="text-xl">←</span>
+            <span aria-hidden="true" className="text-xl">
+              ←
+            </span>
             <span className="text-sm sm:text-base">Back to Home</span>
           </Link>
         </div>
 
         {/* Header Section */}
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-stone-900 mb-6">
+          <h1 className="text-5xl font-bold text-brand-text mb-6">
             {serviceContent.title}
           </h1>
           <div className="max-w-3xl mx-auto">
-            <p className="text-lg text-stone-600 leading-relaxed">
+            <p className="text-lg text-brand-text leading-relaxed">
               {serviceContent.description}
             </p>
           </div>
@@ -182,7 +176,7 @@ const ServicePage: React.FC = () => {
               <button
                 type="button"
                 aria-label="Close preview"
-                className="absolute -top-3 -right-3 bg-white/90 hover:bg-white text-stone-900 rounded-full w-9 h-9 shadow flex items-center justify-center"
+                className="absolute -top-3 -right-3 bg-white/90 hover:bg-white text-brand-text rounded-full w-9 h-9 shadow flex items-center justify-center"
                 onClick={() => setPreviewUrl(null)}
               >
                 ✕
@@ -191,28 +185,33 @@ const ServicePage: React.FC = () => {
           </div>
         )}
 
-        {/* Contact Section */}
-        <div className="mt-20 text-center">
-          <div className="bg-stone-50 p-12">
-            <h2 className="text-3xl font-bold text-stone-900 mb-4">
-              Interested in {serviceContent.title}?
+        {/* Contact Section (full-bleed) */}
+        <div className="mt-20 text-center relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-brand-primary">
+          <div className="max-w-7xl mx-auto px-16 py-24">
+            <h2 className="text-3xl font-bold text-brand-secondary mb-4">
+              {/* Interested in {serviceContent.title}? */}
+              Start Your Order
             </h2>
-            <p className="text-stone-600 mb-8 max-w-2xl mx-auto">
+            <p className="text-brand-secondary mb-8 max-w-2xl mx-auto">
               Contact us today to discuss your needs and get a personalized
               quote. We're here to make your event unforgettable.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/contact"
-                className="inline-block px-8 py-3 bg-stone-900 text-white font-medium hover:bg-stone-800 transition-colors"
+                className="inline-block px-8 py-3 bg-brand-secondary text-brand-text font-medium transition-colors"
               >
-                Get Quote
+                Contact Us
               </Link>
               <a
-                href="tel:555-555-5555"
-                className="inline-block px-8 py-3 border-2 border-stone-900 text-stone-900 font-medium hover:bg-stone-900 hover:text-white transition-colors"
+                href="https://m.me/61559809667297"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Message us on Facebook Messenger"
+                className="inline-flex items-center gap-2 px-8 py-3 border-2 border-brand-secondary text-brand-secondary font-medium hover:bg-brand-secondary hover:text-brand-text transition-colors"
               >
-                Call Now
+                <RiMessengerFill size={20} />
+                Message Us
               </a>
             </div>
           </div>

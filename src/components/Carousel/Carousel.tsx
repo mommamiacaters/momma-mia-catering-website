@@ -148,7 +148,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, onPreview }) => {
                 }
               }}
             >
-              <Image src={src} alt={`${title} ${i + 1}`} className="w-full h-full object-contain bg-stone-100" />
+              <Image src={src} alt={`${title} ${i + 1}`} className="w-full h-full object-contain bg-brand-primary" />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
             </div>
           </div>
@@ -159,7 +159,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, onPreview }) => {
       <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between pointer-events-none">
         <button
           type="button"
-          className="pointer-events-auto ml-2 sm:ml-4 rounded-full bg-white/90 hover:bg-white text-stone-900 w-9 h-9 shadow flex items-center justify-center disabled:opacity-50"
+          className="pointer-events-auto ml-2 sm:ml-4 rounded-full bg-white/90 hover:bg-white text-brand-text w-9 h-9 shadow flex items-center justify-center disabled:opacity-50"
           aria-label="Previous image"
           onClick={prev}
           disabled={index === 0}
@@ -168,7 +168,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, onPreview }) => {
         </button>
         <button
           type="button"
-          className="pointer-events-auto mr-2 sm:mr-4 rounded-full bg-white/90 hover:bg-white text-stone-900 w-9 h-9 shadow flex items-center justify-center disabled:opacity-50"
+          className="pointer-events-auto mr-2 sm:mr-4 rounded-full bg-white/90 hover:bg-white text-brand-text w-9 h-9 shadow flex items-center justify-center disabled:opacity-50"
           aria-label="Next image"
           onClick={next}
           disabled={index === images.length - 1}
@@ -184,7 +184,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, onPreview }) => {
             key={i}
             type="button"
             aria-label={`Go to image ${i + 1}`}
-            className={`h-2 w-2 rounded-full ${i === index ? "bg-stone-900" : "bg-stone-400"}`}
+            className={`h-2 w-2 rounded-full ${i === index ? "bg-brand-primary" : "bg-brand-divider"}`}
             onClick={() => goTo(i)}
           />)
         )}

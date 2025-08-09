@@ -30,22 +30,20 @@ const ContactPage: React.FC = () => {
         {/* Contact Information */}
         <div className="space-y-8">
           <div>
-            <h1 className="text-4xl lg:text-5xl font-bold text-stone-900 leading-tight mb-6">
+            <h1 className="text-4xl lg:text-5xl font-bold text-brand-text leading-tight mb-6">
               We'd love to hear from you.
             </h1>
-            <p className="text-stone-600 leading-relaxed">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
-              enim ad minim veniam, quis nostrud exercitation ullamco laboris
-              nisi ut aliquip ex ea commodo.
+            <p className="text-brand-text leading-loose">
+              Got feedback, questions, or a craving we can help with? Momma’s all ears.
+              Send us a note and we’ll get back to you faster than pasta disappears at a party.
             </p>
           </div>
 
-          <div className="space-y-4">
+          {/* <div className="space-y-4">
             <div>
               <a
                 href="mailto:email@example.com"
-                className="text-lg font-semibold text-stone-900 hover:text-stone-700 transition-colors"
+                className="text-lg font-semibold text-brand-text hover:text-brand-text transition-colors"
               >
                 email@example.com
               </a>
@@ -53,12 +51,12 @@ const ContactPage: React.FC = () => {
             <div>
               <a
                 href="tel:555-555-5555"
-                className="text-lg font-semibold text-stone-900 hover:text-stone-700 transition-colors"
+                className="text-lg font-semibold text-brand-text hover:text-brand-text transition-colors"
               >
                 (555) 555-5555
               </a>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Contact Form */}
@@ -67,7 +65,7 @@ const ContactPage: React.FC = () => {
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-stone-700 mb-2"
+                className="block text-sm font-medium text-brand-text mb-2"
               >
                 Name <span className="text-red-500">*</span>
               </label>
@@ -79,7 +77,7 @@ const ContactPage: React.FC = () => {
                     placeholder="First Name"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-stone-300 focus:border-stone-500 focus:outline-none transition-colors"
+                    className="w-full px-4 py-3 border border-brand-divider focus:border-brand-primary focus:outline-none transition-colors"
                     required
                   />
                 </div>
@@ -90,7 +88,7 @@ const ContactPage: React.FC = () => {
                     placeholder="Last Name"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-stone-300 focus:border-stone-500 focus:outline-none transition-colors"
+                    className="w-full px-4 py-3 border border-brand-divider focus:border-brand-primary focus:outline-none transition-colors"
                   />
                 </div>
               </div>
@@ -99,7 +97,7 @@ const ContactPage: React.FC = () => {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-stone-700 mb-2"
+                className="block text-sm font-medium text-brand-text mb-2"
               >
                 Email <span className="text-red-500">*</span>
               </label>
@@ -108,7 +106,7 @@ const ContactPage: React.FC = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-stone-300 focus:border-stone-500 focus:outline-none transition-colors"
+                className="w-full px-4 py-3 border border-brand-divider focus:border-brand-primary focus:outline-none transition-colors"
                 required
               />
             </div>
@@ -116,7 +114,7 @@ const ContactPage: React.FC = () => {
             <div>
               <label
                 htmlFor="message"
-                className="block text-sm font-medium text-stone-700 mb-2"
+                className="block text-sm font-medium text-brand-text mb-2"
               >
                 Message <span className="text-red-500">*</span>
               </label>
@@ -125,14 +123,14 @@ const ContactPage: React.FC = () => {
                 rows={6}
                 value={formData.message}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-stone-300 focus:border-stone-500 focus:outline-none transition-colors resize-none"
+                className="w-full px-4 py-3 border border-brand-divider focus:border-brand-primary focus:outline-none transition-colors resize-none"
                 required
               />
             </div>
 
             <button
               type="submit"
-              className="px-8 py-3 bg-stone-900 text-white font-medium hover:bg-stone-800 transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2"
+              className="px-8 py-3 bg-brand-primary text-white font-medium hover:bg-brand-primary transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2"
             >
               Send
             </button>

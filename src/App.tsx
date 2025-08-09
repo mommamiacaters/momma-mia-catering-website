@@ -52,7 +52,7 @@ function AppContent() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-[#EEEDEB]">
+    <div className="min-h-screen bg-brand-secondary">
       <Navigation isVisible={showNavbar} />
       <main className="pt-20">
         <Routes>

@@ -22,17 +22,17 @@ const MealCard: React.FC<MealCardProps> = ({ post, visible = true }) => {
   const getImageHeight = () => {
     switch (post.size) {
       case "large":
-        return "md:h-96";
+        return "md:h-[32rem]";
       case "small":
-        return "md:h-64";
+        return "md:h-[24rem]";
       default:
-        return "md:h-80";
+        return "md:h-[28rem]";
     }
   };
 
   return (
     <article
-      className="bg-[#EEEDEB] cursor-pointer group"
+      className="bg-brand-secondary cursor-pointer group"
       onClick={() => navigate(`/services/${post.slug}`)}
       role="button"
       tabIndex={0}
@@ -49,7 +49,7 @@ const MealCard: React.FC<MealCardProps> = ({ post, visible = true }) => {
           src={post.image}
           alt={post.title}
           visible={visible}
-          className="w-full h-full object-contain bg-stone-100 group-hover:scale-[1.02]"
+          className="w-full h-full object-contain bg-brand-primary group-hover:scale-[1.02]"
         />
       </div>
       <div className="p-6 text-center">
