@@ -4,3 +4,4 @@ export * from "./party-trays";
 export * from "./fun-boxes";
 export * from "./catering";
 export * from "./equipment-rental";
+export * from "./misc";

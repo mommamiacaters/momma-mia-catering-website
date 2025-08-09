@@ -1,7 +1,7 @@
-import service1 from "./services_1.jpg";
-import service2 from "./services_2.jpg";
-import service3 from "./services_3.jpg";
-import service4 from "./services_4.jpg";
-import service5 from "./services_5.png";
+import catering from "./catering.jpg";
+import checkLunch from "./check-a-lunch.jpg";
+import funBoxes from "./fun-boxes.jpg";
+import partyTrays from "./party-trays.jpg";
+import equipmentRental from "./equipment-rental.jpg";
 
-export { service1, service2, service3, service4, service5 };
+export { catering, checkLunch, funBoxes, partyTrays, equipmentRental };

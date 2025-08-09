@@ -51,24 +51,24 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
         isVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
-      <div className="mx-auto px-4 sm:px-6 md:px-16 py-4 md:py-10">
-        <div className="flex items-center justify-between mx-8">
+      <div className="mx-auto px-4 sm:px-6 md:px-10 lg:px-[68px] py-4 md:py-6 lg:py-10">
+        <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link to="/" className="text-2xl font-medium text-black">
+            <Link to="/" className="text-lg sm:text-xl md:text-2xl font-medium text-black">
               MOMMA MIA CATERS
             </Link>
           </div>
 
           {/* Desktop Navigation Links - Center (Hidden on small screens) */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link to="/meals" className={getLinkClasses("/meals")}>
+          <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
+            <Link to="/meals" className={`${getLinkClasses("/meals")} whitespace-nowrap text-sm lg:text-base`}>
               Your Meals & More
             </Link>
-            <Link to="/about" className={getLinkClasses("/about")}>
+            <Link to="/about" className={`${getLinkClasses("/about")} text-sm lg:text-base`}>
               About
             </Link>
-            <Link to="/contact" className={getLinkClasses("/contact")}>
+            <Link to="/contact" className={`${getLinkClasses("/contact")} text-sm lg:text-base`}>
               Contact
             </Link>
           </div>

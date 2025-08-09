@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-
-import Image from "../../components/Image/Image";
-import Masonry, { ResponsiveMasonry } from "react-responsive-masonry";
+import Carousel from "../../components/Carousel/Carousel";
 import {
   // check-a-lunch
   lunch1,
@@ -128,7 +126,19 @@ const ServicePage: React.FC = () => {
         isPageLoaded ? "opacity-100" : "opacity-5"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-6 py-24">
+      <div className="mx-auto px-[68px] pt-8 pb-16 md:pt-16 md:pb-20 lg:pt-20 lg:pb-24">
+        {/* Back link */}
+        <div className="mb-8">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-stone-700 hover:text-stone-900"
+            aria-label="Go back to main page"
+          >
+            <span aria-hidden="true" className="text-xl">←</span>
+            <span className="text-sm sm:text-base">Back to Home</span>
+          </Link>
+        </div>
+
         {/* Header Section */}
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-stone-900 mb-6">
@@ -141,40 +151,15 @@ const ServicePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Gallery Section */}
+        {/* Carousel Section - Full Bleed */}
         {serviceContent.images.length > 0 && (
-          <ResponsiveMasonry
-            columnsCountBreakPoints={{ 350: 1, 750: 2, 1200: 3 }}
-          >
-            <Masonry gutter="24px">
-              {serviceContent.images.map((image, index) => (
-                <div key={index} className="group cursor-pointer">
-                  <div
-                    className="relative overflow-hidden shadow-lg"
-                    role="button"
-                    aria-label={`Preview ${serviceContent.title} image ${
-                      index + 1
-                    }`}
-                    tabIndex={0}
-                    onClick={() => setPreviewUrl(image)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setPreviewUrl(image);
-                      }
-                    }}
-                  >
-                    <Image
-                      src={image}
-                      alt={`${serviceContent.title} ${index + 1}`}
-                      className="h-72 md:h-80"
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300" />
-                  </div>
-                </div>
-              ))}
-            </Masonry>
-          </ResponsiveMasonry>
+          <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen">
+            <Carousel
+              images={serviceContent.images}
+              title={serviceContent.title}
+              onPreview={setPreviewUrl}
+            />
+          </div>
         )}
 
         {/* Preview Modal */}

@@ -22,11 +22,11 @@ const MealCard: React.FC<MealCardProps> = ({ post, visible = true }) => {
   const getImageHeight = () => {
     switch (post.size) {
       case "large":
-        return "h-96";
+        return "md:h-96";
       case "small":
-        return "h-64";
+        return "md:h-64";
       default:
-        return "h-80";
+        return "md:h-80";
     }
   };
 
@@ -44,8 +44,13 @@ const MealCard: React.FC<MealCardProps> = ({ post, visible = true }) => {
       }}
       aria-label={`View details for ${post.title}`}
     >
-      <div className={`relative overflow-hidden ${getImageHeight()}`}>
-        <Image src={post.image} alt={post.title} visible={visible} />
+      <div className={`relative overflow-hidden h-auto aspect-[4/3] md:aspect-auto ${getImageHeight()}`}>
+        <Image
+          src={post.image}
+          alt={post.title}
+          visible={visible}
+          className="w-full h-full object-contain bg-stone-100 group-hover:scale-[1.02]"
+        />
       </div>
       <div className="p-6 text-center">
         <h1 className="font-medium text-2xl text-black mt-2 mb-4 group-hover:text-gray-700 transition-colors">
