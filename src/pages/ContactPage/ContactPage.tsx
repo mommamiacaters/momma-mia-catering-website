@@ -29,7 +29,7 @@ const ContactPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
         {/* Contact Information */}
         <div className="space-y-8">
-          <div>
+          <div className="mt-12">
             <h1 className="text-4xl lg:text-5xl font-bold text-brand-text leading-tight mb-6">
               We'd love to hear from you.
             </h1>

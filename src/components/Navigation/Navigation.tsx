@@ -38,9 +38,11 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
     const activeClasses = "md:border-brand-secondary";
     const inactiveClasses = "md:border-transparent md:hover:border-brand-secondary";
 
-    // On mobile menu, we still want underlines since it's a vertical list
+    // Mobile: default transparent underline, show on hover; solid when active
     const mobileSpecificClasses = isMobileMenu
-      ? "text-lg py-2 border-b-[2px] border-brand-secondary"
+      ? active
+        ? "text-lg py-2 border-b-[2px] border-brand-secondary"
+        : "text-lg py-2 border-b-[2px] border-transparent hover:border-brand-secondary"
       : "";
 
     return `${baseClasses} ${
@@ -127,35 +129,33 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
       </div>
 
       {/* Mobile Menu Overlay */}
-      <div
-        className={`md:hidden absolute top-full left-0 right-0 bg-brand-primary shadow-lg overflow-hidden transition-all duration-300 ease-in-out ${
-          isMenuOpen ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
-        }`}
-      >
-        <div className="px-4 py-6 space-y-4 flex flex-col items-center">
-          <Link
-            to="/meals"
-            className={getLinkClasses("/meals", true)} // Apply custom underline classes, pass true for mobile
-            onClick={toggleMenu}
-          >
-            Your Meals & More
-          </Link>
-          <Link
-            to="/about"
-            className={getLinkClasses("/about", true)} // Apply custom underline classes, pass true for mobile
-            onClick={toggleMenu}
-          >
-            About Us
-          </Link>
-          <Link
-            to="/contact"
-            className={getLinkClasses("/contact", true)} // Apply custom underline classes, pass true for mobile
-            onClick={toggleMenu}
-          >
-            Contact
-          </Link>
+      {isMenuOpen && (
+        <div className="md:hidden absolute top-full left-0 right-0 bg-brand-primary shadow-lg">
+          <div className="px-4 py-6 space-y-4 flex flex-col items-center">
+            <Link
+              to="/meals"
+              className={getLinkClasses("/meals", true)} // Apply custom underline classes, pass true for mobile
+              onClick={toggleMenu}
+            >
+              Your Meals & More
+            </Link>
+            <Link
+              to="/about"
+              className={getLinkClasses("/about", true)} // Apply custom underline classes, pass true for mobile
+              onClick={toggleMenu}
+            >
+              About Us
+            </Link>
+            <Link
+              to="/contact"
+              className={getLinkClasses("/contact", true)} // Apply custom underline classes, pass true for mobile
+              onClick={toggleMenu}
+            >
+              Contact
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
     </nav>
   );
 };
