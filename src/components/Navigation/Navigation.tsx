@@ -52,11 +52,11 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
       }`}
     >
       <div className="mx-auto px-4 sm:px-6 md:px-16 py-4 md:py-10">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mx-8">
           {/* Logo */}
           <div className="flex-shrink-0">
             <Link to="/" className="text-2xl font-medium text-black">
-              Momma Mia Catering
+              MOMMA MIA CATERS
             </Link>
           </div>
 
@@ -142,7 +142,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
             className={getLinkClasses("/about", true)} // Apply custom underline classes, pass true for mobile
             onClick={toggleMenu}
           >
-            About
+            About Us
           </Link>
           <Link
             to="/contact"

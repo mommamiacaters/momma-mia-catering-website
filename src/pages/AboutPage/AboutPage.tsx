@@ -1,6 +1,7 @@
 import React from "react";
 import { FaFacebookF } from "react-icons/fa6";
 import { AiFillInstagram } from "react-icons/ai";
+import Image from "../../components/Image/Image";
 
 const AboutPage: React.FC = () => {
   return (
@@ -30,23 +31,17 @@ const AboutPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="relative">
-          <img
-            src="https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=800"
-            alt="Fresh ingredients and cooking"
-            className="w-full h-96 object-cover rounded-lg shadow-lg"
-          />
-        </div>
+        <Image
+          src="https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=800"
+          alt="Fresh ingredients and cooking"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-        <div className="order-2 lg:order-1 relative">
-          <img
-            src="https://images.pexels.com/photos/566566/pexels-photo-566566.jpeg?auto=compress&cs=tinysrgb&w=800"
-            alt="Gourmet food preparation"
-            className="w-full h-96 object-cover rounded-lg shadow-lg"
-          />
-        </div>
+        <Image
+          src="https://images.pexels.com/photos/566566/pexels-photo-566566.jpeg?auto=compress&cs=tinysrgb&w=800"
+          alt="Gourmet food preparation"
+        />
 
         <div className="order-1 lg:order-2 space-y-6">
           <div className="space-y-4 text-stone-600 leading-relaxed">

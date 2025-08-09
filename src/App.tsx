@@ -10,6 +10,8 @@ import Footer from "./components/Footer/Footer";
 import MealsPage from "./pages/MealsPage/MealsPage";
 import AboutPage from "./pages/AboutPage/AboutPage";
 import ContactPage from "./pages/ContactPage/ContactPage";
+import ServicePage from "./pages/ServicePage/ServicePage";
+ 
 
 function AppContent() {
   const location = useLocation();
@@ -70,6 +72,10 @@ function AppContent() {
           <Route
             path="/contact"
             element={<ContactPage/>}
+          />
+          <Route
+            path="/services/:slug"
+            element={<ServicePage />}
           />
         </Routes>
       </main>
