@@ -51,10 +51,13 @@ function AppContent() {
     window.scrollTo(0, 0); // Scroll to top on route change for consistent behavior
   }, [location.pathname]);
 
+  // Hide navigation on service pages
+  const isServicePage = location.pathname.startsWith('/services/');
+
   return (
     <div className="min-h-screen bg-brand-secondary">
-      <Navigation isVisible={showNavbar} />
-      <main className="pt-20">
+      {!isServicePage && <Navigation isVisible={showNavbar} />}
+      <main className={!isServicePage ? 'pt-20' : ''}>
         <Routes>
           {/* Pass location.pathname as a prop */}
           <Route

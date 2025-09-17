@@ -94,14 +94,7 @@ const ServicePage: React.FC = () => {
 
   const serviceContent = getServiceContent(slug || "");
 
-  const [isPageLoaded, setIsPageLoaded] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    setIsPageLoaded(false);
-    const t = setTimeout(() => setIsPageLoaded(true), 50);
-    return () => clearTimeout(t);
-  }, [slug]);
 
   // Close preview on ESC
   useEffect(() => {
@@ -113,16 +106,12 @@ const ServicePage: React.FC = () => {
   }, []);
 
   return (
-    <div
-      className={`min-h-screen bg-brand-secondary transition-opacity duration-700 ease-in ${
-        isPageLoaded ? "opacity-100" : "opacity-5"
-      }`}
-    >
+    <div className="min-h-screen bg-brand-secondary">
       <div className="mx-auto px-[68px] pt-8 pb-16 md:pt-16 md:pb-20 lg:pt-20 lg:pb-24">
         {/* Back link */}
         <div className="mb-8">
           <Link
-            to="/"
+            to="/meals"
             className="inline-flex items-center gap-2 text-brand-text hover:text-brand-text"
             aria-label="Go back to main page"
           >
