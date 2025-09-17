@@ -5,11 +5,12 @@ const ContactPage: React.FC = () => {
     firstName: "",
     lastName: "",
     email: "",
+    topic: "",
     message: "",
   });
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -109,6 +110,30 @@ const ContactPage: React.FC = () => {
                 className="w-full px-4 py-3 border border-brand-divider focus:border-brand-primary focus:outline-none transition-colors"
                 required
               />
+            </div>
+
+            <div>
+              <label
+                htmlFor="topic"
+                className="block text-sm font-medium text-brand-text mb-2"
+              >
+                What's this about? <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="topic"
+                value={formData.topic}
+                onChange={handleInputChange}
+                required
+                className="w-full px-4 py-3 border border-brand-divider focus:border-brand-primary focus:outline-none transition-colors bg-white"
+              >
+                <option value="" disabled>
+                  Select a topic
+                </option>
+                <option value="catering">Catering & Events</option>
+                <option value="feedback">Comments, Suggestions, or Concerns</option>
+                <option value="wholesale">Wholesale Inquiry</option>
+                <option value="partnerships">Partnerships & Collaborations</option>
+              </select>
             </div>
 
             <div>
