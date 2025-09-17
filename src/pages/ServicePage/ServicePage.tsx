@@ -197,12 +197,12 @@ const ServicePage: React.FC = () => {
               quote. We're here to make your event unforgettable.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link
+              {/* <Link
                 to="/contact"
                 className="inline-flex items-center justify-center w-56 px-8 py-3 bg-brand-secondary text-brand-text font-medium text-center transition-colors"
               >
                 Contact Us
-              </Link>
+              </Link> */}
               <a
                 href="https://m.me/61559809667297"
                 target="_blank"
