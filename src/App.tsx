@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import Navigation from "./components/Navigation/Navigation";
 import Footer from "./components/Footer/Footer";
+import Chatbot from "./components/Chatbot/Chatbot";
 import MealsPage from "./pages/MealsPage/MealsPage";
 import AboutPage from "./pages/AboutPage/AboutPage";
 import ContactPage from "./pages/ContactPage/ContactPage";
@@ -83,6 +84,7 @@ function AppContent() {
         </Routes>
       </main>
       <Footer />
+      <Chatbot />
     </div>
   );
 }
