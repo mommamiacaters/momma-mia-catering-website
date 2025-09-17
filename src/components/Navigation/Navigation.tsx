@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { FaFacebookF } from "react-icons/fa6";
 import { AiFillInstagram } from "react-icons/ai";
+import { logo } from "../../images";
 
 interface NavigationProps {
   isVisible: boolean;
@@ -30,19 +31,19 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
     const active = isActive(path) || (path === "/meals" && isActive("/"));
     const baseClasses = `
       inline-block
-      text-brand-secondary font-normal
+      text-white font-normal
       pb-1
       md:border-b-[2px]
       transition-colors duration-300 ease-in-out
     `;
-    const activeClasses = "md:border-brand-secondary";
-    const inactiveClasses = "md:border-transparent md:hover:border-brand-secondary";
+    const activeClasses = "md:border-white";
+    const inactiveClasses = "md:border-transparent md:hover:border-white";
 
     // Mobile: default transparent underline, show on hover; solid when active
     const mobileSpecificClasses = isMobileMenu
       ? active
-        ? "text-lg py-2 border-b-[2px] border-brand-secondary"
-        : "text-lg py-2 border-b-[2px] border-transparent hover:border-brand-secondary"
+        ? "text-lg py-2 border-b-[2px] border-white font-bold"
+        : "text-lg py-2 border-b-[2px] border-transparent hover:border-white"
       : "";
 
     return `${baseClasses} ${
@@ -60,21 +61,31 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link to="/" className="text-lg sm:text-xl md:text-2xl font-medium text-brand-secondary">
-              MOMMA MIA CATERS
+            <Link to="/meals" className="block h-full absolute transform -translate-x-1/2 -translate-y-1/2">
+              <img 
+                src={logo} 
+                alt="Momma Mia Caters Logo" 
+                className="h-full object-contain"
+              />
             </Link>
           </div>
 
           {/* Desktop Navigation Links - Center (Hidden on small screens) */}
-          <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
-            <Link to="/meals" className={`${getLinkClasses("/meals")} whitespace-nowrap text-sm lg:text-base`}>
+          <div className="hidden md:flex items-center space-x-6 lg:space-x-8 text-white">
+            <Link to="/meals" className={`${getLinkClasses("/meals")} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}>
+              {isActive("/meals") && <span className="text-white mr-2 md:mr-3">•</span>}
               Your Meals & More
+              {isActive("/meals") && <span className="text-white ml-2 md:ml-3">•</span>}
             </Link>
-            <Link to="/about" className={`${getLinkClasses("/about")} text-sm lg:text-base`}>
+            <Link to="/about" className={`${getLinkClasses("/about")} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}>
+              {isActive("/about") && <span className="text-white mr-2 md:mr-3">•</span>}
               About
+              {isActive("/about") && <span className="text-white ml-2 md:ml-3">•</span>}
             </Link>
-            <Link to="/contact" className={`${getLinkClasses("/contact")} text-sm lg:text-base`}>
+            <Link to="/contact" className={`${getLinkClasses("/contact")} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}>
+              {isActive("/contact") && <span className="text-white mr-2 md:mr-3">•</span>}
               Contact
+              {isActive("/contact") && <span className="text-white ml-2 md:ml-3">•</span>}
             </Link>
           </div>
 
@@ -134,24 +145,30 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
           <div className="px-4 py-6 space-y-4 flex flex-col items-center">
             <Link
               to="/meals"
-              className={getLinkClasses("/meals", true)} // Apply custom underline classes, pass true for mobile
+              className={`${getLinkClasses("/meals", true)} flex items-center`} // Apply custom underline classes, pass true for mobile
               onClick={toggleMenu}
             >
+              <span className="text-brand-secondary mr-2">•</span>
               Your Meals & More
+              <span className="text-brand-secondary ml-2">•</span>
             </Link>
             <Link
               to="/about"
-              className={getLinkClasses("/about", true)} // Apply custom underline classes, pass true for mobile
+              className={`${getLinkClasses("/about", true)} flex items-center`} // Apply custom underline classes, pass true for mobile
               onClick={toggleMenu}
             >
+              <span className="text-brand-secondary mr-2">•</span>
               About Us
+              <span className="text-brand-secondary ml-2">•</span>
             </Link>
             <Link
               to="/contact"
-              className={getLinkClasses("/contact", true)} // Apply custom underline classes, pass true for mobile
+              className={`${getLinkClasses("/contact", true)} flex items-center`} // Apply custom underline classes, pass true for mobile
               onClick={toggleMenu}
             >
+              <span className="text-brand-secondary mr-2">•</span>
               Contact
+              <span className="text-brand-secondary ml-2">•</span>
             </Link>
           </div>
         </div>
