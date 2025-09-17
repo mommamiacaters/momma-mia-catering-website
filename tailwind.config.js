@@ -11,6 +11,10 @@ export default {
         'brand-accent': '#F2B34A', // secondary accent
         'brand-divider': '#D9CDBE', // subtle borders/dividers
       },
+      fontFamily: {
+        'arvo': ['Arvo', 'serif'],
+        'poppins': ['Poppins', 'sans-serif'],
+      },
     },
   },
   plugins: [],

@@ -1,12 +1,13 @@
-/* Custom font and base styles */
+/* Custom fonts and base styles */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: 'Arvo', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   font-weight: 300; /* Changed to a lighter weight */
   line-height: 1.6;
 }
@@ -28,4 +29,26 @@ button:focus {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+/* Arvo font utility classes */
+@layer utilities {
+  .font-arvo {
+    font-family: 'Arvo', serif;
+  }
+  
+  .font-arvo-regular {
+    font-family: 'Arvo', serif;
+    font-weight: 400;
+  }
+  
+  .font-arvo-bold {
+    font-family: 'Arvo', serif;
+    font-weight: 700;
+  }
+  
+  .font-arvo-italic {
+    font-family: 'Arvo', serif;
+    font-style: italic;
+  }
 }
