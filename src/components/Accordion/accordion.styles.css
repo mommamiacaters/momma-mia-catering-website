@@ -1,0 +1,15 @@
+.p-accordion .p-accordion-tab .p-accordion-header .p-accordion-header-link {
+  @apply p-4 border border-gray-200 rounded mb-2 relative;
+}
+
+.p-accordion .p-accordion-tab .p-accordion-header .p-accordion-header-link .p-accordion-toggle-icon {
+  @apply absolute right-4 top-1/2 -translate-y-1/2 ml-auto;
+}
+
+.p-accordion .p-accordion-tab .p-accordion-content {
+  @apply p-0 border-0;
+}
+
+.p-accordion .p-accordion-tab .p-accordion-content .p-accordion-content-wrapper {
+  @apply p-4 border border-t-0 border-gray-200 rounded-b-lg mb-2;
+}
