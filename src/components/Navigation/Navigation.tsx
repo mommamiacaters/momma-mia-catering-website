@@ -1,8 +1,5 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react";
-import { FaFacebookF } from "react-icons/fa6";
-import { AiFillInstagram } from "react-icons/ai";
 import { logo } from "../../images";
 
 interface NavigationProps {
@@ -61,10 +58,13 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link to="/meals" className="block h-full absolute transform -translate-x-1/2 -translate-y-1/2">
-              <img 
-                src={logo} 
-                alt="Momma Mia Caters Logo" 
+            <Link
+              to="/meals"
+              className="block h-full absolute transform -translate-x-1/2 -translate-y-1/2"
+            >
+              <img
+                src={logo}
+                alt="Momma Mia Caters Logo"
                 className="h-full object-contain"
               />
             </Link>
@@ -72,20 +72,47 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
 
           {/* Desktop Navigation Links - Center (Hidden on small screens) */}
           <div className="hidden md:flex items-center space-x-6 lg:space-x-8 text-white">
-            <Link to="/meals" className={`${getLinkClasses("/meals")} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}>
-              {isActive("/meals") && <span className="text-white mr-2 md:mr-3">•</span>}
+            <Link
+              to="/meals"
+              className={`${getLinkClasses(
+                "/meals"
+              )} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}
+            >
+              {isActive("/meals") && (
+                <span className="text-white mr-2 md:mr-3">•</span>
+              )}
               Your Meals & More
-              {isActive("/meals") && <span className="text-white ml-2 md:ml-3">•</span>}
+              {isActive("/meals") && (
+                <span className="text-white ml-2 md:ml-3">•</span>
+              )}
             </Link>
-            <Link to="/about" className={`${getLinkClasses("/about")} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}>
-              {isActive("/about") && <span className="text-white mr-2 md:mr-3">•</span>}
+            <Link
+              to="/about"
+              className={`${getLinkClasses(
+                "/about"
+              )} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}
+            >
+              {isActive("/about") && (
+                <span className="text-white mr-2 md:mr-3">•</span>
+              )}
               About
-              {isActive("/about") && <span className="text-white ml-2 md:ml-3">•</span>}
+              {isActive("/about") && (
+                <span className="text-white ml-2 md:ml-3">•</span>
+              )}
             </Link>
-            <Link to="/contact" className={`${getLinkClasses("/contact")} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}>
-              {isActive("/contact") && <span className="text-white mr-2 md:mr-3">•</span>}
+            <Link
+              to="/contact"
+              className={`${getLinkClasses(
+                "/contact"
+              )} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}
+            >
+              {isActive("/contact") && (
+                <span className="text-white mr-2 md:mr-3">•</span>
+              )}
               Contact
-              {isActive("/contact") && <span className="text-white ml-2 md:ml-3">•</span>}
+              {isActive("/contact") && (
+                <span className="text-white ml-2 md:ml-3">•</span>
+              )}
             </Link>
           </div>
 
@@ -97,7 +124,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <FaFacebookF size={20} />
+              <i className="pi pi-facebook text-2xl"></i>
             </a>
             <a
               href="https://www.instagram.com/momma_mia_caters/"
@@ -105,7 +132,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <AiFillInstagram size={24} />
+              <i className="pi pi-instagram text-2xl"></i>
             </a>
           </div>
 
@@ -118,7 +145,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <FaFacebookF size={20} />
+              <i className="pi pi-facebook text-2xl"></i>
             </a>
             <a
               href="https://www.instagram.com/momma_mia_caters/"
@@ -126,14 +153,18 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <AiFillInstagram size={24} />
+              <i className="pi pi-instagram text-2xl"></i>
             </a>
             <button
               onClick={toggleMenu}
               className="text-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-divider"
               aria-label="Toggle navigation menu"
             >
-              {isMenuOpen ? <X size={30} /> : <Menu size={30} />}
+              {isMenuOpen ? (
+                <i className="pi pi-times text-2xl"></i>
+              ) : (
+                <i className="pi pi-bars text-2xl"></i>
+              )}
             </button>
           </div>
         </div>
@@ -163,7 +194,10 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
             </Link>
             <Link
               to="/contact"
-              className={`${getLinkClasses("/contact", true)} flex items-center`} // Apply custom underline classes, pass true for mobile
+              className={`${getLinkClasses(
+                "/contact",
+                true
+              )} flex items-center`} // Apply custom underline classes, pass true for mobile
               onClick={toggleMenu}
             >
               <span className="text-brand-secondary mr-2">•</span>

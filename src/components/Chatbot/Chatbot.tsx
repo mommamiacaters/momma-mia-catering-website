@@ -1,16 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import ServiceOptions from "./components/ServiceOptions";
 import MealList from "./components/MealList";
+import { menuService, MenuData } from "../../services/menuService";
 
 interface Message {
   text: string;
   sender: "user" | "bot";
   id: number;
-}
-
-interface MealItem {
-  name: string;
-  price: string;
 }
 
 interface ChatbotProps {
@@ -30,29 +26,26 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const [showBadge, setShowBadge] = useState(true);
   const [showQuickOptions, setShowQuickOptions] = useState(true);
   const [context, setContext] = useState({});
+  const [mealData, setMealData] = useState<MenuData | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatWidgetRef = useRef<HTMLDivElement>(null);
   const messageIdCounter = useRef(0);
 
-  const mealData = {
-    "check-a-lunch": [
-      { name: "Chicken Adobo Meal", price: "₱650" },
-      { name: "Beef Caldereta Meal", price: "₱750" },
-      { name: "Pork Sisig Meal", price: "₱700" },
-      { name: "Fish Fillet Meal", price: "₱680" },
-      { name: "Vegetable Spring Rolls Meal", price: "₱600" },
-    ],
-    "fun-boxes": [
-      { name: "Mini Pancit Canton Box", price: "₱800" },
-      { name: "Chicken BBQ Skewers Box", price: "₱900" },
-      { name: "Lumpia Shanghai Box", price: "₱750" },
-      { name: "Mixed Rice Bowls Box", price: "₱850" },
-      { name: "Assorted Sandwiches Box", price: "₱700" },
-      { name: "Filipino Snacks Mix Box", price: "₱650" },
-    ],
-  };
+  // Load menu data on component mount
+  useEffect(() => {
+    const loadMenuData = async () => {
+      try {
+        const data = await menuService.getAllMenuData();
+        setMealData(data);
+      } catch (error) {
+        console.error("Failed to load menu data:", error);
+      }
+    };
+
+    loadMenuData();
+  }, []);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -190,7 +183,6 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
   const showServiceOptions = () => {
     addMessage("Great! Which service would you like to order from?", "bot");
-    // Service options would be handled through custom message components
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -207,7 +199,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
         isOpen &&
         chatWidgetRef.current &&
         !chatWidgetRef.current.contains(event.target as Node) &&
-        !(event.target as Element).closest("button[data-chat-toggle]") // Exclude chat button
+        !(event.target as Element).closest("button[data-chat-toggle]")
       ) {
         setIsOpen(false);
       }
@@ -221,12 +213,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
   const [showServiceSelection, setShowServiceSelection] = useState(false);
   const [showMealSelection, setShowMealSelection] = useState<{
-    service: keyof typeof mealData;
+    service: keyof MenuData;
     serviceName: string;
   } | null>(null);
 
   const handleServiceSelect = (
-    service: keyof typeof mealData,
+    service: keyof MenuData,
     serviceName: string
   ) => {
     setShowServiceSelection(false);
@@ -246,11 +238,21 @@ const Chatbot: React.FC<ChatbotProps> = ({
     }, 1500);
   };
 
-  useEffect(() => {
-    if (messages.length === 0 && showQuickOptions) {
-      // Don't add welcome message automatically, let parent handle it
+  // Refresh menu data function
+  const refreshMenuData = async () => {
+    try {
+      await menuService.refreshMenuData();
+      const freshData = await menuService.getAllMenuData(true);
+      setMealData(freshData);
+      addMessage("Menu data has been refreshed! 📋", "bot");
+    } catch (error) {
+      console.error("Failed to refresh menu data:", error);
+      addMessage(
+        "Sorry, I couldn't refresh the menu data right now. 😔",
+        "bot"
+      );
     }
-  }, []);
+  };
 
   return (
     <div className={`fixed z-50 ${className}`}>
@@ -263,7 +265,11 @@ const Chatbot: React.FC<ChatbotProps> = ({
         }`}
         style={{ width: "60px", height: "60px" }}
       >
-        {isOpen ? "×" : "🗪"}
+        {isOpen ? (
+          <i className="pi pi-times text-xl"></i>
+        ) : (
+          <i className="pi pi-comments text-xl"></i>
+        )}
         {showBadge && !isOpen && (
           <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center font-bold animate-pulse">
             1
@@ -288,12 +294,21 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 Good food brings people together ❤️
               </p>
             </div>
-            <button
-              onClick={closeWidget}
-              className="bg-white/20 border-none text-white w-8 h-8 rounded-full cursor-pointer flex items-center justify-center text-xl transition-colors duration-300 hover:bg-white/30"
-            >
-              ×
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={refreshMenuData}
+                title="Refresh Menu"
+                className="bg-white/20 border-none text-white w-8 h-8 rounded-full cursor-pointer flex items-center justify-center text-sm transition-colors duration-300 hover:bg-white/30"
+              >
+                🔄
+              </button>
+              <button
+                onClick={closeWidget}
+                className="bg-white/20 border-none text-white w-8 h-8 rounded-full cursor-pointer flex items-center justify-center text-xl transition-colors duration-300 hover:bg-white/30"
+              >
+                ×
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -359,7 +374,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
             ))}
 
             {/* Service Selection */}
-            {showServiceSelection && (
+            {showServiceSelection && mealData && (
               <div className="self-start w-full">
                 <ServiceOptions
                   onSelect={handleServiceSelect}
@@ -376,6 +391,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
                   serviceName={showMealSelection.serviceName}
                   onContinue={handleMealContinue}
                   addMessage={addMessage}
+                  mealData={mealData} // Add this prop to pass the dynamic data
                 />
               </div>
             )}

@@ -1,7 +1,5 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
-import { FaFacebookF, FaCheck } from "react-icons/fa6";
-import { AiFillInstagram } from "react-icons/ai";
 
 const Footer: React.FC = () => {
   const { pathname } = useLocation();
@@ -20,19 +18,19 @@ const Footer: React.FC = () => {
               {/* <p className="text-brand-secondary mb-3">Only for the chosen few:</p> */}
               <ul className="inline-block text-brand-secondary text-left space-y-2">
                 <li className="grid grid-cols-[1.25rem,1fr] items-start gap-2">
-                  <FaCheck className="mt-0.5" />
+                  <i className="pi pi-check mt-0.5"></i>
                   <span>Sneak peek menus</span>
                 </li>
                 <li className="grid grid-cols-[1.25rem,1fr] items-start gap-2">
-                  <FaCheck className="mt-0.5" />
+                  <i className="pi pi-check mt-0.5"></i>
                   <span>First dibs on promos</span>
                 </li>
                 <li className="grid grid-cols-[1.25rem,1fr] items-start gap-2">
-                  <FaCheck className="mt-0.5" />
+                  <i className="pi pi-check mt-0.5"></i>
                   <span>Tips to make your parties pop</span>
                 </li>
                 <li className="grid grid-cols-[1.25rem,1fr] items-start gap-2">
-                  <FaCheck className="mt-0.5" />
+                  <i className="pi pi-check mt-0.5"></i>
                   <span>Random acts of deliciousness</span>
                 </li>
               </ul>
@@ -65,7 +63,7 @@ const Footer: React.FC = () => {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <FaFacebookF size={20} />
+            <i className="pi pi-facebook text-2xl"></i>
           </a>
           <a
             href="https://www.instagram.com/momma_mia_caters/"
@@ -73,7 +71,7 @@ const Footer: React.FC = () => {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <AiFillInstagram size={24} />
+            <i className="pi pi-instagram text-2xl"></i>
           </a>
         </div>
       </div>
