@@ -1,0 +1,42 @@
+/* PrimeReact Sidebar Animation Fixes for Shopping Bag */
+
+/* Ensure the sidebar has proper z-index and doesn't conflict with other elements */
+.shopping-bag-sidebar.p-sidebar {
+  z-index: 1100 !important;
+  width: 24rem !important; /* 384px = w-96 */
+  max-width: 90vw !important;
+}
+
+/* Ensure the mask (overlay) has proper z-index and styling */
+.p-sidebar-mask {
+  z-index: 1099 !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Fix content scrolling and padding */
+.shopping-bag-sidebar .p-sidebar-content {
+  height: 100% !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+/* Ensure proper positioning for right sidebar */
+.shopping-bag-sidebar.p-sidebar-right {
+  right: 0 !important;
+  top: 0 !important;
+  height: 100vh !important;
+}
+
+/* Reset any conflicting Tailwind transforms that might interfere */
+.shopping-bag-sidebar * {
+  transform: none !important;
+}
+
+.shopping-bag-sidebar {
+  transform: none !important;
+}
+
+/* Let PrimeReact handle all animations natively */
+.shopping-bag-sidebar.p-sidebar-right {
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
