@@ -15,7 +15,8 @@ interface ChatbotProps {
 }
 
 const Chatbot: React.FC<ChatbotProps> = ({
-  webhookUrl = "http://localhost:5678/webhook/momma-mia-chat",
+  webhookUrl = process.env.REACT_APP_N8N_BASE_URL ||
+    process.env.REACT_APP_N8N_LOCAL,
   className = "",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
