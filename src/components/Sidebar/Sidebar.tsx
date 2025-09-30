@@ -19,6 +19,7 @@ interface MenuItem {
 
 interface SelectedItemWithQuantity extends MenuItem {
   quantity: number;
+  instanceId: string; // Unique ID for each item instance
 }
 
 interface ShoppingBagSidebarProps {
@@ -68,9 +69,8 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
     }
   };
 
-  // Function to remove a single instance of an item from a specific meal plan
+  // Function to remove a specific item instance by its unique ID
   const removeSingleItemInstance = (item: SelectedItemWithQuantity) => {
-    // Use the parent's onItemRemove function which now handles single instance removal
     onItemRemove(item);
   };
 
@@ -102,7 +102,6 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
         {/* Content */}
         <div className="mt-4 flex-1 overflow-y-auto" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
           <div className="space-y-3 h-full">
-            {/* Create individual meal plan instances */}
             {(() => {
               // Create separate instances for each meal plan quantity
               const createMealPlanInstances = () => {
@@ -128,7 +127,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                 return instances;
               };
 
-              // Distribute selected items across meal plan instances
+              // Distribute items across meal plan instances
               const distributeItemsAcrossMealPlans = () => {
                 const instances = createMealPlanInstances();
                 const distribution: {
@@ -140,56 +139,35 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                   distribution[instance.globalIndex] = [];
                 });
 
-                // Group items by type
-                const itemsByType = {
-                  main: selectedItems.filter((item) => item.type === "main"),
-                  side: selectedItems.filter((item) => item.type === "side"),
-                  starch: selectedItems.filter(
-                    (item) => item.type === "starch"
-                  ),
-                };
+                // Distribute each item individually by its instanceId
+                selectedItems.forEach((item) => {
+                  // Find first available instance that can accept this item type
+                  let placed = false;
 
-                // Distribute items across instances - PRIORITY FILL APPROACH
-                ["main", "side", "starch"].forEach((type) => {
-                  const items = itemsByType[type as keyof typeof itemsByType];
+                  // Go through instances in order (first to last)
+                  for (let i = 0; i < instances.length; i++) {
+                    const instance = instances[i];
+                    const limits = getMealPlanLimits(instance.type);
+                    const currentItems = distribution[instance.globalIndex];
+                    const currentTypeCount = currentItems.filter(
+                      (i) => i.type === item.type
+                    ).length;
 
-                  items.forEach((item) => {
-                    for (let q = 0; q < item.quantity; q++) {
-                      // Find first available instance that can accept this item type
-                      let placed = false;
-
-                      // Go through instances in order (first to last)
-                      for (let i = 0; i < instances.length; i++) {
-                        const instance = instances[i];
-                        const limits = getMealPlanLimits(instance.type);
-                        const currentItems = distribution[instance.globalIndex];
-                        const currentTypeCount = currentItems.filter(
-                          (item) => item.type === type
-                        ).length;
-
-                        if (currentTypeCount < limits[type]) {
-                          // Add single quantity item to this instance
-                          distribution[instance.globalIndex].push({
-                            ...item,
-                            quantity: 1,
-                          });
-                          placed = true;
-                          break; // Stop looking once we've placed the item
-                        }
-                      }
-
-                      if (!placed) {
-                        // If we can't place the item, add it to the first available instance
-                        const firstInstance = instances[0];
-                        if (firstInstance) {
-                          distribution[firstInstance.globalIndex].push({
-                            ...item,
-                            quantity: 1,
-                          });
-                        }
-                      }
+                    if (currentTypeCount < limits[item.type]) {
+                      // Add item to this instance
+                      distribution[instance.globalIndex].push(item);
+                      placed = true;
+                      break;
                     }
-                  });
+                  }
+
+                  if (!placed) {
+                    // If we can't place the item, add it to the first available instance
+                    const firstInstance = instances[0];
+                    if (firstInstance) {
+                      distribution[firstInstance.globalIndex].push(item);
+                    }
+                  }
                 });
 
                 return { instances, distribution };
@@ -264,9 +242,9 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
 
                                 <div className="space-y-2">
                                   {/* Show selected items */}
-                                  {categoryItems.map((item, itemIndex) => (
+                                  {categoryItems.map((item) => (
                                     <div
-                                      key={`${item.name}-${itemIndex}`}
+                                      key={item.instanceId}
                                       className="flex justify-between items-center p-2"
                                     >
                                       <div className="flex items-center flex-1 min-w-0">
@@ -288,37 +266,12 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-1.5 ml-2">
-                                        {/* <button
-                                          onClick={() =>
-                                            onItemQuantityChange(
-                                              item,
-                                              item.quantity - 1
-                                            )
-                                          }
-                                          className="w-5 h-5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-xs rounded-full flex items-center justify-center transition-colors"
-                                        >
-                                          <i className="pi pi-minus text-xs"></i>
-                                        </button>
-                                        <span className="w-5 text-center text-xs font-medium">
-                                          {item.quantity}
-                                        </span>
-                                        <button
-                                          onClick={() =>
-                                            onItemQuantityChange(
-                                              item,
-                                              item.quantity + 1
-                                            )
-                                          }
-                                          className="w-5 h-5 bg-brand-primary hover:bg-brand-primary text-white text-xs rounded-full flex items-center justify-center transition-colors"
-                                        >
-                                          <i className="pi pi-plus text-xs"></i>
-                                        </button> */}
                                         <button
                                           onClick={() =>
                                             removeSingleItemInstance(item)
                                           }
                                           className="ml-1 w-5 h-5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full flex items-center justify-center transition-colors"
-                                          title="Remove one instance of this item"
+                                          title="Remove this item"
                                         >
                                           <i className="pi pi-trash text-xs"></i>
                                         </button>

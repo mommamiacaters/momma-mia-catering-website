@@ -48,6 +48,7 @@ interface MealPlanOrder {
 
 interface SelectedItemWithQuantity extends MenuItem {
   quantity: number;
+  instanceId: string; // Unique ID for tracking each item instance
 }
 
 const ServicePage: React.FC = () => {
@@ -235,13 +236,40 @@ const ServicePage: React.FC = () => {
   const updateSelectedItemLimits = () => {
     const maxAllowed = getMaxAllowedItemsByType();
 
+    // Group items by name and type to count them
+    const itemCounts: Record<string, number> = {};
+    selectedItems.forEach((item) => {
+      const key = `${item.name}-${item.type}`;
+      itemCounts[key] = (itemCounts[key] || 0) + 1;
+    });
+
+    // Remove excess items (keeping the LAST instances)
+    const itemsToKeep: SelectedItemWithQuantity[] = [];
+    const itemsToRemove: Set<string> = new Set();
+
+    Object.entries(itemCounts).forEach(([key, count]) => {
+      const [name, type] = key.split('-');
+      const maxForType = maxAllowed[type] || 0;
+      
+      if (count > maxForType) {
+        // We need to remove (count - maxForType) items
+        const excessCount = count - maxForType;
+        const itemsOfType = selectedItems.filter(
+          (item) => item.name === name && item.type === type
+        );
+        
+        // Mark the FIRST excess items for removal (this keeps the LAST ones)
+        for (let i = 0; i < excessCount; i++) {
+          if (itemsOfType[i]) {
+            itemsToRemove.add(itemsOfType[i].instanceId);
+          }
+        }
+      }
+    });
+
+    // Keep all items except the ones marked for removal
     setSelectedItems((prev) =>
-      prev
-        .map((item) => ({
-          ...item,
-          quantity: Math.min(item.quantity, maxAllowed[item.type] || 0),
-        }))
-        .filter((item) => item.quantity > 0)
+      prev.filter((item) => !itemsToRemove.has(item.instanceId))
     );
   };
 
@@ -259,7 +287,7 @@ const ServicePage: React.FC = () => {
     return limits;
   };
 
-  // Handle adding items to selection
+  // Handle adding items to selection - now creates individual instances
   const handleItemAdd = (item: MenuItem) => {
     if (mealPlanOrders.length === 0) return;
 
@@ -275,87 +303,48 @@ const ServicePage: React.FC = () => {
       return;
     }
 
-    setSelectedItems((prev) => {
-      const existing = prev.find((selected) => selected.name === item.name);
-      if (existing) {
-        return prev.map((selected) =>
-          selected.name === item.name
-            ? { ...selected, quantity: selected.quantity + 1 }
-            : selected
-        );
-      } else {
-        return [...prev, { ...item, quantity: 1 }];
-      }
-    });
+    // Create a new instance with unique ID
+    const newInstance: SelectedItemWithQuantity = {
+      ...item,
+      quantity: 1,
+      instanceId: `${item.name}-${Date.now()}-${Math.random()}`,
+    };
+
+    setSelectedItems((prev) => [...prev, newInstance]);
   };
 
   const handleItemQuantityDecrease = (item: MenuItem) => {
-    const selectedItem = selectedItems.find(
+    // Find the LAST instance of this item
+    const itemInstances = selectedItems.filter(
       (selected) => selected.name === item.name
     );
 
-    if (selectedItem) {
-      if (selectedItem.quantity <= 1) {
-        // Remove completely if quantity is 1 or less
-        handleItemRemove(selectedItem);
-      } else {
-        // Decrease quantity by 1
-        handleItemQuantityChange(selectedItem, selectedItem.quantity - 1);
-      }
+    if (itemInstances.length > 0) {
+      const lastInstance = itemInstances[itemInstances.length - 1];
+      handleItemRemove(lastInstance);
     }
   };
 
-  // Handle removing items from selection - MODIFIED to remove only 1 instance
+  // Handle removing a specific item instance
   const handleItemRemove = (item: SelectedItemWithQuantity) => {
-    setSelectedItems((prev) => {
-      const existingItem = prev.find((selected) => selected.name === item.name);
-      if (!existingItem) return prev;
-
-      if (existingItem.quantity <= 1) {
-        // Remove completely if only 1 left
-        return prev.filter((selected) => selected.name !== item.name);
-      } else {
-        // Decrease quantity by 1
-        return prev.map((selected) =>
-          selected.name === item.name
-            ? { ...selected, quantity: selected.quantity - 1 }
-            : selected
-        );
-      }
-    });
+    setSelectedItems((prev) =>
+      prev.filter((selected) => selected.instanceId !== item.instanceId)
+    );
   };
 
-  // Handle quantity change for selected items
+  // Handle quantity change for selected items (legacy support)
   const handleItemQuantityChange = (
     item: SelectedItemWithQuantity,
     newQuantity: number
   ) => {
-    if (newQuantity <= 0) {
-      // Remove completely when quantity is 0 or less
-      setSelectedItems((prev) =>
-        prev.filter((selected) => selected.name !== item.name)
-      );
-      return;
-    }
-
-    const maxAllowed = getMaxAllowedItemsByType();
-    const finalQuantity = Math.min(newQuantity, maxAllowed[item.type] || 0);
-
-    setSelectedItems((prev) =>
-      prev.map((selected) =>
-        selected.name === item.name
-          ? { ...selected, quantity: finalQuantity }
-          : selected
-      )
-    );
+    // This function is kept for interface compatibility but not used
+    // since we now handle items individually
   };
 
-  // Get current quantity of an item
+  // Get current quantity of an item (count instances)
   const getCurrentItemQuantity = (item: MenuItem): number => {
-    const selectedItem = selectedItems.find(
-      (selected) => selected.name === item.name
-    );
-    return selectedItem ? selectedItem.quantity : 0;
+    return selectedItems.filter((selected) => selected.name === item.name)
+      .length;
   };
 
   // Get meal plan limits
@@ -402,14 +391,14 @@ const ServicePage: React.FC = () => {
       (total, order) => total + getMealPlanPrice(order.type) * order.quantity,
       0
     );
-    
+
     return mealPlanCost;
   };
 
-  // Get total items count (includes both meal plans and selected items)
+  // Get total items count (count individual instances)
   const getTotalItemsCount = (): number => {
     return (
-      selectedItems.reduce((total, item) => total + item.quantity, 0) +
+      selectedItems.length +
       mealPlanOrders.reduce((total, order) => total + order.quantity, 0)
     );
   };
@@ -432,7 +421,9 @@ const ServicePage: React.FC = () => {
 
   // Update selected item limits when meal plans change
   useEffect(() => {
-    updateSelectedItemLimits();
+    if (mealPlanOrders.length > 0) {
+      updateSelectedItemLimits();
+    }
   }, [mealPlanOrders]);
 
   return (
