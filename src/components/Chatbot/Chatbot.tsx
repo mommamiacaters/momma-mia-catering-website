@@ -15,8 +15,9 @@ interface ChatbotProps {
 }
 
 const Chatbot: React.FC<ChatbotProps> = ({
-  webhookUrl = process.env.REACT_APP_N8N_BASE_URL ||
-    process.env.REACT_APP_N8N_LOCAL,
+  webhookUrl = `${
+    import.meta.env.VITE_N8N_BASE_URL || import.meta.env.VITE_N8N_LOCAL
+  }`,
   className = "",
 }) => {
   const [isOpen, setIsOpen] = useState(false);

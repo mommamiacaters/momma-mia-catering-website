@@ -40,7 +40,7 @@ class MenuService {
 
   constructor(
     baseUrl = `${
-      process.env.REACT_APP_N8N_BASE_URL || process.env.REACT_APP_N8N_LOCAL
+      import.meta.env.VITE_N8N_BASE_URL || import.meta.env.VITE_N8N_LOCAL
     }/webhook/menu`
   ) {
     this.baseUrl = baseUrl;
