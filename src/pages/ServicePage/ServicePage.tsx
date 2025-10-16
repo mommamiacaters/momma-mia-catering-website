@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import Carousel from "../../components/Carousel/Carousel";
 import MealPlanAccordion from "../../components/Accordion/Accordion";
-import ShoppingBagSidebar from "../../components/Sidebar/Sidebar";
+import ContactSection from "../../components/ContactSection/ContactSection";
+import ShoppingBag from "../../components/ShoppingBag/ShoppingBag";
+import CheckALunch from "../../components/CheckALunch/CheckALunch";
 import {
   // check-a-lunch
   lunch1,
@@ -32,7 +34,6 @@ import {
   // equipment-rental
   rental1,
 } from "../../images";
-import ProductCatalog from "../../components/ProductCatalog/ProductCatalog";
 import {
   menuService,
   MenuItem,
@@ -62,9 +63,7 @@ const ServicePage: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Shopping bag state
-  const [isShoppingBagOpen, setIsShoppingBagOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const getServiceContent = (serviceSlug: string) => {
     switch (serviceSlug) {
@@ -127,59 +126,7 @@ const ServicePage: React.FC = () => {
         };
     }
   };
-
-  const serviceContent = getServiceContent(slug || "");
-
-  // Get meal plan price based on menu items
-  const getMealPlanPrice = (type: MealPlanType): number => {
-    if (!menuData) return 0;
-
-    // Get base prices for each category (using first item as reference)
-    const mainPrice =
-      menuData.main && menuData.main.length > 0 ? menuData.main[0].price : 0;
-    const sidePrice =
-      menuData.side && menuData.side.length > 0 ? menuData.side[0].price : 0;
-    const starchPrice =
-      menuData.starch && menuData.starch.length > 0
-        ? menuData.starch[0].price
-        : 0;
-
-    switch (type) {
-      case "Double The Protein":
-        // 2 Main Dishes + 1 Side Dish + 1 Starch
-        return mainPrice * 2 + sidePrice + starchPrice;
-      case "Balanced Diet":
-        // 1 Main Dish + 1 Side Dish + 1 Starch
-        return mainPrice + sidePrice + starchPrice;
-    }
-  };
-
-  // Fetch menu data when component mounts or slug changes
-  useEffect(() => {
-    const fetchMenuData = async () => {
-      if (!serviceContent.hasMenu || !slug) return;
-
-      // Only fetch for services that have menu data
-      if (slug !== "check-a-lunch" && slug !== "fun-boxes") return;
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const data = await menuService.getCategoryMenuData(
-          slug as "check-a-lunch" | "fun-boxes"
-        );
-        setMenuData(data);
-      } catch (err) {
-        console.error("Error fetching menu data:", err);
-        setError("Failed to load menu items. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMenuData();
-  }, [slug, serviceContent.hasMenu]);
+  const serviceContent = useMemo(() => getServiceContent(slug || ""), [slug]);
 
   // Handle meal plan selection
   const handleMealPlanSelect = (type: MealPlanType) => {
@@ -248,16 +195,16 @@ const ServicePage: React.FC = () => {
     const itemsToRemove: Set<string> = new Set();
 
     Object.entries(itemCounts).forEach(([key, count]) => {
-      const [name, type] = key.split('-');
+      const [name, type] = key.split("-");
       const maxForType = maxAllowed[type] || 0;
-      
+
       if (count > maxForType) {
         // We need to remove (count - maxForType) items
         const excessCount = count - maxForType;
         const itemsOfType = selectedItems.filter(
           (item) => item.name === name && item.type === type
         );
-        
+
         // Mark the FIRST excess items for removal (this keeps the LAST ones)
         for (let i = 0; i < excessCount; i++) {
           if (itemsOfType[i]) {
@@ -408,7 +355,60 @@ const ServicePage: React.FC = () => {
     return mealPlanOrders.reduce((total, order) => total + order.quantity, 0);
   };
 
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Fetch menu data when component mounts or slug changes
+  useEffect(() => {
+    const fetchMenuData = async () => {
+      // Only fetch for services that have menu data
+      if (
+        !slug ||
+        !serviceContent.hasMenu ||
+        (slug !== "check-a-lunch" && slug !== "fun-boxes")
+      ) {
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await menuService.getCategoryMenuData(
+          slug as "check-a-lunch" | "fun-boxes"
+        );
+        setMenuData(data);
+      } catch (err) {
+        console.error("Error fetching menu data:", err);
+        setError("Failed to load menu items. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMenuData();
+  }, [slug, serviceContent.hasMenu]);
+
+  // Get meal plan price based on menu items
+  const getMealPlanPrice = (type: MealPlanType): number => {
+    if (!menuData) return 0;
+
+    // Get base prices for each category (using first item as reference)
+    const mainPrice =
+      menuData.main && menuData.main.length > 0 ? menuData.main[0].price : 0;
+    const sidePrice =
+      menuData.side && menuData.side.length > 0 ? menuData.side[0].price : 0;
+    const starchPrice =
+      menuData.starch && menuData.starch.length > 0
+        ? menuData.starch[0].price
+        : 0;
+
+    switch (type) {
+      case "Double The Protein":
+        // 2 Main Dishes + 1 Side Dish + 1 Starch
+        return mainPrice * 2 + sidePrice + starchPrice;
+      case "Balanced Diet":
+        // 1 Main Dish + 1 Side Dish + 1 Starch
+        return mainPrice + sidePrice + starchPrice;
+    }
+  };
 
   // Close preview on ESC
   useEffect(() => {
@@ -430,35 +430,31 @@ const ServicePage: React.FC = () => {
     <div className="min-h-screen bg-brand-secondary">
       <div className="mx-auto px-[68px] pt-8 pb-16 md:pt-16 md:pb-20 lg:pt-20 lg:pb-24">
         {/* Back link */}
-        <div className="mb-8">
-          <Link
-            to="/meals"
-            className="inline-flex items-center gap-2 text-brand-text hover:text-brand-text"
-            aria-label="Go back to main page"
-          >
-            <span aria-hidden="true" className="text-xl">
-              ←
-            </span>
-            <span className="text-sm sm:text-base">Back to Home</span>
-          </Link>
-        </div>
+        <Link
+          to="/meals"
+          className="inline-flex items-center gap-2 text-brand-text hover:text-brand-text mb-8"
+          aria-label="Go back to main page"
+        >
+          <span aria-hidden="true" className="text-xl">
+            ←
+          </span>
+          <span className="text-sm sm:text-base">Back to Home</span>
+        </Link>
 
-        {/* Shopping Bag Button - Fixed Top Right */}
-        {serviceContent.hasMenu && (
-          <button
-            id="bag-button"
-            onClick={() => setIsShoppingBagOpen(!isShoppingBagOpen)}
-            className="fixed top-6 right-6 z-40 bg-brand-primary hover:bg-brand-primary/80 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-lg transition-colors"
-          >
-            <i className="pi pi-shopping-bag"></i>
-            Shopping Bag
-            {getTotalMealPlanCount() > 0 && (
-              <span className="bg-white text-brand-primary rounded-full px-2 py-1 text-xs font-bold min-w-[20px]">
-                {getTotalMealPlanCount()}
-              </span>
-            )}
-          </button>
-        )}
+        {/* Shopping Bag and Sidebar */}
+        <ShoppingBag
+          isVisible={serviceContent.hasMenu}
+          mealPlanOrders={mealPlanOrders}
+          selectedItems={selectedItems}
+          onMealPlanQuantityChange={handleMealPlanQuantityChange}
+          onItemQuantityChange={handleItemQuantityChange}
+          onItemRemove={handleItemRemove}
+          getMealPlanPrice={getMealPlanPrice}
+          getMealPlanLimits={getMealPlanLimits}
+          calculateTotalPrice={calculateTotalPrice}
+          getTotalItemsCount={getTotalItemsCount}
+          getTotalMealPlanCount={getTotalMealPlanCount}
+        />
 
         {/* Header Section */}
         <div className="text-center mb-16">
@@ -471,23 +467,6 @@ const ServicePage: React.FC = () => {
             </p>
           </div>
         </div>
-
-        {serviceContent.hasMenu && (
-          <ShoppingBagSidebar
-            visible={isShoppingBagOpen}
-            onHide={() => setIsShoppingBagOpen(false)}
-            mealPlanOrders={mealPlanOrders}
-            selectedItems={selectedItems}
-            onMealPlanQuantityChange={handleMealPlanQuantityChange}
-            onItemQuantityChange={handleItemQuantityChange}
-            onItemRemove={handleItemRemove}
-            getMealPlanPrice={getMealPlanPrice}
-            getMealPlanLimits={getMealPlanLimits}
-            calculateTotalPrice={calculateTotalPrice}
-            getTotalItemsCount={getTotalItemsCount}
-            getTotalMealPlanCount={getTotalMealPlanCount}
-          />
-        )}
 
         {/* Carousel Section - Full Bleed */}
         {serviceContent.images.length > 0 && (
@@ -553,154 +532,36 @@ const ServicePage: React.FC = () => {
               </div>
             )}
 
-            {!loading && !error && menuData && (
-              <div className="max-w-6xl mx-auto">
-                {/* Meal Plan Selection Buttons */}
-                <div className="mb-12 text-center">
-                  <h2 className="text-2xl font-semibold text-brand-text mb-6">
-                    Choose Your Meal Plan
-                  </h2>
-                  <div className="flex flex-wrap gap-4 justify-center">
-                    {(
-                      ["Double The Protein", "Balanced Diet"] as MealPlanType[]
-                    ).map((type) => {
-                      const order = mealPlanOrders.find(
-                        (order) => order.type === type
-                      );
-
-                      return (
-                        <div
-                          key={type}
-                          className="bg-white rounded-lg p-6 shadow-lg max-w-sm"
-                        >
-                          <h3 className="text-xl font-semibold text-brand-text mb-2">
-                            {type}
-                          </h3>
-                          <p className="text-gray-600 mb-2">
-                            {type === "Double The Protein"
-                              ? "2 Main Dishes, 1 Side Dish, 1 Starch"
-                              : "1 Main Dish, 1 Side Dish, 1 Starch"}
-                          </p>
-                          <span className="font-bold text-brand-primary text-lg">
-                            ₱{getMealPlanPrice(type)}
-                          </span>
-                          <div className="mt-4">
-                            {order ? (
-                              <div className="flex items-center gap-2 justify-center">
-                                {/* Minus button - matching ProductItem style */}
-                                <button
-                                  onClick={() =>
-                                    handleMealPlanQuantityChange(
-                                      type,
-                                      order.quantity - 1
-                                    )
-                                  }
-                                  className="flex items-center justify-center w-8 h-8 bg-gray-300 hover:bg-gray-400 text-white rounded-full transition-colors"
-                                  title="Decrease quantity"
-                                >
-                                  <i className="pi pi-minus" />
-                                </button>
-
-                                {/* Quantity input */}
-                                <input
-                                  type="number"
-                                  value={order.quantity}
-                                  onChange={(e) =>
-                                    handleMealPlanQuantityChange(
-                                      type,
-                                      parseInt(e.target.value) || 1
-                                    )
-                                  }
-                                  className="w-12 h-8 text-center border rounded"
-                                  min="1"
-                                />
-
-                                {/* Plus button - matching ProductItem style */}
-                                <button
-                                  onClick={() =>
-                                    handleMealPlanQuantityChange(
-                                      type,
-                                      order.quantity + 1
-                                    )
-                                  }
-                                  className="flex items-center justify-center w-8 h-8 bg-brand-primary hover:bg-brand-primary/80 text-white rounded-full transition-colors"
-                                  title="Increase quantity"
-                                >
-                                  <i className="pi pi-plus"></i>
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleMealPlanSelect(type)}
-                                className="flex items-center justify-center gap-2 w-full px-6 py-3 rounded-lg font-medium bg-brand-primary hover:bg-brand-primary/80 text-white transition-colors"
-                              >
-                                <i className="pi pi-plus"></i>
-                                Add
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Menu Items by Category */}
-                <div className="space-y-16">
-                  {(["main", "side", "starch"] as const).map((category) => {
-                    const items = getItemsByCategory(category);
-                    if (items.length === 0) return null;
-
-                    return (
-                      <div key={category}>
-                        <ProductCatalog
-                          items={items}
-                          selectedItems={items.filter((item) =>
-                            isItemSelected(item)
-                          )}
-                          onItemAdd={handleItemAdd}
-                          onItemRemove={handleItemRemove}
-                          onItemQuantityDecrease={handleItemQuantityDecrease}
-                          title={getCategoryDisplayName(category)}
-                          isDisabled={mealPlanOrders.length === 0}
-                          getCurrentItemQuantity={getCurrentItemQuantity}
-                          getMaxAllowedItemsByType={getMaxAllowedItemsByType}
-                          selectedItemsWithQuantity={selectedItems}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+            {/* Only render for Check - A - Lunch */}
+            {slug === "check-a-lunch" && (
+              <CheckALunch
+                mealPlanOrders={mealPlanOrders}
+                selectedItems={selectedItems}
+                menuData={menuData}
+                loading={loading}
+                error={error}
+                onMealPlanSelect={handleMealPlanSelect}
+                onMealPlanQuantityChange={handleMealPlanQuantityChange}
+                onItemAdd={handleItemAdd}
+                onItemRemove={handleItemRemove}
+                onItemQuantityDecrease={handleItemQuantityDecrease}
+                getMealPlanPrice={getMealPlanPrice}
+                getItemsByCategory={getItemsByCategory}
+                getCategoryDisplayName={getCategoryDisplayName}
+                isItemSelected={isItemSelected}
+                getCurrentItemQuantity={getCurrentItemQuantity}
+                getMaxAllowedItemsByType={getMaxAllowedItemsByType}
+              />
             )}
           </div>
         )}
 
         {/* Contact Section (full-bleed) */}
-        <div className="mt-20 text-center relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-brand-primary">
-          <div className="max-w-7xl mx-auto px-16 py-24">
-            <h2 className="text-3xl font-bold text-brand-secondary mb-4">
-              Start Your Order
-            </h2>
-            <p className="text-brand-secondary mb-8 max-w-2xl mx-auto">
-              Got a custom order or want a personalized quote? Reach out to us
-              via Facebook Messenger or our Virtual Assistant Mia. We're here to
-              make your event unforgettable.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <a
-                href="https://m.me/61559809667297"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Message us on Facebook Messenger"
-                className="inline-flex items-center justify-center gap-2 w-56 px-8 py-3 border-2 border-brand-secondary text-brand-secondary font-medium text-center hover:bg-brand-secondary hover:text-brand-text transition-colors"
-              >
-                <i className="pi pi-comment mr-2"></i>
-                Message Us
-              </a>
-            </div>
-          </div>
-        </div>
+        <ContactSection
+          title="Start Your Order"
+          description="Got a custom order or want a personalized quote? Reach out to us via Facebook Messenger or our Virtual Assistant Mia. We're here to make your event unforgettable."
+          messengerUrl="https://m.me/61559809667297"
+        />
       </div>
     </div>
   );

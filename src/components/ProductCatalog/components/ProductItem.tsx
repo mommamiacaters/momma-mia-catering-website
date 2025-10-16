@@ -46,7 +46,7 @@ const ProductItem: React.FC<ProductItemProps> = ({
       <div className="aspect-square bg-gray-100 relative overflow-hidden">
         {item.image ? (
           <img
-            src={`https://drive.google.com/thumbnail?id=1JO33KM2jjuC3b-5qYbxDprVR4jF0jCLE&sz=w400`}
+            src={item.image}
             alt={item.name}
             className={`w-full h-full object-cover transition-opacity duration-300 ${
               isDisabled ? "opacity-50" : ""
