@@ -1,6 +1,6 @@
 # Momma Mia Catering Website
 
-A React-based website for Momma Mia Catering -- a food service business offering packed lunches, party trays, fun boxes, full-service catering, and equipment rental. The site features a dynamic meal ordering system, AI-powered chatbot, and contact form, all backed by n8n webhooks on AWS. ETC
+A React-based website for Momma Mia Catering -- a food service business offering packed lunches, party trays, fun boxes, full-service catering, and equipment rental. The site features a dynamic meal ordering system, AI-powered chatbot, and contact form, all backed by n8n webhooks on AWS.
 
 **Live site:** [https://mommamiacaters.com](https://mommamiacaters.com)
 
