@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import MealCard from "../../components/MealCard/MealCard";
-import Masonry, { ResponsiveMasonry } from "react-responsive-masonry"; // Import these
+import Masonry, { ResponsiveMasonry } from "react-responsive-masonry";
 import { catering, checkLunch, funBoxes, partyTrays, equipmentRental } from "../../images";
 
 interface MealsPageProps {
@@ -72,20 +72,30 @@ const MealsPage: React.FC<MealsPageProps> = ({ currentLocation }) => {
         isPageLoaded ? "opacity-100" : "opacity-5"
       }`}
     >
-      <div className="mx-auto px-4 sm:px-6 md:px-10 lg:px-[68px] pt-8 pb-16 md:pt-16 md:pb-20 lg:pt-20 lg:pb-24">
-        <div className="mx-0 lg:mx-[-68px]">
-          <div className="lg:px-[68px]">
-            <ResponsiveMasonry
-              columnsCountBreakPoints={{ 350: 1, 750: 2, 1200: 3 }} // Example breakpoints
-            >
-              <Masonry gutter="24px">
-                {mealPosts.map((post) => (
-                  <MealCard key={post.id} post={post} />
-                ))}
-              </Masonry>
-            </ResponsiveMasonry>
-          </div>
+      {/* Hero tagline */}
+      <div className="text-center pt-10 pb-4 md:pt-14 md:pb-6 lg:pt-16 lg:pb-8 px-4">
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-arvo-bold text-brand-text mb-3">
+          Good Food, Made with Love
+        </h1>
+        <p className="text-brand-text/60 font-poppins max-w-xl mx-auto text-sm md:text-base">
+          From packed lunches to full-service catering — explore what Momma Mia has for you.
+        </p>
+        <div className="mt-6 flex justify-center">
+          <div className="w-16 h-0.5 bg-brand-primary rounded-full"></div>
         </div>
+      </div>
+
+      {/* Masonry grid */}
+      <div className="mx-auto px-4 sm:px-6 md:px-10 lg:px-16 pb-16 md:pb-20 lg:pb-24">
+        <ResponsiveMasonry
+          columnsCountBreakPoints={{ 350: 1, 750: 2, 1200: 3 }}
+        >
+          <Masonry gutter="24px">
+            {mealPosts.map((post) => (
+              <MealCard key={post.id} post={post} />
+            ))}
+          </Masonry>
+        </ResponsiveMasonry>
       </div>
     </div>
   );

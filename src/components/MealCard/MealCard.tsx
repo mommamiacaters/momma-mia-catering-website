@@ -32,7 +32,7 @@ const MealCard: React.FC<MealCardProps> = ({ post, visible = true }) => {
 
   return (
     <article
-      className="bg-brand-secondary cursor-pointer group"
+      className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl cursor-pointer group transition-all duration-300 hover:-translate-y-1"
       onClick={() => navigate(`/services/${post.slug}`)}
       role="button"
       tabIndex={0}
@@ -49,25 +49,26 @@ const MealCard: React.FC<MealCardProps> = ({ post, visible = true }) => {
           src={post.image}
           alt={post.title}
           visible={visible}
-          className="w-full h-full object-contain bg-brand-primary group-hover:scale-[1.02]"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
       </div>
       <div className="p-6 text-center">
-        <h1 className="font-medium text-2xl text-black mt-2 mb-4 group-hover:text-gray-700 transition-colors">
+        <h2 className="font-arvo-bold text-xl text-brand-text mt-1 mb-3 group-hover:text-brand-primary transition-colors duration-200">
           {post.title}
-        </h1>
-        <p className="text-gray-700 leading-relaxed mb-6 text-sm">
+        </h2>
+        <p className="text-brand-text/70 font-poppins leading-relaxed mb-5 text-sm">
           {post.description}
         </p>
         <button
           type="button"
-          className="text-black font-normal border-b border-black hover:border-gray-600 hover:text-gray-600 transition-colors text-sm"
+          className="inline-flex items-center gap-1.5 text-brand-primary font-poppins font-medium text-sm hover:gap-2.5 transition-all duration-200"
           onClick={(e) => {
             e.stopPropagation();
             navigate(`/services/${post.slug}`);
           }}
         >
           Read More
+          <span className="text-xs">&rarr;</span>
         </button>
       </div>
     </article>

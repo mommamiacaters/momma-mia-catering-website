@@ -11,6 +11,9 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const isActive = (path: string) => {
+    if (path === "/meals") {
+      return location.pathname === path || location.pathname === "/";
+    }
     return location.pathname === path;
   };
 
@@ -18,195 +21,136 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  // Close menu when navigating
   React.useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
 
-  // Helper function for custom underline styling
-  const getLinkClasses = (path: string, isMobileMenu: boolean = false) => {
-    const active = isActive(path) || (path === "/meals" && isActive("/"));
-    const baseClasses = `
-      inline-block
-      text-white font-normal
-      pb-1
-      md:border-b-[2px]
-      transition-colors duration-300 ease-in-out
-    `;
-    const activeClasses = "md:border-white";
-    const inactiveClasses = "md:border-transparent md:hover:border-white";
-
-    // Mobile: default transparent underline, show on hover; solid when active
-    const mobileSpecificClasses = isMobileMenu
-      ? active
-        ? "text-lg py-2 border-b-[2px] border-white font-bold"
-        : "text-lg py-2 border-b-[2px] border-transparent hover:border-white"
-      : "";
-
-    return `${baseClasses} ${
-      active ? activeClasses : inactiveClasses
-    } ${mobileSpecificClasses}`;
-  };
-
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 bg-brand-primary transition-transform duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 bg-brand-primary shadow-lg transition-transform duration-300 ${
         isVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
-      <div className="mx-auto px-4 sm:px-6 md:px-10 lg:px-[68px] py-4 md:py-6 lg:py-10">
-        <div className="flex items-center justify-between">
+      <div className="mx-auto px-4 sm:px-6 md:px-8 lg:px-12">
+        <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link
-              to="/meals"
-              className="block h-full absolute transform -translate-x-1/2 -translate-y-1/2"
-            >
-              <img
-                src={logo}
-                alt="Momma Mia Caters Logo"
-                className="h-full object-contain"
-              />
-            </Link>
+          <Link to="/meals" className="flex-shrink-0 flex items-center">
+            <img
+              src={logo}
+              alt="Momma Mia Caters Logo"
+              className="h-14 md:h-20 w-auto object-contain"
+            />
+          </Link>
+
+          {/* Desktop Navigation Links */}
+          <div className="hidden md:flex items-center space-x-2 lg:space-x-6">
+            {[
+              { to: "/meals", label: "Your Meals & More" },
+              { to: "/about", label: "About" },
+              { to: "/contact", label: "Contact" },
+            ].map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`relative px-3 py-2 text-base lg:text-lg xl:text-xl font-arvo-bold text-white whitespace-nowrap transition-all duration-200 hover:text-brand-secondary ${
+                  isActive(link.to) ? "text-brand-secondary" : ""
+                }`}
+              >
+                {link.label}
+                <span
+                  className={`absolute bottom-0 left-3 right-3 h-0.5 bg-brand-secondary transition-transform duration-200 origin-left ${
+                    isActive(link.to) ? "scale-x-100" : "scale-x-0"
+                  }`}
+                />
+              </Link>
+            ))}
           </div>
 
-          {/* Desktop Navigation Links - Center (Hidden on small screens) */}
-          <div className="hidden md:flex items-center space-x-6 lg:space-x-8 text-white">
-            <Link
-              to="/meals"
-              className={`${getLinkClasses(
-                "/meals"
-              )} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}
-            >
-              {isActive("/meals") && (
-                <span className="text-white mr-2 md:mr-3">•</span>
-              )}
-              Your Meals & More
-              {isActive("/meals") && (
-                <span className="text-white ml-2 md:ml-3">•</span>
-              )}
-            </Link>
-            <Link
-              to="/about"
-              className={`${getLinkClasses(
-                "/about"
-              )} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}
-            >
-              {isActive("/about") && (
-                <span className="text-white mr-2 md:mr-3">•</span>
-              )}
-              About
-              {isActive("/about") && (
-                <span className="text-white ml-2 md:ml-3">•</span>
-              )}
-            </Link>
-            <Link
-              to="/contact"
-              className={`${getLinkClasses(
-                "/contact"
-              )} whitespace-nowrap md:text-1xl lg:text-2xl xl:text-4xl font-arvo-bold flex items-center`}
-            >
-              {isActive("/contact") && (
-                <span className="text-white mr-2 md:mr-3">•</span>
-              )}
-              Contact
-              {isActive("/contact") && (
-                <span className="text-white ml-2 md:ml-3">•</span>
-              )}
-            </Link>
-          </div>
-
-          {/* Social Icons (Visible on desktop) */}
-          <div className="hidden md:flex items-center space-x-4">
+          {/* Social Icons - Desktop */}
+          <div className="hidden md:flex items-center space-x-3">
             <a
               href="https://www.facebook.com/profile.php?id=61559809667297"
-              className="text-brand-secondary hover:text-brand-text transition-colors"
+              className="text-white/80 hover:text-white transition-colors p-1"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="Facebook"
             >
-              <i className="pi pi-facebook text-2xl"></i>
+              <i className="pi pi-facebook text-lg"></i>
             </a>
             <a
               href="https://www.instagram.com/momma_mia_caters/"
-              className="text-brand-secondary hover:text-brand-text transition-colors"
+              className="text-white/80 hover:text-white transition-colors p-1"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="Instagram"
             >
-              <i className="pi pi-instagram text-2xl"></i>
+              <i className="pi pi-instagram text-lg"></i>
             </a>
           </div>
 
-          {/* Mobile Hamburger/Close Icon and Social Icons (Visible on small screens) */}
-          <div className="md:hidden flex items-center space-x-4">
-            {/* Social icons for mobile - positioned right of hamburger */}
+          {/* Mobile: Social + Hamburger */}
+          <div className="md:hidden flex items-center space-x-3">
             <a
               href="https://www.facebook.com/profile.php?id=61559809667297"
-              className="text-brand-secondary hover:text-brand-text transition-colors"
+              className="text-white/80 hover:text-white transition-colors"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="Facebook"
             >
-              <i className="pi pi-facebook text-2xl"></i>
+              <i className="pi pi-facebook text-lg"></i>
             </a>
             <a
               href="https://www.instagram.com/momma_mia_caters/"
-              className="text-brand-secondary hover:text-brand-text transition-colors"
+              className="text-white/80 hover:text-white transition-colors"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="Instagram"
             >
-              <i className="pi pi-instagram text-2xl"></i>
+              <i className="pi pi-instagram text-lg"></i>
             </a>
             <button
               onClick={toggleMenu}
-              className="text-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-divider"
+              className="text-white p-1 focus:outline-none focus:ring-2 focus:ring-white/30 rounded"
               aria-label="Toggle navigation menu"
+              aria-expanded={isMenuOpen}
             >
               {isMenuOpen ? (
-                <i className="pi pi-times text-2xl"></i>
+                <i className="pi pi-times text-xl"></i>
               ) : (
-                <i className="pi pi-bars text-2xl"></i>
+                <i className="pi pi-bars text-xl"></i>
               )}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu Overlay */}
-      {isMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-brand-primary shadow-lg">
-          <div className="px-4 py-6 space-y-4 flex flex-col items-center">
+      {/* Mobile Menu */}
+      <div
+        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+          isMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="px-4 pb-6 pt-2 space-y-1 border-t border-white/20">
+          {[
+            { to: "/meals", label: "Your Meals & More" },
+            { to: "/about", label: "About" },
+            { to: "/contact", label: "Contact" },
+          ].map((link) => (
             <Link
-              to="/meals"
-              className={`${getLinkClasses("/meals", true)} flex items-center`} // Apply custom underline classes, pass true for mobile
+              key={link.to}
+              to={link.to}
+              className={`block px-3 py-3 text-base font-arvo-bold rounded transition-colors ${
+                isActive(link.to)
+                  ? "text-brand-secondary bg-white/10"
+                  : "text-white hover:bg-white/5"
+              }`}
               onClick={toggleMenu}
             >
-              <span className="text-brand-secondary mr-2">•</span>
-              Your Meals & More
-              <span className="text-brand-secondary ml-2">•</span>
+              {link.label}
             </Link>
-            <Link
-              to="/about"
-              className={`${getLinkClasses("/about", true)} flex items-center`} // Apply custom underline classes, pass true for mobile
-              onClick={toggleMenu}
-            >
-              <span className="text-brand-secondary mr-2">•</span>
-              About Us
-              <span className="text-brand-secondary ml-2">•</span>
-            </Link>
-            <Link
-              to="/contact"
-              className={`${getLinkClasses(
-                "/contact",
-                true
-              )} flex items-center`} // Apply custom underline classes, pass true for mobile
-              onClick={toggleMenu}
-            >
-              <span className="text-brand-secondary mr-2">•</span>
-              Contact
-              <span className="text-brand-secondary ml-2">•</span>
-            </Link>
-          </div>
+          ))}
         </div>
-      )}
+      </div>
     </nav>
   );
 };

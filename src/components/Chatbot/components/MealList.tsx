@@ -16,13 +16,16 @@ const MealList: React.FC<MealListProps> = ({
   addMessage,
   mealData,
 }) => {
-  // Use provided mealData or fallback to static data
-  const meals = mealData?.[service] || [];
+  // Flatten main/side/starch arrays from the service into one list
+  const serviceData = mealData?.[service];
+  const meals: MenuItem[] = serviceData
+    ? [...(serviceData.main || []), ...(serviceData.side || []), ...(serviceData.starch || [])]
+    : [];
 
   const handleMealClick = (meal: MenuItem, index: number) => {
     // Add interaction when clicking on a meal item
     addMessage(
-      `I'm interested in: ${meal.name} (${meal.price})${
+      `I'm interested in: ${meal.name} (₱${meal.price.toFixed(2)})${
         meal.description ? ` - ${meal.description}` : ""
       }`,
       "user"
@@ -93,7 +96,7 @@ const MealList: React.FC<MealListProps> = ({
               )}
             </div>
             <span className="text-brand-primary font-semibold text-xs font-arvo ml-2 flex-shrink-0">
-              {meal.price}
+              ₱{meal.price.toFixed(2)}
             </span>
           </div>
         ))}

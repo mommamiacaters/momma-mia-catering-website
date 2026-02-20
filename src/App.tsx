@@ -58,7 +58,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-brand-secondary">
       {!isServicePage && <Navigation isVisible={showNavbar} />}
-      <main className={!isServicePage ? 'pt-20' : ''}>
+      <main className={!isServicePage ? 'pt-16 md:pt-20' : ''}>
         <Routes>
           {/* Pass location.pathname as a prop */}
           <Route

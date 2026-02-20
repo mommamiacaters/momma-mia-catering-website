@@ -5,18 +5,16 @@ const Footer: React.FC = () => {
   const { pathname } = useLocation();
   const isServicePage = pathname.startsWith("/service");
   return (
-    // The main footer container to hold the two sections
     <footer className="bg-brand-primary text-white transition-transform duration-300">
-      {/* Top Section: Newsletter (existing content) */}
+      {/* Newsletter Section */}
       {!isServicePage && (
-        <div className="max-w-7xl mx-auto px-16 py-24">
+        <div className="max-w-7xl mx-auto px-6 sm:px-10 md:px-16 py-16 md:py-20">
           <div className="text-center">
-            <h3 className="text-2xl font-bold mb-4">
-              Psst… Momma’s Got Secrets
+            <h3 className="text-2xl font-arvo-bold mb-4">
+              Psst… Momma's Got Secrets
             </h3>
             <div className="mb-8 max-w-md mx-auto">
-              {/* <p className="text-brand-secondary mb-3">Only for the chosen few:</p> */}
-              <ul className="inline-block text-brand-secondary text-left space-y-2">
+              <ul className="inline-block text-brand-secondary text-left space-y-2 font-poppins text-sm">
                 <li className="grid grid-cols-[1.25rem,1fr] items-start gap-2">
                   <i className="pi pi-check mt-0.5"></i>
                   <span>Sneak peek menus</span>
@@ -36,13 +34,13 @@ const Footer: React.FC = () => {
               </ul>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-3 mb-6">
               <input
                 type="email"
                 placeholder="Your Email Address"
-                className="px-4 py-3 w-full sm:w-80 text-brand-text rounded-none border-none focus:outline-none focus:ring-2 focus:ring-stone-500"
+                className="px-4 py-3 w-full sm:w-80 text-brand-text rounded-lg border-none focus:outline-none focus:ring-2 focus:ring-brand-accent font-poppins text-sm"
               />
-              <button className="px-8 py-3 bg-brand-primary border-2 border-brand-secondary hover:bg-brand-secondary hover:text-brand-text text-brand-cream font-medium transition-colors">
+              <button className="px-8 py-3 bg-brand-accent text-brand-text font-poppins font-semibold rounded-lg hover:bg-brand-accent/90 transition-colors text-sm">
                 Sign Up
               </button>
             </div>
@@ -50,29 +48,32 @@ const Footer: React.FC = () => {
         </div>
       )}
 
-      {/* Bottom Section: Social Icons */}
-      {/* This new div will separate the social icons as requested */}
-      {/* It currently inherits background and text color from the parent footer. */}
-      {/* If you add a specific background color later, place it here. */}
-      <div className="bg-brand-secondary py-32">
-        {/* Added padding for separation */}
-        <div className="max-w-7xl mx-auto flex justify-center space-x-6">
-          <a
-            href="https://www.facebook.com/profile.php?id=61559809667297"
-            className="text-black hover:text-gray-600 transition-colors"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <i className="pi pi-facebook text-2xl"></i>
-          </a>
-          <a
-            href="https://www.instagram.com/momma_mia_caters/"
-            className="text-black hover:text-gray-600 transition-colors"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <i className="pi pi-instagram text-2xl"></i>
-          </a>
+      {/* Bottom Section */}
+      <div className="bg-brand-secondary py-10">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-4">
+          <div className="flex items-center space-x-5">
+            <a
+              href="https://www.facebook.com/profile.php?id=61559809667297"
+              className="text-brand-text/60 hover:text-brand-primary transition-colors"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Facebook"
+            >
+              <i className="pi pi-facebook text-xl"></i>
+            </a>
+            <a
+              href="https://www.instagram.com/momma_mia_caters/"
+              className="text-brand-text/60 hover:text-brand-primary transition-colors"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+            >
+              <i className="pi pi-instagram text-xl"></i>
+            </a>
+          </div>
+          <p className="text-brand-text/40 font-poppins text-xs">
+            &copy; {new Date().getFullYear()} Momma Mia Caters. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
