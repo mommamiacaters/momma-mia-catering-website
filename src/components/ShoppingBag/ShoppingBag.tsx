@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import ShoppingBagSidebar from '../Sidebar/Sidebar';
+import type {
+  MealPlanType,
+  MealPlanOrder,
+  SelectedItemWithQuantity,
+} from '../../types';
 
 interface ShoppingBagProps {
   isVisible?: boolean;
-  mealPlanOrders: any;
-  selectedItems: any;
-  onMealPlanQuantityChange: (mealPlanId: string, quantity: number) => void;
-  onItemQuantityChange: (itemId: string, quantity: number) => void;
-  onItemRemove: (itemId: string) => void;
-  getMealPlanPrice: (mealPlanId: string) => number;
-  getMealPlanLimits: (mealPlanId: string) => { min: number; max: number };
+  mealPlanOrders: MealPlanOrder[];
+  selectedItems: SelectedItemWithQuantity[];
+  onMealPlanQuantityChange: (type: MealPlanType, newQuantity: number) => void;
+  onItemRemove: (item: SelectedItemWithQuantity) => void;
+  getMealPlanPrice: (type: MealPlanType) => number;
+  getMealPlanLimits: (type: MealPlanType) => Record<string, number>;
   calculateTotalPrice: () => number;
   getTotalItemsCount: () => number;
   getTotalMealPlanCount: () => number;
@@ -20,7 +24,6 @@ const ShoppingBag: React.FC<ShoppingBagProps> = ({
   mealPlanOrders,
   selectedItems,
   onMealPlanQuantityChange,
-  onItemQuantityChange,
   onItemRemove,
   getMealPlanPrice,
   getMealPlanLimits,
@@ -59,7 +62,6 @@ const ShoppingBag: React.FC<ShoppingBagProps> = ({
         mealPlanOrders={mealPlanOrders}
         selectedItems={selectedItems}
         onMealPlanQuantityChange={onMealPlanQuantityChange}
-        onItemQuantityChange={onItemQuantityChange}
         onItemRemove={onItemRemove}
         getMealPlanPrice={getMealPlanPrice}
         getMealPlanLimits={getMealPlanLimits}

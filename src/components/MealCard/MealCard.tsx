@@ -1,22 +1,13 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import Image from "../../components/Image/Image";
-
-interface MealPost {
-  id: number;
-  title: string;
-  slug: string;
-  description: string;
-  image: string;
-  size: "small" | "medium" | "large";
-}
+import { MealPost } from "../../types";
 
 interface MealCardProps {
   post: MealPost;
-  visible?: boolean;
 }
 
-const MealCard: React.FC<MealCardProps> = ({ post, visible = true }) => {
+const MealCard: React.FC<MealCardProps> = ({ post }) => {
   const navigate = useNavigate();
 
   const getImageHeight = () => {
@@ -48,7 +39,6 @@ const MealCard: React.FC<MealCardProps> = ({ post, visible = true }) => {
         <Image
           src={post.image}
           alt={post.title}
-          visible={visible}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
       </div>

@@ -1,26 +1,13 @@
 import React from "react";
 import { Sidebar } from "primereact/sidebar";
 import ProgressBar from "../ProgressBar/ProgressBar";
-
-type MealPlanType = "Double The Protein" | "Balanced Diet";
-
-interface MealPlanOrder {
-  type: MealPlanType;
-  quantity: number;
-}
-
-interface MenuItem {
-  id: string;
-  name: string;
-  price: number;
-  type: string;
-  image?: string;
-}
-
-interface SelectedItemWithQuantity extends MenuItem {
-  quantity: number;
-  instanceId: string; // Unique ID for each item instance
-}
+import type {
+  MealPlanType,
+  MealPlanOrder,
+  SelectedItemWithQuantity,
+} from "../../types";
+import { MINIMUM_MEAL_PLANS, getCategoryDisplayName } from "../../constants";
+import { distributeItemsAcrossMealPlans } from "../../utils/mealPlanUtils";
 
 interface ShoppingBagSidebarProps {
   visible: boolean;
@@ -28,10 +15,6 @@ interface ShoppingBagSidebarProps {
   mealPlanOrders: MealPlanOrder[];
   selectedItems: SelectedItemWithQuantity[];
   onMealPlanQuantityChange: (type: MealPlanType, newQuantity: number) => void;
-  onItemQuantityChange: (
-    item: SelectedItemWithQuantity,
-    newQuantity: number
-  ) => void;
   onItemRemove: (item: SelectedItemWithQuantity) => void;
   getMealPlanPrice: (type: MealPlanType) => number;
   getMealPlanLimits: (type: MealPlanType) => Record<string, number>;
@@ -46,7 +29,6 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   mealPlanOrders,
   selectedItems,
   onMealPlanQuantityChange,
-  onItemQuantityChange,
   onItemRemove,
   getMealPlanPrice,
   getMealPlanLimits,
@@ -54,7 +36,6 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   getTotalItemsCount,
   getTotalMealPlanCount,
 }) => {
-  const MINIMUM_ITEMS = 2;
   const isCartEmpty = mealPlanOrders.length === 0 && selectedItems.length === 0;
 
   // Function to remove a single meal plan instance
@@ -74,6 +55,13 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
     onItemRemove(item);
   };
 
+  // Compute meal plan distribution above the return
+  const { instances, distribution } = distributeItemsAcrossMealPlans(
+    mealPlanOrders,
+    selectedItems,
+    getMealPlanLimits
+  );
+
   return (
     <Sidebar
       visible={visible}
@@ -87,14 +75,14 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
         {!isCartEmpty && (
           <div className="p-4 border-b bg-brand-secondary sticky top-0 z-10 bg-white rounded-lg">
             <p className="text-xs text-brand-text mb-2 text-center">
-              Please select a minimum of {MINIMUM_ITEMS} meals
+              Please select a minimum of {MINIMUM_MEAL_PLANS} meals
             </p>
             <ProgressBar
               size="small"
               label=""
               showPercentage={false}
               current={getTotalMealPlanCount()}
-              total={MINIMUM_ITEMS}
+              total={MINIMUM_MEAL_PLANS}
             />
           </div>
         )}
@@ -102,215 +90,135 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
         {/* Content */}
         <div className="mt-4 flex-1 overflow-y-auto" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
           <div className="space-y-3 h-full">
-            {(() => {
-              // Create separate instances for each meal plan quantity
-              const createMealPlanInstances = () => {
-                const instances: Array<{
-                  type: "Double The Protein" | "Balanced Diet";
-                  instanceIndex: number;
-                  globalIndex: number;
-                  orderIndex: number;
-                }> = [];
+            {instances.map((instance) => {
+              const limits = getMealPlanLimits(instance.type);
+              const instanceItems = distribution[instance.globalIndex] || [];
+              const isMealEmpty = instanceItems.length === 0;
 
-                let globalIndex = 0;
-                mealPlanOrders.forEach((order, orderIndex) => {
-                  for (let i = 0; i < order.quantity; i++) {
-                    instances.push({
-                      type: order.type,
-                      instanceIndex: i,
-                      globalIndex: globalIndex++,
-                      orderIndex,
-                    });
-                  }
-                });
-
-                return instances;
-              };
-
-              // Distribute items across meal plan instances
-              const distributeItemsAcrossMealPlans = () => {
-                const instances = createMealPlanInstances();
-                const distribution: {
-                  [key: number]: SelectedItemWithQuantity[];
-                } = {};
-
-                // Initialize empty arrays for each instance
-                instances.forEach((instance) => {
-                  distribution[instance.globalIndex] = [];
-                });
-
-                // Distribute each item individually by its instanceId
-                selectedItems.forEach((item) => {
-                  // Find first available instance that can accept this item type
-                  let placed = false;
-
-                  // Go through instances in order (first to last)
-                  for (let i = 0; i < instances.length; i++) {
-                    const instance = instances[i];
-                    const limits = getMealPlanLimits(instance.type);
-                    const currentItems = distribution[instance.globalIndex];
-                    const currentTypeCount = currentItems.filter(
-                      (i) => i.type === item.type
-                    ).length;
-
-                    if (currentTypeCount < limits[item.type]) {
-                      // Add item to this instance
-                      distribution[instance.globalIndex].push(item);
-                      placed = true;
-                      break;
-                    }
-                  }
-
-                  if (!placed) {
-                    // If we can't place the item, add it to the first available instance
-                    const firstInstance = instances[0];
-                    if (firstInstance) {
-                      distribution[firstInstance.globalIndex].push(item);
-                    }
-                  }
-                });
-
-                return { instances, distribution };
-              };
-
-              const { instances, distribution } =
-                distributeItemsAcrossMealPlans();
-
-              return instances.map((instance) => {
-                const limits = getMealPlanLimits(instance.type);
-                const instanceItems = distribution[instance.globalIndex] || [];
-                const order = mealPlanOrders[instance.orderIndex];
-                const isMealEmpty = instanceItems.length === 0;
-
-                return (
-                  <div
-                    key={`${instance.type}-${instance.globalIndex}`}
-                    className="bg-white rounded-lg border border-brand-divider mb-3"
-                  >
-                    {/* Meal Plan Header */}
-                    <div className="p-3">
-                      <div className="flex justify-between items-center">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-800 text-sm leading-tight">
-                            {instance.type} #{instance.instanceIndex + 1}
-                          </h3>
-                          <p className="font-semibold text-orange-600 text-sm mt-1">
-                            ₱{getMealPlanPrice(instance.type)}
-                          </p>
-                        </div>
-                        {/* Remove button for single instance */}
-                        <div className="flex h-full items-center gap-1.5 ml-2">
-                          <button
-                            onClick={() => removeSingleMealPlan(instance.type)}
-                            className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center transition-colors"
-                            title="Remove this meal plan"
-                          >
-                            <i className="pi pi-trash text-xs"></i>
-                          </button>
-                        </div>
+              return (
+                <div
+                  key={`${instance.type}-${instance.globalIndex}`}
+                  className="bg-white rounded-lg border border-brand-divider mb-3"
+                >
+                  {/* Meal Plan Header */}
+                  <div className="p-3">
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-800 text-sm leading-tight">
+                          {instance.type} #{instance.instanceIndex + 1}
+                        </h3>
+                        <p className="font-semibold text-orange-600 text-sm mt-1">
+                          ₱{getMealPlanPrice(instance.type)}
+                        </p>
+                      </div>
+                      {/* Remove button for single instance */}
+                      <div className="flex h-full items-center gap-1.5 ml-2">
+                        <button
+                          onClick={() => removeSingleMealPlan(instance.type)}
+                          className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center transition-colors"
+                          title="Remove this meal plan"
+                        >
+                          <i className="pi pi-trash text-xs"></i>
+                        </button>
                       </div>
                     </div>
-
-                    {/* Selected Items for this Instance */}
-                    <div className="border-t border-brand-divider bg-white bg-opacity-50">
-                      {!isMealEmpty ? (
-                        (["main", "side", "starch"] as const).map(
-                          (category) => {
-                            const categoryItems = instanceItems.filter(
-                              (item) => item.type === category
-                            );
-                            const categoryLimit = limits[category];
-
-                            if (categoryLimit === 0) return null;
-
-                            const categoryDisplayName =
-                              category === "main"
-                                ? "Main Dish"
-                                : category === "side"
-                                ? "Side Dish"
-                                : "Starch";
-
-                            return (
-                              <div
-                                key={category}
-                                className="p-3 border-b border-orange-100 last:border-b-0"
-                              >
-                                <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
-                                  {categoryDisplayName} ({categoryItems.length}/
-                                  {categoryLimit})
-                                </h4>
-
-                                <div className="space-y-2">
-                                  {/* Show selected items */}
-                                  {categoryItems.map((item) => (
-                                    <div
-                                      key={item.instanceId}
-                                      className="flex justify-between items-center p-2"
-                                    >
-                                      <div className="flex items-center flex-1 min-w-0">
-                                        {/* Product Image */}
-                                        {item.image && (
-                                          <div className="w-10 h-10 mr-3 rounded overflow-hidden flex-shrink-0">
-                                            <img
-                                              src={item.image}
-                                              alt={item.name}
-                                              className="w-full h-full object-cover"
-                                            />
-                                          </div>
-                                        )}
-                                        {/* Product Name */}
-                                        <div className="flex-1 min-w-0">
-                                          <h5 className="font-medium text-gray-800 text-sm leading-tight">
-                                            {item.name}
-                                          </h5>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-1.5 ml-2">
-                                        <button
-                                          onClick={() =>
-                                            removeSingleItemInstance(item)
-                                          }
-                                          className="ml-1 w-5 h-5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full flex items-center justify-center transition-colors"
-                                          title="Remove this item"
-                                        >
-                                          <i className="pi pi-trash text-xs"></i>
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))}
-
-                                  {/* Show empty slots */}
-                                  {Array.from({
-                                    length:
-                                      categoryLimit - categoryItems.length,
-                                  }).map((_, index) => (
-                                    <div
-                                      key={`empty-${category}-${instance.globalIndex}-${index}`}
-                                      className="py-2 px-3 bg-gray-100 rounded border-2 border-dashed border-gray-300"
-                                    >
-                                      <span className="text-brand-text text-xs italic">
-                                        No {categoryDisplayName.toLowerCase()}{" "}
-                                        selected
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          }
-                        )
-                      ) : (
-                        <div className="p-3 text-center">
-                          <span className="text-brand-text text-xs italic">
-                            No items selected for this meal plan yet
-                          </span>
-                        </div>
-                      )}
-                    </div>
                   </div>
-                );
-              });
-            })()}
+
+                  {/* Selected Items for this Instance */}
+                  <div className="border-t border-brand-divider bg-white bg-opacity-50">
+                    {!isMealEmpty ? (
+                      (["main", "side", "starch"] as const).map(
+                        (category) => {
+                          const categoryItems = instanceItems.filter(
+                            (item) => item.type === category
+                          );
+                          const categoryLimit = limits[category];
+
+                          if (categoryLimit === 0) return null;
+
+                          const categoryDisplayName =
+                            getCategoryDisplayName(category);
+
+                          return (
+                            <div
+                              key={category}
+                              className="p-3 border-b border-orange-100 last:border-b-0"
+                            >
+                              <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
+                                {categoryDisplayName} ({categoryItems.length}/
+                                {categoryLimit})
+                              </h4>
+
+                              <div className="space-y-2">
+                                {/* Show selected items */}
+                                {categoryItems.map((item) => (
+                                  <div
+                                    key={item.instanceId}
+                                    className="flex justify-between items-center p-2"
+                                  >
+                                    <div className="flex items-center flex-1 min-w-0">
+                                      {/* Product Image */}
+                                      {item.image && (
+                                        <div className="w-10 h-10 mr-3 rounded overflow-hidden flex-shrink-0">
+                                          <img
+                                            src={item.image}
+                                            alt={item.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                      )}
+                                      {/* Product Name */}
+                                      <div className="flex-1 min-w-0">
+                                        <h5 className="font-medium text-gray-800 text-sm leading-tight">
+                                          {item.name}
+                                        </h5>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 ml-2">
+                                      <button
+                                        onClick={() =>
+                                          removeSingleItemInstance(item)
+                                        }
+                                        className="ml-1 w-5 h-5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full flex items-center justify-center transition-colors"
+                                        title="Remove this item"
+                                      >
+                                        <i className="pi pi-trash text-xs"></i>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+
+                                {/* Show empty slots */}
+                                {Array.from({
+                                  length:
+                                    categoryLimit - categoryItems.length,
+                                }).map((_, index) => (
+                                  <div
+                                    key={`empty-${category}-${instance.globalIndex}-${index}`}
+                                    className="py-2 px-3 bg-gray-100 rounded border-2 border-dashed border-gray-300"
+                                  >
+                                    <span className="text-brand-text text-xs italic">
+                                      No {categoryDisplayName.toLowerCase()}{" "}
+                                      selected
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+                      )
+                    ) : (
+                      <div className="p-3 text-center">
+                        <span className="text-brand-text text-xs italic">
+                          No items selected for this meal plan yet
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
 
             {/* Empty State */}
             {isCartEmpty && (
@@ -343,17 +251,17 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
             <div className="space-y-2">
               <button
                 className={`w-full py-3 rounded-lg font-medium text-sm transition-colors ${
-                  getTotalMealPlanCount() < MINIMUM_ITEMS
+                  getTotalMealPlanCount() < MINIMUM_MEAL_PLANS
                     ? "bg-brand-primary text-white cursor-not-allowed"
                     : "bg-brand-primary hover:bg-brand-primary/80 text-white"
                 }`}
-                disabled={getTotalMealPlanCount() < MINIMUM_ITEMS}
+                disabled={getTotalMealPlanCount() < MINIMUM_MEAL_PLANS}
               >
-                {getTotalMealPlanCount() < MINIMUM_ITEMS
+                {getTotalMealPlanCount() < MINIMUM_MEAL_PLANS
                   ? `Please select ${
-                      MINIMUM_ITEMS - getTotalMealPlanCount()
+                      MINIMUM_MEAL_PLANS - getTotalMealPlanCount()
                     } more meal${
-                      MINIMUM_ITEMS - getTotalMealPlanCount() === 1 ? "" : "s"
+                      MINIMUM_MEAL_PLANS - getTotalMealPlanCount() === 1 ? "" : "s"
                     }`
                   : "Proceed to Checkout"}
               </button>

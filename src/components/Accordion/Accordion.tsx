@@ -1,16 +1,17 @@
 import React from "react";
 import { Accordion, AccordionTab } from "primereact/accordion";
 import { Plus, Minus } from "lucide-react";
-import { MenuItem } from "../../services/menuService";
+import type {
+  MealPlanType,
+  SelectedItemWithQuantity,
+} from "../../types";
+import { getCategoryDisplayName } from "../../constants";
+import { distributeItemsAcrossMealPlans } from "../../utils/mealPlanUtils";
 import "./accordion.styles.css";
-
-interface SelectedItemWithQuantity extends MenuItem {
-  quantity: number;
-}
 
 interface MealPlanAccordionProps {
   mealPlanOrders: Array<{
-    type: "Double The Protein" | "Balanced Diet";
+    type: MealPlanType;
     quantity: number;
   }>;
   selectedItems: SelectedItemWithQuantity[];
@@ -20,7 +21,7 @@ interface MealPlanAccordionProps {
   ) => void;
   onItemRemove: (item: SelectedItemWithQuantity) => void;
   getMealPlanLimits: (
-    type: "Double The Protein" | "Balanced Diet"
+    type: MealPlanType
   ) => Record<string, number>;
   calculateTotalPrice: () => number;
   getMaxAllowedItemsByType: () => Record<string, number>;
@@ -35,97 +36,11 @@ const MealPlanAccordion: React.FC<MealPlanAccordionProps> = ({
   calculateTotalPrice,
   getMaxAllowedItemsByType,
 }) => {
-  // Create individual meal plan instances (flatten quantity into separate instances)
-  const createMealPlanInstances = () => {
-    const instances: Array<{
-      type: "Double The Protein" | "Balanced Diet";
-      instanceIndex: number;
-      globalIndex: number;
-    }> = [];
-
-    let globalIndex = 0;
-    mealPlanOrders.forEach((order) => {
-      for (let i = 0; i < order.quantity; i++) {
-        instances.push({
-          type: order.type,
-          instanceIndex: i,
-          globalIndex: globalIndex++,
-        });
-      }
-    });
-
-    return instances;
-  };
-
-  // Distribute selected items across meal plan instances
-  const distributeItemsAcrossMealPlans = () => {
-    const instances = createMealPlanInstances();
-    const distribution: { [key: number]: SelectedItemWithQuantity[] } = {};
-
-    // Initialize empty arrays for each instance
-    instances.forEach((instance) => {
-      distribution[instance.globalIndex] = [];
-    });
-
-    // Group items by type
-    const itemsByType = {
-      main: selectedItems.filter((item) => item.type === "main"),
-      side: selectedItems.filter((item) => item.type === "side"),
-      starch: selectedItems.filter((item) => item.type === "starch"),
-    };
-
-    // Distribute items across instances
-    let currentInstanceIndex = 0;
-
-    ["main", "side", "starch"].forEach((type) => {
-      const items = itemsByType[type as keyof typeof itemsByType];
-
-      items.forEach((item) => {
-        for (let q = 0; q < item.quantity; q++) {
-          // Find next available instance that can accept this item type
-          let placed = false;
-          let attempts = 0;
-
-          while (!placed && attempts < instances.length) {
-            const instance = instances[currentInstanceIndex % instances.length];
-            const limits = getMealPlanLimits(instance.type);
-            const currentItems = distribution[instance.globalIndex];
-            const currentTypeCount = currentItems.filter(
-              (i) => i.type === type
-            ).length;
-
-            if (currentTypeCount < limits[type]) {
-              // Add single quantity item to this instance
-              distribution[instance.globalIndex].push({
-                ...item,
-                quantity: 1,
-              });
-              placed = true;
-            }
-
-            currentInstanceIndex++;
-            attempts++;
-          }
-
-          if (!placed) {
-            // If we can't place the item, add it to the first available instance
-            // This handles edge cases
-            const firstInstance = instances[0];
-            if (firstInstance) {
-              distribution[firstInstance.globalIndex].push({
-                ...item,
-                quantity: 1,
-              });
-            }
-          }
-        }
-      });
-    });
-
-    return { instances, distribution };
-  };
-
-  const { instances, distribution } = distributeItemsAcrossMealPlans();
+  const { instances, distribution } = distributeItemsAcrossMealPlans(
+    mealPlanOrders,
+    selectedItems,
+    getMealPlanLimits
+  );
 
   // Create an array of all indices to have all accordion tabs open by default
   const allIndices = instances.map((_, index) => index);
@@ -149,11 +64,7 @@ const MealPlanAccordion: React.FC<MealPlanAccordionProps> = ({
     if (categoryLimit === 0) return null;
 
     const categoryDisplayName =
-      category === "main"
-        ? "Main Dishes"
-        : category === "side"
-        ? "Side Dishes"
-        : "Starch";
+      getCategoryDisplayName(category) + (category !== "starch" ? "es" : "");
 
     return (
       <div className="mb-4">
@@ -184,12 +95,12 @@ const MealPlanAccordion: React.FC<MealPlanAccordionProps> = ({
                   >
                     <Minus size={14} />
                   </button>
-                  
+
                   {/* Quantity display */}
                   <span className="text-sm font-medium text-brand-text px-2">
                     {item.quantity}
                   </span>
-                  
+
                   {/* Plus button - matching ProductItem style */}
                   <button
                     onClick={() => {
@@ -219,11 +130,11 @@ const MealPlanAccordion: React.FC<MealPlanAccordionProps> = ({
                     <Plus size={14} />
                   </button>
                 </div>
-                
+
                 {/* <span className="font-semibold text-brand-primary text-sm min-w-[50px] text-right">
                   ₱{item.price}
                 </span> */}
-                
+
                 <button
                   onClick={() => onItemRemove(item)}
                   className="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded hover:bg-red-50"

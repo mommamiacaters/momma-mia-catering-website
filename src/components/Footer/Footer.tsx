@@ -1,9 +1,10 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
+import { SOCIAL_LINKS } from "../../constants";
 
 const Footer: React.FC = () => {
   const { pathname } = useLocation();
-  const isServicePage = pathname.startsWith("/service");
+  const isServicePage = pathname.startsWith("/services");
   return (
     <footer className="bg-brand-primary text-white transition-transform duration-300">
       {/* Newsletter Section */}
@@ -53,7 +54,7 @@ const Footer: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-4">
           <div className="flex items-center space-x-5">
             <a
-              href="https://www.facebook.com/profile.php?id=61559809667297"
+              href={SOCIAL_LINKS.facebook}
               className="text-brand-text/60 hover:text-brand-primary transition-colors"
               target="_blank"
               rel="noopener noreferrer"
@@ -62,7 +63,7 @@ const Footer: React.FC = () => {
               <i className="pi pi-facebook text-xl"></i>
             </a>
             <a
-              href="https://www.instagram.com/momma_mia_caters/"
+              href={SOCIAL_LINKS.instagram}
               className="text-brand-text/60 hover:text-brand-primary transition-colors"
               target="_blank"
               rel="noopener noreferrer"

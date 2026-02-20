@@ -51,11 +51,11 @@ const ContactPage: React.FC = () => {
   };
 
   return (
-    <div className="bg-brand-secondary min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 lg:px-12 pt-8 pb-16 md:pt-14 md:pb-20 lg:pt-16 lg:pb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+    <div className="bg-brand-secondary min-h-screen flex flex-col">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 lg:px-12 pt-8 pb-12 md:pt-14 md:pb-16 lg:pt-16 lg:pb-20 flex-1 flex items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 w-full">
           {/* Contact Information */}
-          <div className="space-y-8 pt-4 lg:pt-8">
+          <div className="space-y-8 pt-4 lg:pt-8 lg:sticky lg:top-28 lg:self-start">
             <div>
               <h1 className="text-3xl lg:text-4xl font-arvo-bold text-brand-text leading-tight mb-4">
                 We'd love to hear from you.

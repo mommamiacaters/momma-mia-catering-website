@@ -1,45 +1,25 @@
 import React from 'react';
 import ProductCatalog from '../ProductCatalog/ProductCatalog';
-
-type MealPlanType = "Double The Protein" | "Balanced Diet";
-type CategoryType = "main" | "side" | "starch";
-
-interface MealPlanOrder {
-  type: MealPlanType;
-  quantity: number;
-}
-
-interface MenuItem {
-  id: string;
-  name: string;
-  category: CategoryType;
-  price: number;
-  // Add other properties as needed
-}
-
-interface SelectedItem {
-  id: string;
-  quantity: number;
-  // Add other properties as needed
-}
+import { MealPlanType, MealPlanOrder, MenuItem, SelectedItemWithQuantity, MenuTypeData, CategoryType } from '../../types';
+import { MEAL_PLAN_DESCRIPTIONS, CATEGORIES } from '../../constants';
 
 interface CheckALunchProps {
   mealPlanOrders: MealPlanOrder[];
-  selectedItems: SelectedItem[];
-  menuData: any;
+  selectedItems: SelectedItemWithQuantity[];
+  menuData: MenuTypeData | null;
   loading: boolean;
-  error: any;
+  error: string | null;
   onMealPlanSelect: (type: MealPlanType) => void;
   onMealPlanQuantityChange: (type: MealPlanType, quantity: number) => void;
   onItemAdd: (item: MenuItem) => void;
-  onItemRemove: (itemId: string) => void;
-  onItemQuantityDecrease: (itemId: string) => void;
+  onItemRemove: (item: SelectedItemWithQuantity) => void;
+  onItemQuantityDecrease: (item: MenuItem) => void;
   getMealPlanPrice: (type: MealPlanType) => number;
   getItemsByCategory: (category: CategoryType) => MenuItem[];
-  getCategoryDisplayName: (category: CategoryType) => string;
+  getCategoryDisplayName: (category: string) => string;
   isItemSelected: (item: MenuItem) => boolean;
-  getCurrentItemQuantity: (itemId: string) => number;
-  getMaxAllowedItemsByType: (category: CategoryType) => number;
+  getCurrentItemQuantity: (item: MenuItem) => number;
+  getMaxAllowedItemsByType: () => Record<string, number>;
 }
 
 const CheckALunch: React.FC<CheckALunchProps> = ({
@@ -65,7 +45,6 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   }
 
   const mealPlanTypes: MealPlanType[] = ["Double The Protein", "Balanced Diet"];
-  const categories: CategoryType[] = ["main", "side", "starch"];
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -87,9 +66,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   {type}
                 </h3>
                 <p className="text-gray-600 mb-2">
-                  {type === "Double The Protein"
-                    ? "2 Main Dishes, 1 Side Dish, 1 Starch"
-                    : "1 Main Dish, 1 Side Dish, 1 Starch"}
+                  {MEAL_PLAN_DESCRIPTIONS[type]}
                 </p>
                 <span className="font-bold text-brand-primary text-lg">
                   ₱{getMealPlanPrice(type)}
@@ -151,7 +128,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
 
       {/* Menu Items by Category */}
       <div className="space-y-16">
-        {categories.map((category) => {
+        {CATEGORIES.map((category) => {
           const items = getItemsByCategory(category);
           if (items.length === 0) return null;
 

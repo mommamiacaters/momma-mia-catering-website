@@ -4,13 +4,13 @@ import Image from "../Image/Image";
 interface CarouselProps {
   images: string[];
   title: string;
-  onPreview?: (url: string) => void;
 }
 
-const Carousel: React.FC<CarouselProps> = ({ images, title, onPreview }) => {
+const Carousel: React.FC<CarouselProps> = ({ images, title }) => {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [index, setIndex] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const isDownRef = useRef(false);
   const startXRef = useRef(0);
   const startScrollLeftRef = useRef(0);
@@ -30,6 +30,15 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, onPreview }) => {
 
   const prev = () => goTo(index - 1);
   const next = () => goTo(index + 1);
+
+  // Close preview on ESC
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreviewUrl(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Sync index on manual scroll
   useEffect(() => {
@@ -128,7 +137,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, onPreview }) => {
             className="snap-start shrink-0 w-full"
           >
             <div
-              className="group relative overflow-hidden shadow-lg cursor-pointer h-[45vh] md:h-[55vh] lg:h-[65vh] xl:h-[70vh]"
+              className="group relative overflow-hidden shadow-lg cursor-pointer h-[35vh] md:h-[40vh] lg:h-[45vh] xl:h-[50vh] max-h-[500px]"
               role="button"
               tabIndex={0}
               aria-label={`Preview ${title} image ${i + 1}`}
@@ -139,16 +148,16 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, onPreview }) => {
                   draggedRef.current = false;
                   return;
                 }
-                onPreview?.(src);
+                setPreviewUrl(src);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  onPreview?.(src);
+                  setPreviewUrl(src);
                 }
               }}
             >
-              <Image src={src} alt={`${title} ${i + 1}`} className="w-full h-full object-contain bg-brand-primary" />
+              <Image src={src} alt={`${title} ${i + 1}`} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
             </div>
           </div>
@@ -189,6 +198,35 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, onPreview }) => {
           />)
         )}
       </div>
+
+      {/* Preview Modal */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setPreviewUrl(null)}
+          aria-modal="true"
+          role="dialog"
+        >
+          <div
+            className="relative max-w-[95vw] max-h-[95vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="max-w-[95vw] max-h-[95vh] object-contain shadow-2xl"
+            />
+            <button
+              type="button"
+              aria-label="Close preview"
+              className="absolute -top-3 -right-3 bg-white/90 hover:bg-white text-brand-text rounded-full w-9 h-9 shadow flex items-center justify-center"
+              onClick={() => setPreviewUrl(null)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

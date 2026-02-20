@@ -1,23 +1,13 @@
 import React from "react";
 import ProductItem from "./components/ProductItem";
-
-interface MenuItem {
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  type: string;
-}
-
-interface SelectedItemWithQuantity extends MenuItem {
-  quantity: number;
-}
+import { MenuItem, SelectedItemWithQuantity } from "../../types";
 
 interface ProductCatalogProps {
   items: MenuItem[];
   selectedItems: MenuItem[];
   onItemAdd: (item: MenuItem) => void;
-  onItemRemove: (item: MenuItem) => void;
+  onItemRemove: (item: SelectedItemWithQuantity) => void;
+  onItemQuantityDecrease: (item: MenuItem) => void;
   title: string;
   isDisabled?: boolean;
   getCurrentItemQuantity?: (item: MenuItem) => number;
@@ -30,6 +20,7 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
   selectedItems,
   onItemAdd,
   onItemRemove,
+  onItemQuantityDecrease,
   title,
   isDisabled,
   getCurrentItemQuantity,
@@ -78,10 +69,10 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
         (selected) => selected.name === item.name
       );
       if (selectedItem) {
-        onItemRemove(selectedItem as any);
+        onItemRemove(selectedItem);
       }
     } else {
-      onItemRemove(item);
+      onItemRemove(item as unknown as SelectedItemWithQuantity);
     }
   };
 
@@ -109,19 +100,7 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
               currentQuantity={getItemQuantity(item)}
               onAdd={() => onItemAdd(item)}
               onRemove={() => handleItemRemove(item)}
-              onQuantityDecrease={() => {
-                // Find the actual selected item and decrease its quantity by 1
-                if (selectedItemsWithQuantity) {
-                  const selectedItem = selectedItemsWithQuantity.find(
-                    (selected) => selected.name === item.name
-                  );
-                  if (selectedItem && selectedItem.quantity > 1) {
-                    // Use onItemRemove with the decrement logic
-                    // You'll need to add onItemQuantityChange prop to ProductCatalog
-                    onItemRemove(selectedItem as any);
-                  }
-                }
-              }}
+              onQuantityDecrease={() => onItemQuantityDecrease(item)}
               isDisabled={isItemDisabled(item)}
             />
           ))}

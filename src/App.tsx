@@ -12,7 +12,6 @@ import MealsPage from "./pages/MealsPage/MealsPage";
 import AboutPage from "./pages/AboutPage/AboutPage";
 import ContactPage from "./pages/ContactPage/ContactPage";
 import ServicePage from "./pages/ServicePage/ServicePage";
- 
 
 function AppContent() {
   const location = useLocation();
@@ -60,14 +59,13 @@ function AppContent() {
       {!isServicePage && <Navigation isVisible={showNavbar} />}
       <main className={!isServicePage ? 'pt-16 md:pt-20' : ''}>
         <Routes>
-          {/* Pass location.pathname as a prop */}
           <Route
             path="/"
-            element={<MealsPage currentLocation={location.pathname} />}
+            element={<MealsPage />}
           />
           <Route
             path="/meals"
-            element={<MealsPage currentLocation={location.pathname} />}
+            element={<MealsPage />}
           />
           <Route
             path="/about"

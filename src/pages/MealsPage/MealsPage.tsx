@@ -2,12 +2,9 @@ import React, { useState, useEffect } from "react";
 import MealCard from "../../components/MealCard/MealCard";
 import Masonry, { ResponsiveMasonry } from "react-responsive-masonry";
 import { catering, checkLunch, funBoxes, partyTrays, equipmentRental } from "../../images";
+import { MealPost } from "../../types";
 
-interface MealsPageProps {
-  currentLocation?: string;
-}
-
-const MealsPage: React.FC<MealsPageProps> = ({ currentLocation }) => {
+const MealsPage: React.FC = () => {
   const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   useEffect(() => {
@@ -16,39 +13,39 @@ const MealsPage: React.FC<MealsPageProps> = ({ currentLocation }) => {
       setIsPageLoaded(true);
     }, 50);
     return () => clearTimeout(timer);
-  }, [currentLocation]);
+  }, []);
 
-  const mealPosts = [
+  const mealPosts: MealPost[] = [
     {
       id: 1,
-      title: "🍱 Check-a-Lunch",
+      title: "\u{1F371} Check-a-Lunch",
       slug: "check-a-lunch",
       description:
-        "Packed meals with heart. Choose your meals for the week or day. Freshly prepared, delivered daily. No subscriptions—just food that works around your schedule.",
+        "Packed meals with heart. Choose your meals for the week or day. Freshly prepared, delivered daily. No subscriptions\u2014just food that works around your schedule.",
       image: checkLunch,
       size: "small" as const,
     },
     {
       id: 2,
-      title: "🍗 Party Trays",
+      title: "\u{1F357} Party Trays",
       slug: "party-trays",
       description:
-        "Generous portions, easy hosting. Delicious, ready-to-serve trays for 8–10 people. Perfect for family get-togethers, potlucks, or surprise celebrations.",
+        "Generous portions, easy hosting. Delicious, ready-to-serve trays for 8\u201310 people. Perfect for family get-togethers, potlucks, or surprise celebrations.",
       image: partyTrays,
       size: "large" as const,
     },
     {
       id: 3,
-      title: "🎁 Fun Boxes",
+      title: "\u{1F381} Fun Boxes",
       slug: "fun-boxes",
       description:
-        "Pasta? Sandwich? Dessert? but make it fun. Curated lunch boxes you can mix and match—ideal for events, client gifts, team perks, and anything worth celebrating.",
+        "Pasta? Sandwich? Dessert? but make it fun. Curated lunch boxes you can mix and match\u2014ideal for events, client gifts, team perks, and anything worth celebrating.",
       image: funBoxes,
       size: "small" as const,
     },
     {
       id: 4,
-      title: "🍽️ Catering",
+      title: "\u{1F37D}\uFE0F Catering",
       slug: "catering",
       description:
         "Full-service catering for any occasion. From small gatherings to big events, we bring the food, setup, and service so you can focus on hosting.",
@@ -57,10 +54,10 @@ const MealsPage: React.FC<MealsPageProps> = ({ currentLocation }) => {
     },
     {
       id: 5,
-      title: "🛠️ Equipment Rental",
+      title: "\u{1F6E0}\uFE0F Equipment Rental",
       slug: "equipment-rental",
       description:
-        "Need chafing dishes, buffet tables, or utensils? Rent what you need—no frills, no fuss, no overcharging.",
+        "Need chafing dishes, buffet tables, or utensils? Rent what you need\u2014no frills, no fuss, no overcharging.",
       image: equipmentRental,
       size: "large" as const,
     },

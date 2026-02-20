@@ -1,13 +1,6 @@
 import React from "react";
 import { Plus, Minus } from "lucide-react";
-
-interface MenuItem {
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  type: string;
-}
+import { MenuItem } from "../../../types";
 
 interface ProductItemProps {
   item: MenuItem;
@@ -16,7 +9,7 @@ interface ProductItemProps {
   currentQuantity?: number;
   onAdd: () => void;
   onRemove: () => void;
-  onQuantityDecrease: () => void; // New prop for decreasing quantity by 1
+  onQuantityDecrease: () => void;
 }
 
 const ProductItem: React.FC<ProductItemProps> = ({

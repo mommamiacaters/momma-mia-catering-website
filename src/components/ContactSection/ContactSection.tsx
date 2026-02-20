@@ -12,8 +12,8 @@ const ContactSection: React.FC<ContactSectionProps> = ({
   messengerUrl = "https://m.me/61559809667297"
 }) => {
   return (
-    <div className="mt-20 text-center relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-brand-primary">
-      <div className="max-w-7xl mx-auto px-16 py-24">
+    <div className="mt-12 text-center relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-brand-primary">
+      <div className="max-w-7xl mx-auto px-6 sm:px-10 md:px-16 py-14 md:py-16">
         <h2 className="text-3xl font-bold text-brand-secondary mb-4">
           {title}
         </h2>

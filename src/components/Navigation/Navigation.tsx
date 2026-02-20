@@ -1,10 +1,26 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { logo } from "../../images";
+import { NAV_LINKS, SOCIAL_LINKS } from "../../constants";
 
 interface NavigationProps {
   isVisible: boolean;
 }
+
+const SocialIcon: React.FC<{
+  platform: "facebook" | "instagram";
+  className?: string;
+}> = ({ platform, className = "" }) => (
+  <a
+    href={SOCIAL_LINKS[platform]}
+    className={`text-white/80 hover:text-white transition-colors ${className}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label={platform === "facebook" ? "Facebook" : "Instagram"}
+  >
+    <i className={`pi pi-${platform} text-lg`}></i>
+  </a>
+);
 
 const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
   const location = useLocation();
@@ -44,11 +60,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
 
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center space-x-2 lg:space-x-6">
-            {[
-              { to: "/meals", label: "Your Meals & More" },
-              { to: "/about", label: "About" },
-              { to: "/contact", label: "Contact" },
-            ].map((link) => (
+            {NAV_LINKS.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
@@ -68,46 +80,14 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
 
           {/* Social Icons - Desktop */}
           <div className="hidden md:flex items-center space-x-3">
-            <a
-              href="https://www.facebook.com/profile.php?id=61559809667297"
-              className="text-white/80 hover:text-white transition-colors p-1"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Facebook"
-            >
-              <i className="pi pi-facebook text-lg"></i>
-            </a>
-            <a
-              href="https://www.instagram.com/momma_mia_caters/"
-              className="text-white/80 hover:text-white transition-colors p-1"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Instagram"
-            >
-              <i className="pi pi-instagram text-lg"></i>
-            </a>
+            <SocialIcon platform="facebook" className="p-1" />
+            <SocialIcon platform="instagram" className="p-1" />
           </div>
 
           {/* Mobile: Social + Hamburger */}
           <div className="md:hidden flex items-center space-x-3">
-            <a
-              href="https://www.facebook.com/profile.php?id=61559809667297"
-              className="text-white/80 hover:text-white transition-colors"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Facebook"
-            >
-              <i className="pi pi-facebook text-lg"></i>
-            </a>
-            <a
-              href="https://www.instagram.com/momma_mia_caters/"
-              className="text-white/80 hover:text-white transition-colors"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Instagram"
-            >
-              <i className="pi pi-instagram text-lg"></i>
-            </a>
+            <SocialIcon platform="facebook" />
+            <SocialIcon platform="instagram" />
             <button
               onClick={toggleMenu}
               className="text-white p-1 focus:outline-none focus:ring-2 focus:ring-white/30 rounded"
@@ -131,11 +111,7 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
         }`}
       >
         <div className="px-4 pb-6 pt-2 space-y-1 border-t border-white/20">
-          {[
-            { to: "/meals", label: "Your Meals & More" },
-            { to: "/about", label: "About" },
-            { to: "/contact", label: "Contact" },
-          ].map((link) => (
+          {NAV_LINKS.map((link) => (
             <Link
               key={link.to}
               to={link.to}
