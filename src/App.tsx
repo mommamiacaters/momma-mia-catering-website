@@ -91,8 +91,7 @@ function AppContent() {
 
 function App() {
   return (
-    // Remove Github Pages basename when Custom Domain is available
-    <Router basename="/momma-mia-catering-website">
+    <Router>
       <AppContent />
     </Router>
   );
