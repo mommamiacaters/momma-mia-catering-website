@@ -9,7 +9,7 @@ export const NAV_LINKS = [
 export const SOCIAL_LINKS = {
   facebook: "https://www.facebook.com/profile.php?id=61559809667297",
   instagram: "https://www.instagram.com/momma_mia_caters/",
-  messenger: "https://m.me/61559809667297",
+  messenger: "https://www.facebook.com/profile.php?id=61559809667297",
 } as const;
 
 export const MEAL_PLAN_LIMITS: Record<string, Record<string, number>> = {

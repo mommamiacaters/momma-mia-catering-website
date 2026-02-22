@@ -9,7 +9,7 @@ interface ContactSectionProps {
 const ContactSection: React.FC<ContactSectionProps> = ({
   title = "Start Your Order",
   description = "Got a custom order or want a personalized quote? Reach out to us via Facebook Messenger or our Virtual Assistant Mia. We're here to make your event unforgettable.",
-  messengerUrl = "https://m.me/61559809667297"
+  messengerUrl = "https://www.facebook.com/profile.php?id=61559809667297"
 }) => {
   return (
     <div className="mt-12 text-center relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-brand-primary">

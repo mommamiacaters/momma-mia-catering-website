@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import ServiceOptions from "./components/ServiceOptions";
-import MealList from "./components/MealList";
-import { menuService, MenuData } from "../../services/menuService";
 
 interface Message {
   text: string;
@@ -9,10 +7,50 @@ interface Message {
   id: number;
 }
 
+interface WebhookResponse {
+  response?: string;
+  status?: string;
+  context?: Record<string, unknown>;
+  intents?: string[];
+  leadScore?: {
+    score: number;
+    level: string;
+    priority: string;
+    reasoning: string;
+  };
+}
+
 interface ChatbotProps {
   webhookUrl?: string;
   className?: string;
 }
+
+const SERVICES_FAQ_RESPONSE = `Here's what Momma Mia Catering is all about!
+
+📖 About Us
+Momma Mia Catering brings homestyle cooking and warm hospitality to your events and everyday meals. Good food brings people together!
+
+🍽️ Our Services
+• Check-A-Lunch — Fresh, healthy lunch options delivered daily to your workplace or event
+• Party Trays — Delicious assortments perfect for celebrations and gatherings
+• Fun Boxes — Individual meal boxes packed with flavor and fun
+• Catering Services — Full-service catering for weddings, corporate events, and special occasions
+• Equipment Rental — Professional-grade catering equipment for rent
+
+❓ FAQs
+Q: How do I place an order?
+A: Click "Start Order" to browse our Check-a-Lunch menu, or click "Get A Quote" for custom catering!
+
+Q: How far in advance should I order?
+A: We recommend ordering at least 48 hours in advance. For large events, please contact us 1-2 weeks ahead.
+
+Q: Do you deliver?
+A: Yes! We deliver within our service area. Contact us for delivery details.
+
+Q: Can I customize my order?
+A: Absolutely! We love working with you to create the perfect menu for your needs.
+
+Feel free to type a message if you have more questions!`;
 
 const Chatbot: React.FC<ChatbotProps> = ({
   webhookUrl = `${
@@ -27,27 +65,14 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [showBadge, setShowBadge] = useState(true);
   const [showQuickOptions, setShowQuickOptions] = useState(true);
-  const [context, setContext] = useState({});
-  const [mealData, setMealData] = useState<MenuData | null>(null);
+  const [context, setContext] = useState<Record<string, unknown>>({});
+  const [showServiceSelection, setShowServiceSelection] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatWidgetRef = useRef<HTMLDivElement>(null);
   const messageIdCounter = useRef(0);
-
-  // Load menu data on component mount
-  useEffect(() => {
-    const loadMenuData = async () => {
-      try {
-        const data = await menuService.getAllMenuData();
-        setMealData(data);
-      } catch (error) {
-        console.error("Failed to load menu data:", error);
-      }
-    };
-
-    loadMenuData();
-  }, []);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -80,45 +105,89 @@ const Chatbot: React.FC<ChatbotProps> = ({
     setIsOpen(false);
   };
 
-  const callWebhook = async (message: string) => {
-    setIsLoading(true);
+  const callWebhook = useCallback(
+    async (message: string): Promise<WebhookResponse> => {
+      // Cancel any in-flight request
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
-    try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        mode: "cors",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          message: message,
-          context: context,
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      setIsLoading(true);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `HTTP error! status: ${response.status}, message: ${errorText}`
-        );
+      try {
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          mode: "cors",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            message,
+            context,
+            timestamp: new Date().toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "");
+          throw new Error(
+            `HTTP error! status: ${response.status}, message: ${errorText}`
+          );
+        }
+
+        const responseText = await response.text();
+        if (!responseText.trim()) {
+          throw new Error("Empty response from server");
+        }
+
+        const data: WebhookResponse = JSON.parse(responseText);
+
+        // Replace context with what n8n returns (it manages full conversation state)
+        if (data.context) {
+          setContext(data.context);
+        }
+
+        return data;
+      } catch (error) {
+        if ((error as Error).name === "AbortError") {
+          throw error; // Don't log aborted requests
+        }
+        console.error("Webhook call failed:", error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+        abortControllerRef.current = null;
       }
+    },
+    [webhookUrl, context]
+  );
 
-      const responseText = await response.text();
-      const data = JSON.parse(responseText);
-
-      if (data.context) {
-        setContext({ ...context, ...data.context });
-      }
-
-      return data;
-    } catch (error) {
-      console.error("Webhook call failed:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+  const handleBotResponse = (data: WebhookResponse) => {
+    if (data.status === "success" && data.response) {
+      addMessage(data.response, "bot");
+    } else if (data.response) {
+      addMessage(data.response, "bot");
+    } else {
+      addMessage(
+        "Sorry, I had trouble understanding that. Could you try asking again?",
+        "bot"
+      );
     }
+
+    // Re-show quick options after quote is submitted
+    if (data.context && (data.context as Record<string, unknown>).quoteSent === true) {
+      setTimeout(() => setShowQuickOptions(true), 500);
+    }
+  };
+
+  const handleWebhookError = (error: unknown) => {
+    if ((error as Error).name === "AbortError") return; // Silently ignore cancelled requests
+    addMessage(
+      "Oops! Something went wrong. Please try again in a moment.",
+      "bot"
+    );
   };
 
   const sendMessage = async () => {
@@ -126,28 +195,18 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
     const message = inputValue.trim();
     setInputValue("");
+    setShowQuickOptions(false);
     addMessage(message, "user");
 
     setIsTyping(true);
 
     try {
-      const response = await callWebhook(message);
+      const data = await callWebhook(message);
       setIsTyping(false);
-
-      if (response && response.response) {
-        addMessage(response.response, "bot");
-      } else {
-        addMessage(
-          "Sorry, I had trouble understanding that. Could you try asking again?",
-          "bot"
-        );
-      }
+      handleBotResponse(data);
     } catch (error) {
       setIsTyping(false);
-      addMessage(
-        "Oops! Something went wrong. Please try again in a moment. 🤔",
-        "bot"
-      );
+      handleWebhookError(error);
     }
   };
 
@@ -155,44 +214,31 @@ const Chatbot: React.FC<ChatbotProps> = ({
     addMessage(message, "user");
     setShowQuickOptions(false);
 
-    if (message.includes("start an order")) {
-      showServiceOptions();
-      return;
-    }
-
     setIsTyping(true);
 
     try {
-      const response = await callWebhook(message);
+      const data = await callWebhook(message);
       setIsTyping(false);
-
-      if (response && response.response) {
-        addMessage(response.response, "bot");
-      } else {
-        addMessage(
-          "Sorry, I had trouble understanding that. Could you try asking again?",
-          "bot"
-        );
-      }
+      handleBotResponse(data);
     } catch (error) {
       setIsTyping(false);
-      addMessage(
-        "Oops! Something went wrong. Please try again in a moment. 🤔",
-        "bot"
-      );
+      handleWebhookError(error);
     }
   };
 
-  const showServiceOptions = () => {
-    addMessage("Great! Which service would you like to order from?", "bot");
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   };
+
+  // Cancel in-flight requests on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   // Close widget when clicking outside
   useEffect(() => {
@@ -212,49 +258,6 @@ const Chatbot: React.FC<ChatbotProps> = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
-
-  const [showServiceSelection, setShowServiceSelection] = useState(false);
-  const [showMealSelection, setShowMealSelection] = useState<{
-    service: keyof MenuData;
-    serviceName: string;
-  } | null>(null);
-
-  const handleServiceSelect = (
-    service: keyof MenuData,
-    serviceName: string
-  ) => {
-    setShowServiceSelection(false);
-    addMessage(`Here are our ${serviceName} options:`, "bot");
-    setShowMealSelection({ service, serviceName });
-  };
-
-  const handleMealContinue = () => {
-    setShowMealSelection(null);
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      addMessage(
-        `Perfect! I'll help you customize your order. How many meals do you need and for what date?`,
-        "bot"
-      );
-    }, 1500);
-  };
-
-  // Refresh menu data function
-  const refreshMenuData = async () => {
-    try {
-      await menuService.refreshMenuData();
-      const freshData = await menuService.getAllMenuData(true);
-      setMealData(freshData);
-      addMessage("Menu data has been refreshed! 📋", "bot");
-    } catch (error) {
-      console.error("Failed to refresh menu data:", error);
-      addMessage(
-        "Sorry, I couldn't refresh the menu data right now. 😔",
-        "bot"
-      );
-    }
-  };
 
   return (
     <div className={`fixed z-50 ${className}`}>
@@ -298,13 +301,6 @@ const Chatbot: React.FC<ChatbotProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={refreshMenuData}
-                title="Refresh Menu"
-                className="bg-white/20 border-none text-white w-8 h-8 rounded-full cursor-pointer flex items-center justify-center text-sm transition-colors duration-300 hover:bg-white/30"
-              >
-                🔄
-              </button>
-              <button
                 onClick={closeWidget}
                 className="bg-white/20 border-none text-white w-8 h-8 rounded-full cursor-pointer flex items-center justify-center text-xl transition-colors duration-300 hover:bg-white/30"
               >
@@ -325,9 +321,11 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 </div>
                 <div className="flex flex-col gap-2.5 mt-2.5 w-full animate-in fade-in duration-500">
                   <button
-                    onClick={() =>
-                      handleQuickOption("I want to see your services and FAQs")
-                    }
+                    onClick={() => {
+                      addMessage("I want to see your services and FAQs", "user");
+                      setShowQuickOptions(false);
+                      addMessage(SERVICES_FAQ_RESPONSE, "bot");
+                    }}
                     className="bg-gradient-to-r from-brand-primary to-brand-accent text-white border-none py-3 px-6 rounded-3xl cursor-pointer text-sm font-medium transition-all duration-300 shadow-lg shadow-brand-primary/30 flex items-center gap-2 text-left hover:translate-y-[-2px] hover:shadow-xl hover:shadow-brand-primary/40 active:translate-y-0 font-poppins"
                   >
                     <span className="text-lg min-w-[20px]">📋</span>
@@ -338,7 +336,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
                       addMessage("I want to start an order", "user");
                       setShowQuickOptions(false);
                       addMessage(
-                        "Great! Which service would you like to order from?",
+                        "Great! Choose a service below to get started:",
                         "bot"
                       );
                       setShowServiceSelection(true);
@@ -376,25 +374,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
             ))}
 
             {/* Service Selection */}
-            {showServiceSelection && mealData && (
+            {showServiceSelection && (
               <div className="self-start w-full">
-                <ServiceOptions
-                  onSelect={handleServiceSelect}
-                  addMessage={addMessage}
-                />
-              </div>
-            )}
-
-            {/* Meal Selection */}
-            {showMealSelection && (
-              <div className="self-start w-full">
-                <MealList
-                  service={showMealSelection.service}
-                  serviceName={showMealSelection.serviceName}
-                  onContinue={handleMealContinue}
-                  addMessage={addMessage}
-                  mealData={mealData} // Add this prop to pass the dynamic data
-                />
+                <ServiceOptions addMessage={addMessage} />
               </div>
             )}
 
@@ -419,15 +401,16 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 ref={inputRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
+                disabled={isLoading || isTyping}
                 rows={1}
-                className="flex-1 py-3 px-4 border-2 border-brand-divider rounded-3xl text-sm resize-none font-poppins h-11 min-h-11 max-h-11 transition-colors duration-300 text-brand-text overflow-hidden leading-tight focus:outline-none focus:border-brand-primary"
+                className="flex-1 py-3 px-4 border-2 border-brand-divider rounded-3xl text-sm resize-none font-poppins h-11 min-h-11 max-h-11 transition-colors duration-300 text-brand-text overflow-hidden leading-tight focus:outline-none focus:border-brand-primary disabled:opacity-60"
                 style={{ lineHeight: "1.2" }}
               />
               <button
                 onClick={sendMessage}
-                disabled={isLoading}
+                disabled={isLoading || isTyping}
                 className="w-11 h-11 bg-gradient-to-r from-brand-primary to-brand-accent border-none rounded-full text-white cursor-pointer flex items-center justify-center transition-all duration-200 text-lg flex-shrink-0 hover:scale-105 hover:shadow-md hover:shadow-brand-primary/40 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
               >
                 ➤
