@@ -76,27 +76,27 @@ export function useOrderManagement(
 
   const updateSelectedItemLimits = () => {
     const maxAllowed = getMaxAllowedItemsByType();
-    const itemCounts: Record<string, number> = {};
-
-    selectedItems.forEach((item) => {
-      const key = `${item.name}-${item.type}`;
-      itemCounts[key] = (itemCounts[key] || 0) + 1;
-    });
-
     const itemsToRemove = new Set<string>();
 
-    Object.entries(itemCounts).forEach(([key, count]) => {
-      const [name, type] = key.split("-");
-      const maxForType = maxAllowed[type] || 0;
+    // Count total items per category type
+    const typeCounts: Record<string, number> = {};
+    selectedItems.forEach((item) => {
+      typeCounts[item.type] = (typeCounts[item.type] || 0) + 1;
+    });
 
-      if (count > maxForType) {
-        const excessCount = count - maxForType;
+    // For each type over the limit, mark excess items for removal (LIFO)
+    Object.entries(typeCounts).forEach(([type, count]) => {
+      const max = maxAllowed[type] || 0;
+      if (count > max) {
+        const excess = count - max;
         const itemsOfType = selectedItems.filter(
-          (item) => item.name === name && item.type === type
+          (item) => item.type === type
         );
-        for (let i = 0; i < excessCount; i++) {
-          if (itemsOfType[i]) {
-            itemsToRemove.add(itemsOfType[i].instanceId);
+        // Remove from the end (most recently added first)
+        for (let i = 0; i < excess; i++) {
+          const itemToRemove = itemsOfType[itemsOfType.length - 1 - i];
+          if (itemToRemove) {
+            itemsToRemove.add(itemToRemove.instanceId);
           }
         }
       }

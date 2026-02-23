@@ -260,12 +260,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
   }, [isOpen]);
 
   return (
-    <div className={`fixed z-50 ${className}`}>
+    <div className={`fixed z-40 ${className}`}>
       {/* Chat Button */}
       <button
         onClick={toggleWidget}
         data-chat-toggle
-        className={`fixed bottom-8 right-8 w-15 h-15 bg-gradient-to-br from-brand-primary to-brand-accent rounded-full border-none cursor-pointer shadow-lg shadow-brand-primary/40 transition-all duration-300 z-[1000] flex items-center justify-center text-white text-3xl hover:scale-110 hover:shadow-xl hover:shadow-brand-primary/50 active:scale-95 md:bottom-8 md:right-8 ${
+        className={`fixed bottom-8 right-8 w-15 h-15 bg-gradient-to-br from-brand-primary to-brand-accent rounded-full border-none cursor-pointer shadow-lg shadow-brand-primary/40 transition-all duration-300 z-40 flex items-center justify-center text-white text-3xl hover:scale-110 hover:shadow-xl hover:shadow-brand-primary/50 active:scale-95 md:bottom-8 md:right-8 ${
           isOpen ? "max-md:hidden" : ""
         }`}
         style={{ width: "60px", height: "60px" }}
@@ -286,7 +286,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
       {isOpen && (
         <div
           ref={chatWidgetRef}
-          className="fixed bottom-28 right-8 w-96 h-[600px] bg-white rounded-3xl shadow-2xl shadow-stone-700/20 border-2 border-brand-divider flex flex-col overflow-hidden z-[999] chat-widget-animate md:w-96 md:h-[600px] md:bottom-28 md:right-8 max-md:fixed max-md:top-0 max-md:left-0 max-md:right-0 max-md:bottom-0 max-md:w-full max-md:h-full max-md:rounded-none max-md:border-none"
+          className="fixed bottom-28 right-8 w-96 h-[600px] bg-white rounded-3xl shadow-2xl shadow-stone-700/20 border-2 border-brand-divider flex flex-col overflow-hidden z-40 chat-widget-animate md:w-96 md:h-[600px] md:bottom-28 md:right-8 max-md:fixed max-md:top-0 max-md:left-0 max-md:right-0 max-md:bottom-0 max-md:w-full max-md:h-full max-md:rounded-none max-md:border-none"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

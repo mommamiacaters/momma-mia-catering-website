@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "../Image/Image";
 
 interface CarouselProps {
@@ -15,21 +15,29 @@ const Carousel: React.FC<CarouselProps> = ({ images, title }) => {
   const startXRef = useRef(0);
   const startScrollLeftRef = useRef(0);
   const draggedRef = useRef(false);
+  const indexRef = useRef(0);
 
-  const clamp = (i: number) => Math.max(0, Math.min(images.length - 1, i));
+  const clamp = useCallback(
+    (i: number) => Math.max(0, Math.min(images.length - 1, i)),
+    [images.length]
+  );
 
-  const goTo = (i: number) => {
-    const next = clamp(i);
-    setIndex(next);
-    const track = trackRef.current;
-    if (track) {
-      const slide = track.children[next] as HTMLElement | undefined;
-      if (slide) track.scrollTo({ left: slide.offsetLeft, behavior: "smooth" });
-    }
-  };
+  const goTo = useCallback(
+    (i: number) => {
+      const next = clamp(i);
+      indexRef.current = next;
+      setIndex(next);
+      const track = trackRef.current;
+      if (track) {
+        const slide = track.children[next] as HTMLElement | undefined;
+        if (slide) track.scrollTo({ left: slide.offsetLeft, behavior: "smooth" });
+      }
+    },
+    [clamp]
+  );
 
-  const prev = () => goTo(index - 1);
-  const next = () => goTo(index + 1);
+  const prev = () => goTo(indexRef.current - 1);
+  const next = () => goTo(indexRef.current + 1);
 
   // Close preview on ESC
   useEffect(() => {
@@ -40,26 +48,29 @@ const Carousel: React.FC<CarouselProps> = ({ images, title }) => {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Sync index on manual scroll
+  // Sync dot indicator on scroll — uses IntersectionObserver for instant updates
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
-    const onScroll = () => {
-      let nearest = 0;
-      let minDist = Number.POSITIVE_INFINITY;
-      for (let i = 0; i < el.children.length; i++) {
-        const child = el.children[i] as HTMLElement;
-        const dist = Math.abs(el.scrollLeft - child.offsetLeft);
-        if (dist < minDist) {
-          minDist = dist;
-          nearest = i;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const slideIndex = Array.from(el.children).indexOf(entry.target as HTMLElement);
+            if (slideIndex >= 0 && slideIndex !== indexRef.current) {
+              indexRef.current = slideIndex;
+              setIndex(slideIndex);
+            }
+          }
         }
-      }
-      if (nearest !== index) setIndex(clamp(nearest));
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll as any);
-  }, [index, images.length]);
+      },
+      { root: el, threshold: 0.5 }
+    );
+
+    Array.from(el.children).forEach((child) => observer.observe(child));
+    return () => observer.disconnect();
+  }, [images.length]);
 
   // Pointer events for drag-to-swipe (mouse and touch)
   useEffect(() => {
@@ -113,7 +124,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title }) => {
       el.removeEventListener("pointercancel", endDrag);
       el.removeEventListener("pointerleave", endDrag);
     };
-  }, []);
+  }, [goTo]);
 
   if (!images?.length) return null;
 
@@ -193,7 +204,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title }) => {
             key={i}
             type="button"
             aria-label={`Go to image ${i + 1}`}
-            className={`h-2 w-2 rounded-full ${i === index ? "bg-brand-primary" : "bg-brand-divider"}`}
+            className={`rounded-full transition-all duration-200 ${i === index ? "bg-brand-primary w-3 h-3" : "bg-brand-divider w-2 h-2"}`}
             onClick={() => goTo(i)}
           />)
         )}

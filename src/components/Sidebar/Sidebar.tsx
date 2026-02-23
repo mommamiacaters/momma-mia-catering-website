@@ -1,6 +1,14 @@
-import React from "react";
-import { Sidebar } from "primereact/sidebar";
-import ProgressBar from "../ProgressBar/ProgressBar";
+import React, { useEffect } from "react";
+import {
+  X,
+  ShoppingBag,
+  Trash2,
+  Package,
+  Plus,
+  ChevronRight,
+  AlertCircle,
+  Check,
+} from "lucide-react";
 import type {
   MealPlanType,
   MealPlanOrder,
@@ -23,6 +31,17 @@ interface ShoppingBagSidebarProps {
   getTotalMealPlanCount: () => number;
 }
 
+const PLAN_EMOJIS: Record<MealPlanType, string> = {
+  "Double The Protein": "\u{1F356}\u{1F356} \u{1F957} \u{1F35A}",
+  "Balanced Diet": "\u{1F356} \u{1F957} \u{1F35A}",
+};
+
+const CATEGORY_META: { type: string; label: string; emoji: string }[] = [
+  { type: "main", label: "Main Dish", emoji: "\u{1F356}" },
+  { type: "side", label: "Side Dish", emoji: "\u{1F957}" },
+  { type: "starch", label: "Starch", emoji: "\u{1F35A}" },
+];
+
 const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   visible,
   onHide,
@@ -33,29 +52,41 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   getMealPlanPrice,
   getMealPlanLimits,
   calculateTotalPrice,
-  getTotalItemsCount,
   getTotalMealPlanCount,
 }) => {
-  const isCartEmpty = mealPlanOrders.length === 0 && selectedItems.length === 0;
+  const isCartEmpty =
+    mealPlanOrders.length === 0 && selectedItems.length === 0;
+  const totalMealPlans = getTotalMealPlanCount();
+  const meetsMinimum = totalMealPlans >= MINIMUM_MEAL_PLANS;
 
-  // Function to remove a single meal plan instance
+  // Escape key + body scroll lock
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && visible) onHide();
+    };
+    document.addEventListener("keydown", handleEscape);
+
+    if (visible) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "";
+    };
+  }, [visible, onHide]);
+
   const removeSingleMealPlan = (type: MealPlanType) => {
     const currentOrder = mealPlanOrders.find((order) => order.type === type);
     if (currentOrder && currentOrder.quantity > 1) {
-      // If there are multiple instances, reduce by 1
       onMealPlanQuantityChange(type, currentOrder.quantity - 1);
     } else {
-      // If this is the last instance, remove completely
       onMealPlanQuantityChange(type, 0);
     }
   };
 
-  // Function to remove a specific item instance by its unique ID
-  const removeSingleItemInstance = (item: SelectedItemWithQuantity) => {
-    onItemRemove(item);
-  };
-
-  // Compute meal plan distribution above the return
   const { instances, distribution } = distributeItemsAcrossMealPlans(
     mealPlanOrders,
     selectedItems,
@@ -63,219 +94,318 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   );
 
   return (
-    <Sidebar
-      visible={visible}
-      position="right"
-      onHide={onHide}
-      className="!w-96 bg-brand-secondary text-brand-text"
-      header="Shopping Bag"
+    <div
+      className={`fixed inset-0 z-50 ${
+        visible ? "" : "pointer-events-none"
+      }`}
     >
-      <div className="h-full flex flex-col bg-brand-secondary align-items-center justify-center">
-        {/* Header */}
+      {/* Backdrop */}
+      <div
+        className={`absolute inset-0 bg-black/30 transition-opacity duration-200 ${
+          visible ? "opacity-100" : "opacity-0"
+        }`}
+        onClick={onHide}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <aside
+        className={`absolute top-0 right-0 h-full w-full sm:w-[26rem] bg-brand-secondary shadow-2xl flex flex-col transition-transform duration-200 ease-out will-change-transform ${
+          visible ? "translate-x-0" : "translate-x-full"
+        }`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Your order"
+      >
+        {/* ─── Header ─── */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-brand-divider bg-white">
+          <div className="flex items-center gap-3">
+            <Package size={20} className="text-brand-primary" />
+            <h2 className="font-arvo font-bold text-brand-text text-lg">
+              Your Order
+            </h2>
+          </div>
+          <div className="flex items-center gap-2.5">
+            {totalMealPlans > 0 && (
+              <span className="bg-brand-primary/10 text-brand-primary px-3 py-1 rounded-full font-poppins text-xs font-semibold tabular-nums">
+                {totalMealPlans} {totalMealPlans === 1 ? "box" : "boxes"}
+              </span>
+            )}
+            <button
+              onClick={onHide}
+              className="w-8 h-8 rounded-full bg-brand-secondary hover:bg-brand-divider flex items-center justify-center transition-colors"
+              aria-label="Close"
+            >
+              <X size={16} className="text-brand-text" />
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Progress Bar ─── */}
         {!isCartEmpty && (
-          <div className="p-4 border-b bg-brand-secondary sticky top-0 z-10 bg-white rounded-lg">
-            <p className="text-xs text-brand-text mb-2 text-center">
-              Please select a minimum of {MINIMUM_MEAL_PLANS} meals
-            </p>
-            <ProgressBar
-              size="small"
-              label=""
-              showPercentage={false}
-              current={getTotalMealPlanCount()}
-              total={MINIMUM_MEAL_PLANS}
-            />
+          <div className="px-5 py-3.5 bg-white border-b border-brand-divider">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-poppins text-xs text-brand-text/50">
+                Minimum {MINIMUM_MEAL_PLANS} meal plans
+              </span>
+              <span
+                className={`font-poppins text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  meetsMinimum
+                    ? "bg-green-100 text-green-700"
+                    : "bg-brand-secondary text-brand-text/50"
+                }`}
+              >
+                {totalMealPlans} / {MINIMUM_MEAL_PLANS}
+                {meetsMinimum && " \u2713"}
+              </span>
+            </div>
+            <div className="h-1.5 bg-brand-divider/40 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ease-out ${
+                  meetsMinimum ? "bg-green-500" : "bg-brand-primary"
+                }`}
+                style={{
+                  width: `${Math.min(
+                    100,
+                    (totalMealPlans / MINIMUM_MEAL_PLANS) * 100
+                  )}%`,
+                }}
+              />
+            </div>
           </div>
         )}
 
-        {/* Content */}
-        <div className="mt-4 flex-1 overflow-y-auto" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
-          <div className="space-y-3 h-full">
-            {instances.map((instance) => {
+        {/* ─── Content (scrollable) ─── */}
+        <div
+          className="flex-1 overflow-y-auto p-5 space-y-4"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {isCartEmpty ? (
+            /* ─── Empty State ─── */
+            <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+              <div className="w-20 h-20 rounded-full bg-brand-primary/10 flex items-center justify-center mb-5">
+                <ShoppingBag
+                  size={32}
+                  className="text-brand-primary/40"
+                />
+              </div>
+              <h3 className="font-arvo font-bold text-brand-text text-lg mb-2">
+                Your bag is empty
+              </h3>
+              <p className="font-poppins text-sm text-brand-text/40 leading-relaxed">
+                Start by choosing a meal plan and picking your favorite
+                dishes.
+              </p>
+            </div>
+          ) : (
+            /* ─── Meal Plan Instance Cards ─── */
+            instances.map((instance) => {
               const limits = getMealPlanLimits(instance.type);
-              const instanceItems = distribution[instance.globalIndex] || [];
-              const isMealEmpty = instanceItems.length === 0;
+              const instanceItems =
+                distribution[instance.globalIndex] || [];
 
               return (
                 <div
                   key={`${instance.type}-${instance.globalIndex}`}
-                  className="bg-white rounded-lg border border-brand-divider mb-3"
+                  className="bg-white rounded-2xl border border-brand-divider overflow-hidden shadow-sm"
                 >
-                  {/* Meal Plan Header */}
-                  <div className="p-3">
-                    <div className="flex justify-between items-center">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-800 text-sm leading-tight">
-                          {instance.type} #{instance.instanceIndex + 1}
-                        </h3>
-                        <p className="font-semibold text-orange-600 text-sm mt-1">
-                          ₱{getMealPlanPrice(instance.type)}
-                        </p>
-                      </div>
-                      {/* Remove button for single instance */}
-                      <div className="flex h-full items-center gap-1.5 ml-2">
-                        <button
-                          onClick={() => removeSingleMealPlan(instance.type)}
-                          className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center transition-colors"
-                          title="Remove this meal plan"
-                        >
-                          <i className="pi pi-trash text-xs"></i>
-                        </button>
-                      </div>
+                  {/* Card Header */}
+                  <div className="p-4 flex items-center gap-3">
+                    <span
+                      className="text-base select-none shrink-0"
+                      aria-hidden="true"
+                    >
+                      {PLAN_EMOJIS[instance.type]}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-arvo font-bold text-brand-text text-sm leading-tight">
+                        {instance.type} #{instance.instanceIndex + 1}
+                      </h3>
+                      <span className="font-poppins text-sm font-semibold text-brand-primary">
+                        &#8369;{getMealPlanPrice(instance.type)}
+                      </span>
                     </div>
+                    <button
+                      onClick={() =>
+                        removeSingleMealPlan(instance.type)
+                      }
+                      className="w-8 h-8 rounded-full bg-brand-secondary hover:bg-red-50 flex items-center justify-center transition-colors group shrink-0"
+                      aria-label={`Remove ${instance.type} #${
+                        instance.instanceIndex + 1
+                      }`}
+                    >
+                      <Trash2
+                        size={14}
+                        className="text-brand-text/30 group-hover:text-red-500 transition-colors"
+                      />
+                    </button>
                   </div>
 
-                  {/* Selected Items for this Instance */}
-                  <div className="border-t border-brand-divider bg-white bg-opacity-50">
-                    {!isMealEmpty ? (
-                      (["main", "side", "starch"] as const).map(
-                        (category) => {
-                          const categoryItems = instanceItems.filter(
-                            (item) => item.type === category
-                          );
-                          const categoryLimit = limits[category];
+                  {/* Category Sections */}
+                  <div className="border-t border-brand-divider">
+                    {CATEGORY_META.map(
+                      ({ type: catType, label, emoji }) => {
+                        const categoryItems = instanceItems.filter(
+                          (item) => item.type === catType
+                        );
+                        const limit = limits[catType] || 0;
+                        if (limit === 0) return null;
+                        const isComplete =
+                          categoryItems.length >= limit;
 
-                          if (categoryLimit === 0) return null;
-
-                          const categoryDisplayName =
-                            getCategoryDisplayName(category);
-
-                          return (
-                            <div
-                              key={category}
-                              className="p-3 border-b border-orange-100 last:border-b-0"
-                            >
-                              <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
-                                {categoryDisplayName} ({categoryItems.length}/
-                                {categoryLimit})
-                              </h4>
-
-                              <div className="space-y-2">
-                                {/* Show selected items */}
-                                {categoryItems.map((item) => (
-                                  <div
-                                    key={item.instanceId}
-                                    className="flex justify-between items-center p-2"
-                                  >
-                                    <div className="flex items-center flex-1 min-w-0">
-                                      {/* Product Image */}
-                                      {item.image && (
-                                        <div className="w-10 h-10 mr-3 rounded overflow-hidden flex-shrink-0">
-                                          <img
-                                            src={item.image}
-                                            alt={item.name}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        </div>
-                                      )}
-                                      {/* Product Name */}
-                                      <div className="flex-1 min-w-0">
-                                        <h5 className="font-medium text-gray-800 text-sm leading-tight">
-                                          {item.name}
-                                        </h5>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 ml-2">
-                                      <button
-                                        onClick={() =>
-                                          removeSingleItemInstance(item)
-                                        }
-                                        className="ml-1 w-5 h-5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full flex items-center justify-center transition-colors"
-                                        title="Remove this item"
-                                      >
-                                        <i className="pi pi-trash text-xs"></i>
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-
-                                {/* Show empty slots */}
-                                {Array.from({
-                                  length:
-                                    categoryLimit - categoryItems.length,
-                                }).map((_, index) => (
-                                  <div
-                                    key={`empty-${category}-${instance.globalIndex}-${index}`}
-                                    className="py-2 px-3 bg-gray-100 rounded border-2 border-dashed border-gray-300"
-                                  >
-                                    <span className="text-brand-text text-xs italic">
-                                      No {categoryDisplayName.toLowerCase()}{" "}
-                                      selected
-                                    </span>
-                                  </div>
-                                ))}
+                        return (
+                          <div
+                            key={catType}
+                            className="px-4 py-3 border-b border-brand-divider/50 last:border-b-0"
+                          >
+                            {/* Category Header */}
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className="text-xs"
+                                  aria-hidden="true"
+                                >
+                                  {emoji}
+                                </span>
+                                <span className="font-poppins text-[0.65rem] font-semibold text-brand-text/50 uppercase tracking-wider">
+                                  {label}
+                                </span>
                               </div>
+                              <span
+                                className={`font-poppins text-[0.65rem] font-semibold px-2 py-0.5 rounded-full ${
+                                  isComplete
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-brand-secondary text-brand-text/40"
+                                }`}
+                              >
+                                {categoryItems.length}/{limit}
+                                {isComplete && " \u2713"}
+                              </span>
                             </div>
-                          );
-                        }
-                      )
-                    ) : (
-                      <div className="p-3 text-center">
-                        <span className="text-brand-text text-xs italic">
-                          No items selected for this meal plan yet
-                        </span>
-                      </div>
+
+                            {/* Filled Items */}
+                            <div className="space-y-1.5">
+                              {categoryItems.map((item) => (
+                                <div
+                                  key={item.instanceId}
+                                  className="flex items-center gap-2.5 p-2 rounded-xl bg-brand-secondary/50"
+                                >
+                                  {item.image ? (
+                                    <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-brand-divider/50">
+                                      <img
+                                        src={item.image}
+                                        alt={item.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="w-9 h-9 rounded-lg bg-brand-primary/10 flex items-center justify-center shrink-0">
+                                      <span className="text-xs font-bold text-brand-primary">
+                                        {item.name.charAt(0)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <span className="font-poppins text-sm text-brand-text flex-1 min-w-0 truncate capitalize">
+                                    {item.name}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      onItemRemove(item)
+                                    }
+                                    className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-50 transition-colors group shrink-0"
+                                    aria-label={`Remove ${item.name}`}
+                                  >
+                                    <X
+                                      size={12}
+                                      className="text-brand-text/25 group-hover:text-red-500 transition-colors"
+                                    />
+                                  </button>
+                                </div>
+                              ))}
+
+                              {/* Empty Slots */}
+                              {Array.from({
+                                length: Math.max(
+                                  0,
+                                  limit - categoryItems.length
+                                ),
+                              }).map((_, i) => (
+                                <div
+                                  key={`empty-${catType}-${instance.globalIndex}-${i}`}
+                                  className="flex items-center gap-2.5 p-2 rounded-xl border border-dashed border-brand-divider"
+                                >
+                                  <div className="w-9 h-9 rounded-lg border border-dashed border-brand-divider flex items-center justify-center bg-brand-secondary/30">
+                                    <Plus
+                                      size={12}
+                                      className="text-brand-divider"
+                                    />
+                                  </div>
+                                  <span className="font-poppins text-xs text-brand-text/25 italic">
+                                    Choose a{" "}
+                                    {label.toLowerCase()}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
                     )}
                   </div>
                 </div>
               );
-            })}
-
-            {/* Empty State */}
-            {isCartEmpty && (
-              <div className="text-center pb-24 h-full align-items-center justify-center flex flex-col">
-                <i className="pi pi-shopping-bag text-3xl text-brand-primary mb-3"></i>
-                <p className="text-brand-text text-sm">
-                  Your shopping bag is empty
-                </p>
-                <p className="text-xs text-brand-primary mt-1">
-                  Start by selecting a meal plan
-                </p>
-              </div>
-            )}
-          </div>
+            })
+          )}
         </div>
 
-        {/* Footer with Total and Actions */}
-        {(mealPlanOrders.length > 0 || selectedItems.length > 0) && (
-          <div className="border-t bg-gray-50 p-4 rounded-lg">
-            <div className="flex justify-between items-center mb-3">
-              <span className="font-semibold text-gray-800">Subtotal</span>
-              <span className="font-bold text-lg text-orange-600">
-                ₱{calculateTotalPrice()}
+        {/* ─── Footer ─── */}
+        {!isCartEmpty && (
+          <div className="px-5 py-4 border-t border-brand-divider bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-poppins text-sm text-brand-text/50">
+                Subtotal
+              </span>
+              <span className="font-arvo font-bold text-xl text-brand-primary tabular-nums">
+                &#8369;{calculateTotalPrice()}
               </span>
             </div>
-            <p className="text-xs text-brand-text mb-4">
-              Shipping and taxes calculated at checkout.
-            </p>
 
-            <div className="space-y-2">
-              <button
-                className={`w-full py-3 rounded-lg font-medium text-sm transition-colors ${
-                  getTotalMealPlanCount() < MINIMUM_MEAL_PLANS
-                    ? "bg-brand-primary text-white cursor-not-allowed"
-                    : "bg-brand-primary hover:bg-brand-primary/80 text-white"
-                }`}
-                disabled={getTotalMealPlanCount() < MINIMUM_MEAL_PLANS}
-              >
-                {getTotalMealPlanCount() < MINIMUM_MEAL_PLANS
-                  ? `Please select ${
-                      MINIMUM_MEAL_PLANS - getTotalMealPlanCount()
-                    } more meal${
-                      MINIMUM_MEAL_PLANS - getTotalMealPlanCount() === 1 ? "" : "s"
-                    }`
-                  : "Proceed to Checkout"}
-              </button>
-              <button
-                onClick={onHide}
-                className="w-full border border-brand-primary text-brand-primary py-3 rounded-lg font-medium text-sm hover:bg-brand-primary hover:text-white transition-colors"
-              >
-                Continue Shopping
-              </button>
-            </div>
+            <button
+              disabled={!meetsMinimum}
+              className={`w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-poppins font-semibold text-sm transition-all ${
+                meetsMinimum
+                  ? "bg-gradient-to-r from-brand-primary to-brand-accent text-white shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]"
+                  : "bg-brand-divider text-brand-text/40 cursor-not-allowed"
+              }`}
+            >
+              {meetsMinimum ? (
+                <>
+                  <Check size={16} />
+                  Proceed to Checkout
+                  <ChevronRight size={16} />
+                </>
+              ) : (
+                <>
+                  <AlertCircle size={16} />
+                  Add{" "}
+                  {MINIMUM_MEAL_PLANS - totalMealPlans} more{" "}
+                  {MINIMUM_MEAL_PLANS - totalMealPlans === 1
+                    ? "box"
+                    : "boxes"}
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={onHide}
+              className="w-full mt-2 py-3 rounded-xl border border-brand-primary/20 text-brand-primary font-poppins font-medium text-sm hover:bg-brand-primary/5 transition-colors"
+            >
+              Continue Shopping
+            </button>
           </div>
         )}
-      </div>
-    </Sidebar>
+      </aside>
+    </div>
   );
 };
 

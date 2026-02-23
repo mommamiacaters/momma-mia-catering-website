@@ -21,7 +21,17 @@
       "WebSearch",
       "WebFetch(domain:console.groq.com)",
       "Bash(cd G:\\\\daniels things\\\\coding\\\\momma-mia-catering-website:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(ls:*)",
+      "Bash(cd \"G:\\\\daniels things\\\\coding\\\\momma-mia-catering-website\" && npx playwright test --reporter=line 2>&1)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm install:*)",
+      "Bash(cd \"G:/daniels things/coding/momma-mia-catering-website\" && uipro init --ai claude 2>&1)",
+      "Bash(claude plugin:*)",
+      "Bash(cd \"G:/daniels things/coding/momma-mia-catering-website\" && gh pr list --state open 2>&1)",
+      "Bash(cd \"G:/daniels things/coding/momma-mia-catering-website\" && npx tsc --noEmit 2>&1)",
+      "Bash(cd \"G:\\\\daniels things\\\\coding\\\\momma-mia-catering-website\" && npx vite build 2>&1)",
+      "Bash(cp -r \"G:/daniels things/coding/momma-mia-catering-website/.claude/skills/ui-ux-pro-max\" \"C:/Users/kitda/.claude/skills/ui-ux-pro-max\" && echo \"Copied successfully\" && ls -la \"C:/Users/kitda/.claude/skills/ui-ux-pro-max/\" 2>&1)"
     ]
   }
 }
