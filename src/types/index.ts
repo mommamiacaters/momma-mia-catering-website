@@ -38,3 +38,24 @@ export interface MealPlanInstance {
   globalIndex: number;
   orderIndex: number;
 }
+
+export interface CheckoutFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  deliveryDate: string;
+  deliveryTime: string;
+  deliveryAddress: string;
+  specialRequests: string;
+}
+
+export interface OrderSubmission {
+  customer: CheckoutFormData;
+  order: {
+    mealPlans: MealPlanOrder[];
+    items: { name: string; type: string; image: string }[];
+    subtotal: number;
+  };
+  orderRef: string;
+}

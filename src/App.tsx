@@ -12,6 +12,7 @@ import MealsPage from "./pages/MealsPage/MealsPage";
 import AboutPage from "./pages/AboutPage/AboutPage";
 import ContactPage from "./pages/ContactPage/ContactPage";
 import ServicePage from "./pages/ServicePage/ServicePage";
+import CheckoutPage from "./pages/CheckoutPage/CheckoutPage";
 
 function AppContent() {
   const location = useLocation();
@@ -51,8 +52,8 @@ function AppContent() {
     window.scrollTo(0, 0); // Scroll to top on route change for consistent behavior
   }, [location.pathname]);
 
-  // Hide navigation on service pages
-  const isServicePage = location.pathname.startsWith('/services/');
+  // Hide navigation on service pages and checkout
+  const isServicePage = location.pathname.startsWith('/services/') || location.pathname === '/checkout';
 
   return (
     <div className="min-h-screen bg-brand-secondary">
@@ -78,6 +79,10 @@ function AppContent() {
           <Route
             path="/services/:slug"
             element={<ServicePage />}
+          />
+          <Route
+            path="/checkout"
+            element={<CheckoutPage />}
           />
         </Routes>
       </main>

@@ -18,6 +18,7 @@ interface ShoppingBagProps {
   calculateTotalPrice: () => number;
   getTotalItemsCount: () => number;
   getTotalMealPlanCount: () => number;
+  onCheckout?: () => void;
 }
 
 const ShoppingBag: React.FC<ShoppingBagProps> = ({
@@ -31,6 +32,7 @@ const ShoppingBag: React.FC<ShoppingBagProps> = ({
   calculateTotalPrice,
   getTotalItemsCount,
   getTotalMealPlanCount,
+  onCheckout,
 }) => {
   const [isShoppingBagOpen, setIsShoppingBagOpen] = useState(false);
 
@@ -72,6 +74,7 @@ const ShoppingBag: React.FC<ShoppingBagProps> = ({
         calculateTotalPrice={calculateTotalPrice}
         getTotalItemsCount={getTotalItemsCount}
         getTotalMealPlanCount={getTotalMealPlanCount}
+        onCheckout={onCheckout}
       />
     </>
   );

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import Carousel from "../../components/Carousel/Carousel";
 import ContactSection from "../../components/ContactSection/ContactSection";
 import ShoppingBag from "../../components/ShoppingBag/ShoppingBag";
@@ -10,8 +10,19 @@ import { useOrderManagement } from "../../hooks/useOrderManagement";
 
 const ServicePage: React.FC = () => {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const serviceContent = useMemo(() => getServiceContent(slug || ""), [slug]);
   const order = useOrderManagement(slug, serviceContent.hasMenu);
+
+  const handleCheckout = () => {
+    navigate("/checkout", {
+      state: {
+        mealPlanOrders: order.mealPlanOrders,
+        selectedItems: order.selectedItems,
+        subtotal: order.calculateTotalPrice(),
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen bg-brand-secondary">
@@ -40,6 +51,7 @@ const ServicePage: React.FC = () => {
           calculateTotalPrice={order.calculateTotalPrice}
           getTotalItemsCount={order.getTotalItemsCount}
           getTotalMealPlanCount={order.getTotalMealPlanCount}
+          onCheckout={handleCheckout}
         />
 
         {/* Header Section */}

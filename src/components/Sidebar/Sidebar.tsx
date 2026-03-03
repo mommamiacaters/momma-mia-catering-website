@@ -29,6 +29,7 @@ interface ShoppingBagSidebarProps {
   calculateTotalPrice: () => number;
   getTotalItemsCount: () => number;
   getTotalMealPlanCount: () => number;
+  onCheckout?: () => void;
 }
 
 const PLAN_EMOJIS: Record<MealPlanType, string> = {
@@ -53,6 +54,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   getMealPlanLimits,
   calculateTotalPrice,
   getTotalMealPlanCount,
+  onCheckout,
 }) => {
   const isCartEmpty =
     mealPlanOrders.length === 0 && selectedItems.length === 0;
@@ -372,6 +374,12 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
 
             <button
               disabled={!meetsMinimum}
+              onClick={() => {
+                if (meetsMinimum && onCheckout) {
+                  onHide();
+                  onCheckout();
+                }
+              }}
               className={`w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-poppins font-semibold text-sm transition-all ${
                 meetsMinimum
                   ? "bg-gradient-to-r from-brand-primary to-brand-accent text-white shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]"
