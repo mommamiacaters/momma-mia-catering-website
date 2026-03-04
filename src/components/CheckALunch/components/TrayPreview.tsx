@@ -263,7 +263,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                         : "text-brand-text/70"
                     }`}
                   >
-                    {pi.type} #{instanceNum}
+                    #{instanceNum} {pi.type}
                   </span>
                   {isActive && (
                     <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary font-poppins text-[0.55rem] font-bold uppercase tracking-wider">

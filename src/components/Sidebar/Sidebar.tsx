@@ -463,7 +463,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                     </span>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-arvo font-bold text-brand-text text-sm leading-tight">
-                        {instance.type} #{instanceNum}
+                        #{instanceNum} {instance.type}
                       </h3>
                       <span className="font-poppins text-sm font-semibold text-brand-primary">
                         &#8369;{getMealPlanPrice(instance.type)}
@@ -480,7 +480,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                     <button
                       onClick={() => onRemovePlanInstance(instance.id)}
                       className="w-8 h-8 rounded-full bg-brand-secondary hover:bg-red-50 flex items-center justify-center transition-colors group shrink-0"
-                      aria-label={`Remove ${instance.type} #${instanceNum}`}
+                      aria-label={`Remove #${instanceNum} ${instance.type}`}
                     >
                       <Trash2
                         size={14}

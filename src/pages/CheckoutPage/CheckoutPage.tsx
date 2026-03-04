@@ -258,7 +258,7 @@ const CheckoutPage: React.FC = () => {
                             className="text-brand-primary shrink-0"
                           />
                           <span className="font-poppins text-sm font-semibold text-brand-text">
-                            {pi.type} #{instanceNum}
+                            #{instanceNum} {pi.type}
                           </span>
                         </div>
 

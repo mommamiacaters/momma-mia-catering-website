@@ -22,7 +22,7 @@ export const MEAL_PLAN_DESCRIPTIONS: Record<string, string> = {
   "Balanced Diet": "1 Main Dish, 1 Side Dish, 1 Starch",
 };
 
-export const MINIMUM_MEAL_PLANS = 2;
+export const MINIMUM_MEAL_PLANS = 15;
 
 export const CATEGORIES: readonly ["main", "side", "starch"] = ["main", "side", "starch"] as const;
 

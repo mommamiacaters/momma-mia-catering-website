@@ -261,7 +261,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
 
           {/* ── Plan Instance Selector ── */}
           {sortedInstances.length > 1 && (
-            <div className="flex gap-2 mb-6 overflow-x-auto pt-1 pb-1 -mx-1 px-1">
+            <div className="flex flex-wrap gap-2 mb-6 pt-1 pb-1 -mx-1 px-1">
               <button
                 onClick={() => onSetActivePlan(null)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border ${
@@ -299,7 +299,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   >
                     {isComplete && <Check size={11} strokeWidth={3} />}
                     <span className="truncate max-w-[8rem]">
-                      {pi.type} #{instanceNum}
+                      #{instanceNum} {pi.type}
                     </span>
                     <span
                       className={`px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold ${
@@ -325,7 +325,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                 <span className="font-poppins text-xs text-brand-primary font-medium">
                   Filling:{" "}
                   <strong>
-                    {activePlan.type} #{activePlanNum}
+                    #{activePlanNum} {activePlan.type}
                   </strong>
                 </span>
                 <button

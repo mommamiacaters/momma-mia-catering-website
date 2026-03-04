@@ -58,7 +58,7 @@ function buildPlanInstanceCards(instances) {
     ).join('');
 
     return '<div style="border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:12px">' +
-      '<div style="background:#F3E7D8;padding:10px 14px;font-weight:bold;color:#333;font-size:14px">' + pi.type + ' #' + num + '</div>' +
+      '<div style="background:#F3E7D8;padding:10px 14px;font-weight:bold;color:#333;font-size:14px">#' + num + ' ' + pi.type + '</div>' +
       '<div style="padding:12px 14px">' + (categoryHtml || '<p style="color:#aaa;font-size:13px;margin:0">No dishes selected</p>') + '</div>' +
     '</div>';
   }).join('');
