@@ -1,6 +1,7 @@
-import React from "react";
+import React, { memo } from "react";
 import { Plus, Minus, Check } from "lucide-react";
 import { MenuItem } from "../../../types";
+import CachedImage from "../../CachedImage";
 
 interface FoodCardProps {
   item: MenuItem;
@@ -11,10 +12,7 @@ interface FoodCardProps {
   onDecrease: () => void;
 }
 
-const FALLBACK_IMAGE =
-  "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop";
-
-const FoodCard: React.FC<FoodCardProps> = ({
+const FoodCard: React.FC<FoodCardProps> = memo(({
   item,
   isSelected,
   isDisabled,
@@ -24,7 +22,7 @@ const FoodCard: React.FC<FoodCardProps> = ({
 }) => {
   return (
     <div
-      className={`group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 ${
+      className={`group relative bg-white rounded-2xl overflow-hidden transition-[box-shadow,transform,opacity] duration-300 ${
         isSelected
           ? "ring-2 ring-brand-primary shadow-lg shadow-brand-primary/10"
           : isDisabled
@@ -48,15 +46,15 @@ const FoodCard: React.FC<FoodCardProps> = ({
         </div>
       )}
 
-      {/* Image */}
-      <div className="aspect-[4/3] overflow-hidden bg-brand-secondary/50">
-        <img
-          src={item.image || FALLBACK_IMAGE}
+      {/* Image — relative container fixes gradient overlay positioning */}
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <CachedImage
+          src={item.image}
           alt={item.name}
+          containerClassName="w-full h-full"
           className={`w-full h-full object-cover transition-transform duration-500 ${
             !isDisabled ? "group-hover:scale-105" : ""
           }`}
-          loading="lazy"
         />
         {/* Subtle bottom gradient for text readability */}
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
@@ -94,7 +92,7 @@ const FoodCard: React.FC<FoodCardProps> = ({
               <button
                 onClick={onAdd}
                 disabled={isDisabled}
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
                   isDisabled
                     ? "bg-brand-divider cursor-not-allowed text-brand-text/30"
                     : "bg-brand-primary hover:bg-brand-primary/80 text-white shadow-sm shadow-brand-primary/20"
@@ -112,7 +110,7 @@ const FoodCard: React.FC<FoodCardProps> = ({
             <button
               onClick={onAdd}
               disabled={isDisabled}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-poppins text-sm font-medium transition-all active:scale-95 ${
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-poppins text-sm font-medium transition-colors active:scale-95 ${
                 isDisabled
                   ? "bg-brand-divider text-brand-text/30 cursor-not-allowed"
                   : "bg-brand-primary hover:bg-brand-primary/90 text-white shadow-md shadow-brand-primary/20 hover:shadow-lg"
@@ -131,6 +129,13 @@ const FoodCard: React.FC<FoodCardProps> = ({
       </div>
     </div>
   );
-};
+}, (prev, next) =>
+  prev.item === next.item &&
+  prev.isSelected === next.isSelected &&
+  prev.isDisabled === next.isDisabled &&
+  prev.currentQuantity === next.currentQuantity
+);
+
+FoodCard.displayName = "FoodCard";
 
 export default FoodCard;

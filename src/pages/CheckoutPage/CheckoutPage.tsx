@@ -1,17 +1,62 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import { CheckCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { CheckCircle, ArrowLeft, Loader2, Package } from "lucide-react";
 import type {
   MealPlanOrder,
   SelectedItemWithQuantity,
   CheckoutFormData,
+  PlanInstance,
 } from "../../types";
 import { submitOrder } from "../../services/orderService";
+import { getCategoryDisplayName } from "../../constants";
+import { FALLBACK_IMAGE } from "../../components/CachedImage";
 
 interface CheckoutState {
   mealPlanOrders: MealPlanOrder[];
   selectedItems: SelectedItemWithQuantity[];
+  planInstances?: PlanInstance[];
   subtotal: number;
+}
+
+/** Recover cart from sessionStorage when location.state is null (page refresh, direct URL). */
+function findCartInSession(): CheckoutState | null {
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (!key?.startsWith("cart:")) continue;
+      const raw = sessionStorage.getItem(key);
+      if (!raw) continue;
+      const snap = JSON.parse(raw);
+      if (Date.now() - snap.savedAt > 86_400_000) continue;
+      if (!snap.planInstances?.length) continue;
+
+      // Reconstruct CheckoutState from the snapshot
+      const counts = new Map<string, number>();
+      for (const pi of snap.planInstances)
+        counts.set(pi.type, (counts.get(pi.type) || 0) + 1);
+
+      const mealPlanOrders: MealPlanOrder[] = [];
+      counts.forEach((qty, type) =>
+        mealPlanOrders.push({ type: type as MealPlanOrder["type"], quantity: qty })
+      );
+
+      const selectedItems = snap.planInstances.flatMap(
+        (pi: PlanInstance) =>
+          pi.items.map((item: PlanInstance["items"][number]) => ({
+            ...item,
+            quantity: 1,
+          }))
+      );
+
+      return {
+        mealPlanOrders,
+        selectedItems,
+        planInstances: snap.planInstances,
+        subtotal: snap.subtotal ?? 0,
+      };
+    }
+  } catch {}
+  return null;
 }
 
 const generateOrderRef = () => {
@@ -24,10 +69,13 @@ const generateOrderRef = () => {
 const INPUT_CLASS =
   "w-full px-4 py-2.5 border border-brand-divider rounded-lg font-poppins text-sm focus:border-brand-primary focus:ring-1 focus:ring-brand-primary focus:outline-none transition-colors";
 
+const CATEGORY_ORDER = ["main", "side", "starch"] as const;
+
 const CheckoutPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const orderState = location.state as CheckoutState | null;
+  const effectiveState = orderState ?? findCartInSession();
 
   const [formData, setFormData] = useState<CheckoutFormData>({
     firstName: "",
@@ -44,12 +92,12 @@ const CheckoutPage: React.FC = () => {
   >("idle");
   const [orderRef, setOrderRef] = useState("");
 
-  // Redirect if no order state (direct URL access)
+  // Redirect if no order state AND no sessionStorage fallback
   useEffect(() => {
-    if (!orderState) {
+    if (!effectiveState) {
       navigate("/meals", { replace: true });
     }
-  }, [orderState, navigate]);
+  }, [effectiveState, navigate]);
 
   // Auto-redirect after success
   useEffect(() => {
@@ -58,9 +106,25 @@ const CheckoutPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [status, navigate]);
 
-  if (!orderState) return null;
+  if (!effectiveState) return null;
 
-  const { mealPlanOrders, selectedItems, subtotal } = orderState;
+  const { mealPlanOrders, selectedItems, planInstances, subtotal } = effectiveState;
+
+  // Sort plan instances by displayOrder for consistent rendering
+  const sortedPlanInstances = planInstances
+    ? [...planInstances].sort((a, b) => a.displayOrder - b.displayOrder)
+    : null;
+
+  // Instance numbering per type
+  const instanceNumbers = new Map<string, number>();
+  if (sortedPlanInstances) {
+    const typeCounters = new Map<string, number>();
+    for (const pi of sortedPlanInstances) {
+      const n = (typeCounters.get(pi.type) || 0) + 1;
+      typeCounters.set(pi.type, n);
+      instanceNumbers.set(pi.id, n);
+    }
+  }
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -87,10 +151,17 @@ const CheckoutPage: React.FC = () => {
             image: i.image,
           })),
           subtotal,
+          planInstances: planInstances || undefined,
         },
         orderRef: ref,
       });
       setStatus("success");
+
+      // Clear all cart entries from sessionStorage
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key?.startsWith("cart:")) sessionStorage.removeItem(key);
+      }
     } catch {
       setStatus("error");
     }
@@ -170,59 +241,118 @@ const CheckoutPage: React.FC = () => {
                 Order Summary
               </h2>
 
-              {/* Meal Plans */}
-              <div className="space-y-3 mb-4">
-                {mealPlanOrders.map((plan) => (
-                  <div
-                    key={plan.type}
-                    className="flex items-center justify-between py-2 border-b border-brand-divider/50 last:border-b-0"
-                  >
-                    <div>
-                      <p className="font-poppins text-sm font-medium text-brand-text">
-                        {plan.type}
-                      </p>
-                      <p className="font-poppins text-xs text-brand-text/50">
-                        x{plan.quantity}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Selected Items */}
-              {selectedItems.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="font-poppins text-xs font-semibold text-brand-text/50 uppercase tracking-wider mb-2">
-                    Selected Items
-                  </h3>
-                  <div className="space-y-2">
-                    {selectedItems.map((item) => (
+              {/* Plan Instance Cards (new grouped view) */}
+              {sortedPlanInstances && sortedPlanInstances.length > 0 ? (
+                <div className="space-y-3 mb-4">
+                  {sortedPlanInstances.map((pi) => {
+                    const instanceNum = instanceNumbers.get(pi.id) || 1;
+                    return (
                       <div
-                        key={item.instanceId}
-                        className="flex items-center gap-2.5"
+                        key={pi.id}
+                        className="border border-brand-divider rounded-xl overflow-hidden"
                       >
-                        {item.image ? (
-                          <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-brand-divider/50">
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center shrink-0">
-                            <span className="text-xs font-bold text-brand-primary">
-                              {item.name.charAt(0)}
-                            </span>
-                          </div>
-                        )}
-                        <span className="font-poppins text-sm text-brand-text capitalize truncate">
-                          {item.name}
-                        </span>
+                        {/* Plan header */}
+                        <div className="px-3 py-2.5 bg-brand-secondary/50 flex items-center gap-2">
+                          <Package
+                            size={14}
+                            className="text-brand-primary shrink-0"
+                          />
+                          <span className="font-poppins text-sm font-semibold text-brand-text">
+                            {pi.type} #{instanceNum}
+                          </span>
+                        </div>
+
+                        {/* Categorized items */}
+                        <div className="px-3 py-2 space-y-2">
+                          {CATEGORY_ORDER.map((catType) => {
+                            const items = pi.items.filter(
+                              (item) => item.type === catType
+                            );
+                            if (items.length === 0) return null;
+                            return (
+                              <div key={catType}>
+                                <p className="font-poppins text-[0.65rem] font-semibold text-brand-text/40 uppercase tracking-wider mb-1">
+                                  {getCategoryDisplayName(catType)}
+                                </p>
+                                {items.map((item) => (
+                                  <div
+                                    key={item.instanceId}
+                                    className="flex items-center gap-2 py-1"
+                                  >
+                                    <div className="w-7 h-7 rounded-md overflow-hidden shrink-0 border border-brand-divider/50">
+                                      <img
+                                        src={item.image || FALLBACK_IMAGE}
+                                        alt={item.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <span className="font-poppins text-sm text-brand-text capitalize truncate">
+                                      {item.name}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })}
+
+                          {pi.items.length === 0 && (
+                            <p className="font-poppins text-xs text-brand-text/30 italic py-1">
+                              No dishes selected
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Fallback: flat item list (backward compat) */
+                <>
+                  <div className="space-y-3 mb-4">
+                    {mealPlanOrders.map((plan) => (
+                      <div
+                        key={plan.type}
+                        className="flex items-center justify-between py-2 border-b border-brand-divider/50 last:border-b-0"
+                      >
+                        <div>
+                          <p className="font-poppins text-sm font-medium text-brand-text">
+                            {plan.type}
+                          </p>
+                          <p className="font-poppins text-xs text-brand-text/50">
+                            x{plan.quantity}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
+
+                  {selectedItems.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="font-poppins text-xs font-semibold text-brand-text/50 uppercase tracking-wider mb-2">
+                        Selected Items
+                      </h3>
+                      <div className="space-y-2">
+                        {selectedItems.map((item) => (
+                          <div
+                            key={item.instanceId}
+                            className="flex items-center gap-2.5"
+                          >
+                            <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-brand-divider/50">
+                              <img
+                                src={item.image || FALLBACK_IMAGE}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <span className="font-poppins text-sm text-brand-text capitalize truncate">
+                              {item.name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Subtotal */}

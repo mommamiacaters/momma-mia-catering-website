@@ -21,19 +21,70 @@ const orderRef = body.orderRef || 'N/A';
 
 const mealPlans = order.mealPlans || [];
 const items = order.items || [];
+const planInstances = order.planInstances || [];
 const subtotal = order.subtotal || 0;
 
-// Build meal plan rows
+const categoryLabels = { main: 'Main Dish', side: 'Side Dish', starch: 'Starch' };
+const categoryOrder = ['main', 'side', 'starch'];
+
+// Build per-plan-instance HTML cards
+function buildPlanInstanceCards(instances) {
+  if (!instances || instances.length === 0) return '';
+
+  // Sort by displayOrder
+  const sorted = [...instances].sort((a, b) => a.displayOrder - b.displayOrder);
+
+  // Number instances per type
+  const typeCounters = {};
+  const instanceNums = {};
+  for (const pi of sorted) {
+    typeCounters[pi.type] = (typeCounters[pi.type] || 0) + 1;
+    instanceNums[pi.id] = typeCounters[pi.type];
+  }
+
+  return sorted.map(pi => {
+    const num = instanceNums[pi.id];
+    const itemsByCategory = {};
+    for (const cat of categoryOrder) {
+      const catItems = (pi.items || []).filter(i => i.type === cat);
+      if (catItems.length > 0) itemsByCategory[cat] = catItems;
+    }
+
+    const categoryHtml = Object.entries(itemsByCategory).map(([cat, catItems]) =>
+      '<div style="margin-bottom:8px">' +
+      '<p style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 4px">' + (categoryLabels[cat] || cat) + '</p>' +
+      catItems.map(i => '<span style="display:inline-block;background:#F3E7D8;padding:4px 10px;border-radius:12px;font-size:13px;color:#333;margin:2px 4px 2px 0;text-transform:capitalize">' + i.name + '</span>').join('') +
+      '</div>'
+    ).join('');
+
+    return '<div style="border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:12px">' +
+      '<div style="background:#F3E7D8;padding:10px 14px;font-weight:bold;color:#333;font-size:14px">' + pi.type + ' #' + num + '</div>' +
+      '<div style="padding:12px 14px">' + (categoryHtml || '<p style="color:#aaa;font-size:13px;margin:0">No dishes selected</p>') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// Build legacy flat rows (fallback)
 const mealPlanRows = mealPlans.map(p =>
   '<tr><td style="padding:8px;border:1px solid #eee">' + p.type + '</td>' +
   '<td style="padding:8px;border:1px solid #eee;text-align:center">x' + p.quantity + '</td></tr>'
 ).join('');
 
-// Build item rows
 const itemRows = items.map(i =>
   '<tr><td style="padding:8px;border:1px solid #eee;text-transform:capitalize">' + i.name + '</td>' +
   '<td style="padding:8px;border:1px solid #eee;text-transform:capitalize">' + i.type + '</td></tr>'
 ).join('');
+
+// Choose between grouped or flat view
+const hasPlanInstances = planInstances.length > 0;
+const planCardsHtml = hasPlanInstances ? buildPlanInstanceCards(planInstances) : '';
+
+const legacyOrderHtml = '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">' +
+  '<tr style="background:#F3E7D8"><th style="padding:8px;text-align:left;border:1px solid #eee">Meal Plan</th><th style="padding:8px;text-align:center;border:1px solid #eee">Qty</th></tr>' +
+  mealPlanRows + '</table>' +
+  (items.length > 0 ? '<h4 style="color:#333;margin-bottom:8px">Selected Items</h4><table style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr style="background:#F3E7D8"><th style="padding:8px;text-align:left;border:1px solid #eee">Item</th><th style="padding:8px;text-align:left;border:1px solid #eee">Type</th></tr>' + itemRows + '</table>' : '');
+
+const orderDetailsHtml = hasPlanInstances ? planCardsHtml : legacyOrderHtml;
 
 // ─── Customer Confirmation Email ───
 const customerHtml = \`
@@ -47,12 +98,7 @@ const customerHtml = \`
     <p style="color:#555;font-size:14px;line-height:1.6">Thank you for your order with Momma Mia Catering! We've received your order and our team will review it shortly. We'll reach out to confirm the details and arrange payment.</p>
 
     <h3 style="color:#E36A2E;border-bottom:2px solid #F3E7D8;padding-bottom:8px">Order Details</h3>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
-      <tr style="background:#F3E7D8"><th style="padding:8px;text-align:left;border:1px solid #eee">Meal Plan</th><th style="padding:8px;text-align:center;border:1px solid #eee">Qty</th></tr>
-      \${mealPlanRows}
-    </table>
-
-    \${items.length > 0 ? '<h4 style="color:#333;margin-bottom:8px">Selected Items</h4><table style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr style="background:#F3E7D8"><th style="padding:8px;text-align:left;border:1px solid #eee">Item</th><th style="padding:8px;text-align:left;border:1px solid #eee">Type</th></tr>' + itemRows + '</table>' : ''}
+    \${orderDetailsHtml}
 
     <div style="background:#F3E7D8;padding:16px;border-radius:8px;text-align:right;margin-bottom:16px">
       <span style="font-size:14px;color:#555">Subtotal: </span>
@@ -93,12 +139,7 @@ const businessHtml = \`
     </table>
 
     <h3 style="color:#333">Order Summary</h3>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
-      <tr style="background:#F3E7D8"><th style="padding:8px;text-align:left;border:1px solid #eee">Meal Plan</th><th style="padding:8px;text-align:center;border:1px solid #eee">Qty</th></tr>
-      \${mealPlanRows}
-    </table>
-
-    \${items.length > 0 ? '<h4 style="color:#333">Selected Items</h4><table style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr style="background:#F3E7D8"><th style="padding:8px;text-align:left;border:1px solid #eee">Item</th><th style="padding:8px;text-align:left;border:1px solid #eee">Type</th></tr>' + itemRows + '</table>' : ''}
+    \${orderDetailsHtml}
 
     <div style="background:#E36A2E;color:#fff;padding:16px;border-radius:8px;text-align:center;font-size:20px;font-weight:bold">
       Subtotal: ₱\${subtotal}

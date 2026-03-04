@@ -3,7 +3,9 @@ import type {
   MealPlanInstance,
   SelectedItemWithQuantity,
   MealPlanType,
+  PlanInstance,
 } from "../types";
+import { MEAL_PLAN_LIMITS } from "../constants";
 
 /**
  * Flattens meal plan orders into individual instances.
@@ -72,4 +74,22 @@ export function distributeItemsAcrossMealPlans(
   });
 
   return { instances, distribution };
+}
+
+/**
+ * Checks whether a PlanInstance has all its category slots filled.
+ */
+export function isPlanInstanceComplete(
+  planInstance: PlanInstance
+): boolean {
+  const limits = MEAL_PLAN_LIMITS[planInstance.type];
+  if (!limits) return false;
+
+  for (const [catType, limit] of Object.entries(limits)) {
+    const filled = planInstance.items.filter(
+      (item) => item.type === catType
+    ).length;
+    if (filled < limit) return false;
+  }
+  return true;
 }

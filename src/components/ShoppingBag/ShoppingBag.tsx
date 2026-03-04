@@ -3,35 +3,43 @@ import { ShoppingBag as ShoppingBagIcon } from "lucide-react";
 import ShoppingBagSidebar from "../Sidebar/Sidebar";
 import type {
   MealPlanType,
-  MealPlanOrder,
-  SelectedItemWithQuantity,
+  PlanInstance,
 } from "../../types";
 
 interface ShoppingBagProps {
   isVisible?: boolean;
-  mealPlanOrders: MealPlanOrder[];
-  selectedItems: SelectedItemWithQuantity[];
-  onMealPlanQuantityChange: (type: MealPlanType, newQuantity: number) => void;
-  onItemRemove: (item: SelectedItemWithQuantity) => void;
+  planInstances: PlanInstance[];
+  activePlanInstanceId: string | null;
+  onSetActivePlan: (id: string | null) => void;
+  onRemovePlanInstance: (id: string) => void;
+  onReorderPlanInstances: (fromIndex: number, toIndex: number) => void;
+  onAssignedItemRemove: (instanceId: string) => void;
   getMealPlanPrice: (type: MealPlanType) => number;
   getMealPlanLimits: (type: MealPlanType) => Record<string, number>;
   calculateTotalPrice: () => number;
-  getTotalItemsCount: () => number;
   getTotalMealPlanCount: () => number;
+  onMoveItem: (
+    sourcePlanId: string,
+    itemInstanceId: string,
+    targetPlanId: string,
+    targetItemInstanceId?: string
+  ) => void;
   onCheckout?: () => void;
 }
 
 const ShoppingBag: React.FC<ShoppingBagProps> = ({
   isVisible = true,
-  mealPlanOrders,
-  selectedItems,
-  onMealPlanQuantityChange,
-  onItemRemove,
+  planInstances,
+  activePlanInstanceId,
+  onSetActivePlan,
+  onRemovePlanInstance,
+  onReorderPlanInstances,
+  onAssignedItemRemove,
   getMealPlanPrice,
   getMealPlanLimits,
   calculateTotalPrice,
-  getTotalItemsCount,
   getTotalMealPlanCount,
+  onMoveItem,
   onCheckout,
 }) => {
   const [isShoppingBagOpen, setIsShoppingBagOpen] = useState(false);
@@ -65,15 +73,17 @@ const ShoppingBag: React.FC<ShoppingBagProps> = ({
       <ShoppingBagSidebar
         visible={isShoppingBagOpen}
         onHide={() => setIsShoppingBagOpen(false)}
-        mealPlanOrders={mealPlanOrders}
-        selectedItems={selectedItems}
-        onMealPlanQuantityChange={onMealPlanQuantityChange}
-        onItemRemove={onItemRemove}
+        planInstances={planInstances}
+        activePlanInstanceId={activePlanInstanceId}
+        onSetActivePlan={onSetActivePlan}
+        onRemovePlanInstance={onRemovePlanInstance}
+        onReorderPlanInstances={onReorderPlanInstances}
+        onAssignedItemRemove={onAssignedItemRemove}
         getMealPlanPrice={getMealPlanPrice}
         getMealPlanLimits={getMealPlanLimits}
         calculateTotalPrice={calculateTotalPrice}
-        getTotalItemsCount={getTotalItemsCount}
         getTotalMealPlanCount={getTotalMealPlanCount}
+        onMoveItem={onMoveItem}
         onCheckout={onCheckout}
       />
     </>

@@ -19,6 +19,7 @@ const ServicePage: React.FC = () => {
       state: {
         mealPlanOrders: order.mealPlanOrders,
         selectedItems: order.selectedItems,
+        planInstances: order.planInstances,
         subtotal: order.calculateTotalPrice(),
       },
     });
@@ -42,15 +43,17 @@ const ServicePage: React.FC = () => {
         {/* Shopping Bag and Sidebar */}
         <ShoppingBag
           isVisible={serviceContent.hasMenu}
-          mealPlanOrders={order.mealPlanOrders}
-          selectedItems={order.selectedItems}
-          onMealPlanQuantityChange={order.handleMealPlanQuantityChange}
-          onItemRemove={order.handleItemRemove}
+          planInstances={order.planInstances}
+          activePlanInstanceId={order.activePlanInstanceId}
+          onSetActivePlan={order.setActivePlanInstanceId}
+          onRemovePlanInstance={order.removePlanInstance}
+          onReorderPlanInstances={order.reorderPlanInstances}
+          onAssignedItemRemove={order.handleAssignedItemRemove}
           getMealPlanPrice={order.getMealPlanPrice}
           getMealPlanLimits={order.getMealPlanLimits}
           calculateTotalPrice={order.calculateTotalPrice}
-          getTotalItemsCount={order.getTotalItemsCount}
           getTotalMealPlanCount={order.getTotalMealPlanCount}
+          onMoveItem={order.moveItemBetweenPlans}
           onCheckout={handleCheckout}
         />
 
@@ -105,6 +108,9 @@ const ServicePage: React.FC = () => {
               <CheckALunch
                 mealPlanOrders={order.mealPlanOrders}
                 selectedItems={order.selectedItems}
+                planInstances={order.planInstances}
+                activePlanInstanceId={order.activePlanInstanceId}
+                onSetActivePlan={order.setActivePlanInstanceId}
                 menuData={order.menuData}
                 loading={order.loading}
                 error={order.error}
@@ -119,6 +125,9 @@ const ServicePage: React.FC = () => {
                 isItemSelected={order.isItemSelected}
                 getCurrentItemQuantity={order.getCurrentItemQuantity}
                 getMaxAllowedItemsByType={order.getMaxAllowedItemsByType}
+                getActivePlanMaxAllowed={order.getActivePlanMaxAllowed}
+                getActivePlanSelectedCount={order.getActivePlanSelectedCount}
+                onMoveItem={order.moveItemBetweenPlans}
               />
             )}
           </div>
