@@ -1,9 +1,15 @@
-// Quick script to push workflow update to n8n (credentials already configured)
-// Imports the workflow definition from update-n8n-workflow.mjs and pushes it
+// Quick script to push chatbot workflow update to n8n
+// Usage: N8N_API_KEY=... node scripts/push-workflow.mjs
 
 const N8N_URL = 'https://n8n.mommamiacaters.com';
-const N8N_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhYTE2ZmM4My00ZDQ4LTRlYjgtYmI3Yi1iNzQ1ZTE1MmFhMjgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiNDY1NGI1MjktNDkyNy00NDkxLWI3M2QtYzNhMzU0MzQ5YzMwIiwiaWF0IjoxNzcxNzg3MDc0fQ.GRkWQZxsLaSG5DGd-1AOGD5LOQ40h_hHU_-L7tA-RHs';
+const N8N_API_KEY = process.env.N8N_API_KEY;
 const WORKFLOW_ID = 'FoR6BuXgb094bY6q';
+
+if (!N8N_API_KEY) {
+  console.error('Error: N8N_API_KEY environment variable is required.');
+  console.error('Usage: N8N_API_KEY=your-key node scripts/push-workflow.mjs');
+  process.exit(1);
+}
 
 const n8nHeaders = {
   'X-N8N-API-KEY': N8N_API_KEY,

@@ -1,0 +1,22 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Expo + pnpm: a flat (hoisted) node_modules is the supported layout for Metro.
+nodeLinker: hoisted
+
+# Expo publishes packages very frequently; don't block on pnpm's package-age gate.
+minimumReleaseAge: 0
+
+allowBuilds:
+  # esbuild ships a prebuilt native binary that Vite (web app) needs to run.
+  esbuild: true
+  # Optional native msgpack speedup for Metro; JS fallback is fine for dev.
+  msgpackr-extract: false
+
+# Dedupe @types/react to one version across the workspace. react-native 0.83 needs
+# React 19 types; without this, web's React-18 @types/react hoists to root and mobile's
+# tsc resolves the wrong major → "bigint is not assignable to ReactNode" JSX errors.
+# Web ships via Vite (esbuild, no tsc gate) so React-18 runtime is unaffected.
+overrides:
+  '@types/react': 19.2.15

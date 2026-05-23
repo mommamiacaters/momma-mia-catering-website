@@ -20,8 +20,10 @@ A React-based website for Momma Mia Catering -- a food service business offering
 
 ## Project Structure
 
+The web app (`apps/web/`) is organized as follows:
+
 ```
-src/
+apps/web/src/
   components/       # Reusable UI components
     Accordion/      # Meal plan item accordion (PrimeReact)
     Carousel/       # Image carousel with drag-to-swipe and lightbox
@@ -51,45 +53,72 @@ src/
 
 ---
 
+## Monorepo Layout
+
+This project is a **pnpm workspace** containing two apps:
+
+```
+momma-mia-catering-website/
+├── apps/
+│   ├── web/        # @momma-mia/web    — React 18 + Vite website  (this repo's main site)
+│   └── mobile/     # @momma-mia/mobile — Expo (React Native) app
+├── package.json    # root scripts to run either app, or both at once
+└── pnpm-workspace.yaml
+```
+
+All commands below are run from the **repo root**.
+
+---
+
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- npm or yarn
+- **Node.js 18+**
+- **pnpm 9+** — enable via `corepack enable` (this repo uses pnpm, **not** npm/yarn)
+- For mobile: the **Expo Go** app on your phone, or an Android/iOS emulator
+
+> ⚠️ **Always install with `pnpm install`.** Running `npm install` or `yarn` here creates a competing lockfile and a `node_modules` layout that breaks Expo/Metro.
 
 ### Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/<your-username>/momma-mia-catering-website.git
-   cd momma-mia-catering-website
-   ```
+```bash
+git clone https://github.com/<your-username>/momma-mia-catering-website.git
+cd momma-mia-catering-website
+pnpm install
+```
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Create a `.env` file (see [Environment Variables](#environment-variables) below).
-
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-5. Open [http://localhost:5173](http://localhost:5173) in your browser.
+Then create a `.env` file for the web app (see [Environment Variables](#environment-variables) below).
 
 ---
 
-## Available Scripts
+## Running the Apps
 
-| Command             | Description                        |
-|---------------------|------------------------------------|
-| `npm run dev`       | Start development server           |
-| `npm run build`     | Build for production                |
-| `npm run preview`   | Preview production build locally    |
-| `npm run lint`      | Run ESLint                          |
+Run any of these from the **repo root**:
+
+| Command                       | Runs                              | Where / Result                                   |
+|-------------------------------|-----------------------------------|--------------------------------------------------|
+| `npm run start`               | **Web + Mobile** together         | Web in browser **+ mobile on the Android emulator** |
+| `npm run start:web`           | Web only                          | http://localhost:5173                            |
+| `npm run start:mobile`        | Mobile on the **Android emulator**| Boots an Android Studio AVD and opens the app    |
+| `npm run start:mobile:expo`   | Mobile via **Expo Go**            | Prints a **QR code** to scan on your phone       |
+
+> 💡 `pnpm run start:web` (etc.) works identically — `npm run` is only acting as the script runner here.
+
+**Two ways to run mobile:**
+- `start:mobile` (also used by `npm run start`) runs `expo start --android` — it launches the Android emulator and opens the app directly. Have an AVD configured in Android Studio first.
+- `start:mobile:expo` runs plain `expo start` and prints a QR code; scan it with **Expo Go** on a physical phone (phone and computer must be on the same network).
+
+**Running both with `npm run start`:** output is split into color-coded `[web]` (blue) and `[mobile]` (magenta) streams, and a single `Ctrl+C` stops both. Note that Metro/Expo's interactive keypress menu (`r` to reload, etc.) is unreliable when both apps share one terminal — for active mobile debugging, run a mobile command in its own terminal.
+
+> 🛠️ **Emulator won't launch?** If `--android` hangs or targets a phantom device, start the emulator manually from Android Studio first (or `emulator -avd <name>`), confirm it's listed under `adb devices`, then re-run the command.
+
+### Build & Lint (web)
+
+| Command             | Description                      |
+|---------------------|----------------------------------|
+| `npm run web:build` | Build the web app for production |
+| `npm run web:lint`  | Run ESLint on the web app        |
 
 ---
 

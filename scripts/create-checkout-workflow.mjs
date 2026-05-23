@@ -1,7 +1,14 @@
-// Script to create the Checkout Order workflow on n8n
-// Usage: node scripts/create-checkout-workflow.mjs
+// Script to create/update the Checkout Order workflow on n8n
+// Usage: N8N_API_KEY=... CHECKOUT_TOKEN=... node scripts/create-checkout-workflow.mjs
 const N8N_URL = 'https://n8n.mommamiacaters.com';
-const N8N_API_KEY = process.env.N8N_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhYTE2ZmM4My00ZDQ4LTRlYjgtYmI3Yi1iNzQ1ZTE1MmFhMjgiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiNDY1NGI1MjktNDkyNy00NDkxLWI3M2QtYzNhMzU0MzQ5YzMwIiwiaWF0IjoxNzcxNzg3MDc0fQ.GRkWQZxsLaSG5DGd-1AOGD5LOQ40h_hHU_-L7tA-RHs';
+const N8N_API_KEY = process.env.N8N_API_KEY;
+const CHECKOUT_TOKEN = process.env.CHECKOUT_TOKEN || 'mm-checkout-2026-change-me';
+
+if (!N8N_API_KEY) {
+  console.error('Error: N8N_API_KEY environment variable is required.');
+  console.error('Usage: N8N_API_KEY=your-key node scripts/create-checkout-workflow.mjs');
+  process.exit(1);
+}
 
 const n8nHeaders = {
   'X-N8N-API-KEY': N8N_API_KEY,
@@ -9,20 +16,35 @@ const n8nHeaders = {
 };
 
 // ============================================================
-// Code node: Format order data into email HTML
+// Code node: Auth check + Format order data into email HTML
 // ============================================================
 const formatOrderCode = `
 const webhookData = $('Checkout Webhook').first().json;
+const headers = webhookData.headers || {};
 const body = webhookData.body || webhookData;
+
+// ─── Auth check ───
+const expectedToken = '${CHECKOUT_TOKEN}';
+const providedToken = headers['x-mm-auth-token'] || '';
+if (providedToken !== expectedToken) {
+  throw new Error('Unauthorized: invalid auth token');
+}
 
 const customer = body.customer || {};
 const order = body.order || {};
 const orderRef = body.orderRef || 'N/A';
+const paymentProof = body.paymentProof || null;
 
 const mealPlans = order.mealPlans || [];
 const items = order.items || [];
 const planInstances = order.planInstances || [];
 const subtotal = order.subtotal || 0;
+
+// ─── HTML escaping ───
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 const categoryLabels = { main: 'Main Dish', side: 'Side Dish', starch: 'Starch' };
 const categoryOrder = ['main', 'side', 'starch'];
@@ -30,18 +52,13 @@ const categoryOrder = ['main', 'side', 'starch'];
 // Build per-plan-instance HTML cards
 function buildPlanInstanceCards(instances) {
   if (!instances || instances.length === 0) return '';
-
-  // Sort by displayOrder
   const sorted = [...instances].sort((a, b) => a.displayOrder - b.displayOrder);
-
-  // Number instances per type
   const typeCounters = {};
   const instanceNums = {};
   for (const pi of sorted) {
     typeCounters[pi.type] = (typeCounters[pi.type] || 0) + 1;
     instanceNums[pi.id] = typeCounters[pi.type];
   }
-
   return sorted.map(pi => {
     const num = instanceNums[pi.id];
     const itemsByCategory = {};
@@ -49,16 +66,14 @@ function buildPlanInstanceCards(instances) {
       const catItems = (pi.items || []).filter(i => i.type === cat);
       if (catItems.length > 0) itemsByCategory[cat] = catItems;
     }
-
     const categoryHtml = Object.entries(itemsByCategory).map(([cat, catItems]) =>
       '<div style="margin-bottom:8px">' +
-      '<p style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 4px">' + (categoryLabels[cat] || cat) + '</p>' +
-      catItems.map(i => '<span style="display:inline-block;background:#F3E7D8;padding:4px 10px;border-radius:12px;font-size:13px;color:#333;margin:2px 4px 2px 0;text-transform:capitalize">' + i.name + '</span>').join('') +
+      '<p style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 4px">' + esc(categoryLabels[cat] || cat) + '</p>' +
+      catItems.map(i => '<span style="display:inline-block;background:#F3E7D8;padding:4px 10px;border-radius:12px;font-size:13px;color:#333;margin:2px 4px 2px 0;text-transform:capitalize">' + esc(i.name) + '</span>').join('') +
       '</div>'
     ).join('');
-
     return '<div style="border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:12px">' +
-      '<div style="background:#F3E7D8;padding:10px 14px;font-weight:bold;color:#333;font-size:14px">#' + num + ' ' + pi.type + '</div>' +
+      '<div style="background:#F3E7D8;padding:10px 14px;font-weight:bold;color:#333;font-size:14px">#' + num + ' ' + esc(pi.type) + '</div>' +
       '<div style="padding:12px 14px">' + (categoryHtml || '<p style="color:#aaa;font-size:13px;margin:0">No dishes selected</p>') + '</div>' +
     '</div>';
   }).join('');
@@ -66,16 +81,15 @@ function buildPlanInstanceCards(instances) {
 
 // Build legacy flat rows (fallback)
 const mealPlanRows = mealPlans.map(p =>
-  '<tr><td style="padding:8px;border:1px solid #eee">' + p.type + '</td>' +
-  '<td style="padding:8px;border:1px solid #eee;text-align:center">x' + p.quantity + '</td></tr>'
+  '<tr><td style="padding:8px;border:1px solid #eee">' + esc(p.type) + '</td>' +
+  '<td style="padding:8px;border:1px solid #eee;text-align:center">x' + esc(String(p.quantity)) + '</td></tr>'
 ).join('');
 
 const itemRows = items.map(i =>
-  '<tr><td style="padding:8px;border:1px solid #eee;text-transform:capitalize">' + i.name + '</td>' +
-  '<td style="padding:8px;border:1px solid #eee;text-transform:capitalize">' + i.type + '</td></tr>'
+  '<tr><td style="padding:8px;border:1px solid #eee;text-transform:capitalize">' + esc(i.name) + '</td>' +
+  '<td style="padding:8px;border:1px solid #eee;text-transform:capitalize">' + esc(i.type) + '</td></tr>'
 ).join('');
 
-// Choose between grouped or flat view
 const hasPlanInstances = planInstances.length > 0;
 const planCardsHtml = hasPlanInstances ? buildPlanInstanceCards(planInstances) : '';
 
@@ -86,16 +100,43 @@ const legacyOrderHtml = '<table style="width:100%;border-collapse:collapse;margi
 
 const orderDetailsHtml = hasPlanInstances ? planCardsHtml : legacyOrderHtml;
 
+// ─── GCash receipt → real email attachment ───
+// The frontend sends a data URI ("data:image/png;base64,XXXX"). n8n binary
+// data wants the raw base64 (no prefix) plus mimeType + fileName, so we split
+// the prefix off here and expose it as a binary property the email nodes attach.
+let receiptBinary = null;
+if (paymentProof && paymentProof.base64) {
+  const [meta, rawB64] = String(paymentProof.base64).split(',');
+  const mimeType = (meta.match(/data:(.*?);base64/) || [])[1] || paymentProof.mimeType || 'image/png';
+  const ext = (mimeType.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  receiptBinary = {
+    receipt: {
+      data: rawB64 || '',
+      mimeType,
+      fileName: paymentProof.fileName || ('payment-receipt-' + orderRef + '.' + ext),
+    },
+  };
+}
+
+// Short note shown in the business email body; the actual image rides along as
+// a downloadable attachment (inline base64 <img> is unreliable — Gmail strips it).
+const paymentProofHtml = paymentProof
+  ? '<h3 style="color:#E36A2E;border-bottom:2px solid #F3E7D8;padding-bottom:8px;margin-top:20px">Payment Receipt</h3>' +
+    '<p style="color:#555;font-size:13px;margin:0">File <strong>' + esc(paymentProof.fileName) + '</strong> is attached to this email.</p>'
+  : '<h3 style="color:#c0392b;border-bottom:2px solid #F3E7D8;padding-bottom:8px;margin-top:20px">⚠ No payment receipt attached</h3>';
+
+const paymentStatusText = paymentProof ? 'Payment receipt received' : 'No payment receipt';
+
 // ─── Customer Confirmation Email ───
 const customerHtml = \`
 <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
   <div style="background:linear-gradient(135deg,#E36A2E,#F2B34A);padding:30px;text-align:center;border-radius:12px 12px 0 0">
     <h1 style="color:#fff;margin:0;font-size:24px">Order Confirmed!</h1>
-    <p style="color:#fff;opacity:0.9;margin:8px 0 0">Reference: \${orderRef}</p>
+    <p style="color:#fff;opacity:0.9;margin:8px 0 0">Reference: \${esc(orderRef)}</p>
   </div>
   <div style="background:#fff;padding:24px;border:1px solid #eee;border-top:none">
-    <p style="color:#333;font-size:15px">Hi \${customer.firstName},</p>
-    <p style="color:#555;font-size:14px;line-height:1.6">Thank you for your order with Momma Mia Catering! We've received your order and our team will review it shortly. We'll reach out to confirm the details and arrange payment.</p>
+    <p style="color:#333;font-size:15px">Hi \${esc(customer.firstName)},</p>
+    <p style="color:#555;font-size:14px;line-height:1.6">Thank you for your order with Momma Mia Catering! We've received your order and your payment receipt (attached to this email for your records). Our team will verify your payment and confirm the details shortly.</p>
 
     <h3 style="color:#E36A2E;border-bottom:2px solid #F3E7D8;padding-bottom:8px">Order Details</h3>
     \${orderDetailsHtml}
@@ -105,12 +146,16 @@ const customerHtml = \`
       <span style="font-size:20px;font-weight:bold;color:#E36A2E">₱\${subtotal}</span>
     </div>
 
+    <div style="background:#e8f5e9;padding:12px 16px;border-radius:8px;margin-bottom:16px">
+      <p style="color:#2e7d32;font-size:14px;margin:0;font-weight:bold">✓ \${paymentStatusText}</p>
+    </div>
+
     <h3 style="color:#E36A2E;border-bottom:2px solid #F3E7D8;padding-bottom:8px">Delivery Info</h3>
     <table style="width:100%;border-collapse:collapse">
-      <tr><td style="padding:6px 8px;color:#888;width:120px">Date</td><td style="padding:6px 8px;color:#333">\${customer.deliveryDate || 'TBD'}</td></tr>
-      <tr><td style="padding:6px 8px;color:#888">Time</td><td style="padding:6px 8px;color:#333">\${customer.deliveryTime || 'TBD'}</td></tr>
-      <tr><td style="padding:6px 8px;color:#888">Address</td><td style="padding:6px 8px;color:#333">\${customer.deliveryAddress || 'TBD'}</td></tr>
-      \${customer.specialRequests ? '<tr><td style="padding:6px 8px;color:#888">Notes</td><td style="padding:6px 8px;color:#333">' + customer.specialRequests + '</td></tr>' : ''}
+      <tr><td style="padding:6px 8px;color:#888;width:120px">Date</td><td style="padding:6px 8px;color:#333">\${esc(customer.deliveryDate) || 'TBD'}</td></tr>
+      <tr><td style="padding:6px 8px;color:#888">Time</td><td style="padding:6px 8px;color:#333">\${esc(customer.deliveryTime) || 'TBD'}</td></tr>
+      <tr><td style="padding:6px 8px;color:#888">Address</td><td style="padding:6px 8px;color:#333">\${esc(customer.deliveryAddress) || 'TBD'}</td></tr>
+      \${customer.specialRequests ? '<tr><td style="padding:6px 8px;color:#888">Notes</td><td style="padding:6px 8px;color:#333">' + esc(customer.specialRequests) + '</td></tr>' : ''}
     </table>
   </div>
   <div style="background:#f9f9f9;padding:16px;text-align:center;border-radius:0 0 12px 12px;border:1px solid #eee;border-top:none">
@@ -124,26 +169,28 @@ const businessHtml = \`
 <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
   <div style="background:#E36A2E;padding:20px;border-radius:12px 12px 0 0">
     <h2 style="color:#fff;margin:0">New Order Received</h2>
-    <p style="color:#fff;opacity:0.9;margin:4px 0 0">Ref: \${orderRef}</p>
+    <p style="color:#fff;opacity:0.9;margin:4px 0 0">Ref: \${esc(orderRef)}</p>
   </div>
   <div style="background:#fff;padding:24px;border:1px solid #eee;border-top:none">
     <h3 style="color:#333;margin-top:0">Customer Info</h3>
     <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
-      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8;width:140px">Name</td><td style="padding:8px;border:1px solid #eee">\${customer.firstName} \${customer.lastName}</td></tr>
-      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Email</td><td style="padding:8px;border:1px solid #eee"><a href="mailto:\${customer.email}">\${customer.email}</a></td></tr>
-      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Phone</td><td style="padding:8px;border:1px solid #eee"><a href="tel:\${customer.phone}">\${customer.phone}</a></td></tr>
-      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Delivery Date</td><td style="padding:8px;border:1px solid #eee">\${customer.deliveryDate || 'TBD'}</td></tr>
-      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Delivery Time</td><td style="padding:8px;border:1px solid #eee">\${customer.deliveryTime || 'TBD'}</td></tr>
-      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Address</td><td style="padding:8px;border:1px solid #eee">\${customer.deliveryAddress}</td></tr>
-      \${customer.specialRequests ? '<tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Special Requests</td><td style="padding:8px;border:1px solid #eee">' + customer.specialRequests + '</td></tr>' : ''}
+      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8;width:140px">Name</td><td style="padding:8px;border:1px solid #eee">\${esc(customer.firstName)} \${esc(customer.lastName)}</td></tr>
+      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Email</td><td style="padding:8px;border:1px solid #eee"><a href="mailto:\${esc(customer.email)}">\${esc(customer.email)}</a></td></tr>
+      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Phone</td><td style="padding:8px;border:1px solid #eee"><a href="tel:\${esc(customer.phone)}">\${esc(customer.phone)}</a></td></tr>
+      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Delivery Date</td><td style="padding:8px;border:1px solid #eee">\${esc(customer.deliveryDate) || 'TBD'}</td></tr>
+      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Delivery Time</td><td style="padding:8px;border:1px solid #eee">\${esc(customer.deliveryTime) || 'TBD'}</td></tr>
+      <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Address</td><td style="padding:8px;border:1px solid #eee">\${esc(customer.deliveryAddress)}</td></tr>
+      \${customer.specialRequests ? '<tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;background:#F3E7D8">Special Requests</td><td style="padding:8px;border:1px solid #eee">' + esc(customer.specialRequests) + '</td></tr>' : ''}
     </table>
 
     <h3 style="color:#333">Order Summary</h3>
     \${orderDetailsHtml}
 
-    <div style="background:#E36A2E;color:#fff;padding:16px;border-radius:8px;text-align:center;font-size:20px;font-weight:bold">
+    <div style="background:#E36A2E;color:#fff;padding:16px;border-radius:8px;text-align:center;font-size:20px;font-weight:bold;margin-bottom:20px">
       Subtotal: ₱\${subtotal}
     </div>
+
+    \${paymentProofHtml}
   </div>
   <div style="padding:12px;text-align:center;color:#aaa;font-size:11px">
     Submitted at \${new Date().toISOString()} via mommamiacaters.com checkout
@@ -153,12 +200,21 @@ const businessHtml = \`
 return [{
   json: {
     customerEmail: customer.email,
-    customerName: customer.firstName + ' ' + customer.lastName,
+    customerName: esc(customer.firstName) + ' ' + esc(customer.lastName),
     customerHtml,
     businessHtml,
     orderRef,
-    subtotal
-  }
+    subtotal,
+    hasReceipt: !!paymentProof,
+    // For Google Sheets logging
+    sheetTimestamp: new Date().toISOString(),
+    sheetName: esc(customer.firstName) + ' ' + esc(customer.lastName),
+    sheetEmail: customer.email || '',
+    sheetPhone: customer.phone || '',
+    sheetPaymentStatus: paymentProof ? 'Receipt Attached' : 'No Receipt'
+  },
+  // Binary travels with the item so the email nodes can attach it.
+  binary: receiptBinary || {}
 }];
 `;
 
@@ -168,7 +224,7 @@ return [{
 const workflow = {
   name: "Momma Mia Checkout",
   nodes: [
-    // --- Webhook Trigger (typeVersion 1 + responseNode, matching chatbot pattern) ---
+    // --- Webhook Trigger ---
     {
       parameters: {
         httpMethod: "POST",
@@ -184,7 +240,7 @@ const workflow = {
       webhookId: "checkout-webhook-prod-001"
     },
 
-    // --- Format Order Data (Code node) ---
+    // --- Format Order Data (Code node — includes auth check) ---
     {
       parameters: {
         jsCode: formatOrderCode
@@ -196,6 +252,46 @@ const workflow = {
       position: [100, 0]
     },
 
+    // --- Log to Google Sheets ---
+    {
+      parameters: {
+        operation: "append",
+        authentication: "serviceAccount",
+        documentId: { __rl: true, value: "10DaGcvlPK5GpTcJD4rmCGPsMuCmrpd7-MppFBgAW8RM", mode: "id" },
+        sheetName: { __rl: true, value: "ORDERS", mode: "name" },
+        columns: {
+          mappingMode: "defineBelow",
+          value: {
+            "Timestamp": "={{ $json.sheetTimestamp }}",
+            "OrderRef": "={{ $json.orderRef }}",
+            "Name": "={{ $json.sheetName }}",
+            "Email": "={{ $json.sheetEmail }}",
+            "Phone": "={{ $json.sheetPhone }}",
+            "Subtotal": "={{ $json.subtotal }}",
+            "PaymentStatus": "={{ $json.sheetPaymentStatus }}"
+          },
+          matchingColumns: [],
+          schema: [
+            { id: "Timestamp", displayName: "Timestamp", required: false, defaultMatch: false, display: true, type: "string", canBeUsedToMatch: true },
+            { id: "OrderRef", displayName: "OrderRef", required: false, defaultMatch: false, display: true, type: "string", canBeUsedToMatch: true },
+            { id: "Name", displayName: "Name", required: false, defaultMatch: false, display: true, type: "string", canBeUsedToMatch: true },
+            { id: "Email", displayName: "Email", required: false, defaultMatch: false, display: true, type: "string", canBeUsedToMatch: true },
+            { id: "Phone", displayName: "Phone", required: false, defaultMatch: false, display: true, type: "string", canBeUsedToMatch: true },
+            { id: "Subtotal", displayName: "Subtotal", required: false, defaultMatch: false, display: true, type: "string", canBeUsedToMatch: true },
+            { id: "PaymentStatus", displayName: "PaymentStatus", required: false, defaultMatch: false, display: true, type: "string", canBeUsedToMatch: true }
+          ]
+        },
+        options: {}
+      },
+      id: "checkout-sheets-001",
+      name: "Log to Google Sheets",
+      type: "n8n-nodes-base.googleSheets",
+      typeVersion: 4,
+      position: [350, 0],
+      credentials: { googleApi: { id: "nkZu4D4KZUEbwpTZ", name: "Google Sheets account" } },
+      continueOnFail: true
+    },
+
     // --- Send Customer Confirmation Email ---
     {
       parameters: {
@@ -205,14 +301,16 @@ const workflow = {
         emailFormat: "html",
         html: "={{ $('Format Order Data').first().json.customerHtml }}",
         options: {
-          replyTo: "mommamiacaters@gmail.com"
+          replyTo: "mommamiacaters@gmail.com",
+          // Attach the GCash receipt binary that rode along from the Code node.
+          attachments: "receipt"
         }
       },
       id: "checkout-email-customer-001",
       name: "Email Customer",
       type: "n8n-nodes-base.emailSend",
       typeVersion: 2,
-      position: [400, -100],
+      position: [600, -100],
       credentials: {
         smtp: {
           id: "contact-smtp-1",
@@ -231,14 +329,16 @@ const workflow = {
         emailFormat: "html",
         html: "={{ $('Format Order Data').first().json.businessHtml }}",
         options: {
-          replyTo: "={{ $('Format Order Data').first().json.customerEmail }}"
+          replyTo: "={{ $('Format Order Data').first().json.customerEmail }}",
+          // Attach the GCash receipt binary that rode along from the Code node.
+          attachments: "receipt"
         }
       },
       id: "checkout-email-business-001",
       name: "Email Business",
       type: "n8n-nodes-base.emailSend",
       typeVersion: 2,
-      position: [400, 100],
+      position: [600, 100],
       credentials: {
         smtp: {
           id: "contact-smtp-1",
@@ -259,7 +359,7 @@ const workflow = {
       name: "Webhook Response",
       type: "n8n-nodes-base.respondToWebhook",
       typeVersion: 1,
-      position: [700, 0]
+      position: [900, 0]
     }
   ],
 
@@ -267,14 +367,24 @@ const workflow = {
     "Checkout Webhook": {
       main: [[{ node: "Format Order Data", type: "main", index: 0 }]]
     },
+    // Branch straight off the Code node so the email nodes inherit its `receipt`
+    // binary. (The Google Sheets node does not reliably forward binary data, so
+    // routing emails through it would drop the attachment.)
     "Format Order Data": {
-      main: [[{ node: "Email Customer", type: "main", index: 0 }]]
+      main: [[
+        { node: "Email Customer", type: "main", index: 0 },
+        { node: "Email Business", type: "main", index: 0 },
+        { node: "Log to Google Sheets", type: "main", index: 0 }
+      ]]
     },
     "Email Customer": {
-      main: [[{ node: "Email Business", type: "main", index: 0 }]]
+      main: [[{ node: "Webhook Response", type: "main", index: 0 }]]
     },
     "Email Business": {
-      main: [[{ node: "Webhook Response", type: "main", index: 0 }]]
+      main: [[]]
+    },
+    "Log to Google Sheets": {
+      main: [[]]
     }
   },
 
@@ -288,7 +398,6 @@ const workflow = {
 // Deploy to n8n
 // ============================================================
 async function deploy() {
-  // Step 1: Check if checkout workflow already exists
   console.log('Checking for existing checkout workflow...');
   const listRes = await fetch(`${N8N_URL}/api/v1/workflows`, { headers: n8nHeaders });
 
@@ -303,7 +412,6 @@ async function deploy() {
   let workflowId;
 
   if (existing) {
-    // Update existing workflow
     workflowId = existing.id;
     console.log(`Found existing workflow: ${workflowId}. Updating...`);
 
@@ -320,7 +428,6 @@ async function deploy() {
     }
     console.log('Workflow updated!');
   } else {
-    // Create new workflow
     console.log('Creating new checkout workflow...');
 
     const createRes = await fetch(`${N8N_URL}/api/v1/workflows`, {
@@ -339,7 +446,7 @@ async function deploy() {
     console.log(`Workflow created with ID: ${workflowId}`);
   }
 
-  // Step 2: Activate the workflow
+  // Activate
   console.log('Activating workflow...');
   const activateRes = await fetch(`${N8N_URL}/api/v1/workflows/${workflowId}/activate`, {
     method: 'POST',
@@ -352,40 +459,10 @@ async function deploy() {
     console.error('Activation failed:', activateRes.status, await activateRes.text());
   }
 
-  // Step 3: Test the webhook
-  console.log('\nTesting webhook...');
-  const testRes = await fetch(`${N8N_URL}/webhook/checkout`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      customer: {
-        firstName: "Test",
-        lastName: "Order",
-        email: "test@example.com",
-        phone: "0000000000",
-        deliveryDate: "2026-03-15",
-        deliveryTime: "12:00",
-        deliveryAddress: "Test Address",
-        specialRequests: ""
-      },
-      order: {
-        mealPlans: [{ type: "Double The Protein", quantity: 1 }],
-        items: [{ name: "Test Item", type: "main", image: "" }],
-        subtotal: 265
-      },
-      orderRef: "MM-TEST-0001"
-    })
-  });
-
-  if (testRes.ok) {
-    const testData = await testRes.json();
-    console.log('Webhook test response:', JSON.stringify(testData, null, 2));
-    console.log('\nCheckout workflow is LIVE at:');
-    console.log(`  ${N8N_URL}/webhook/checkout`);
-  } else {
-    console.log('Test failed:', testRes.status, await testRes.text());
-    console.log('The workflow may need a moment to initialize. Try again in a few seconds.');
-  }
+  console.log('\nCheckout workflow is LIVE at:');
+  console.log(`  ${N8N_URL}/webhook/checkout`);
+  console.log('\nGoogle Sheets logging: ORDERS sheet');
+  console.log('Auth token required: X-MM-Auth-Token header');
 }
 
 deploy().catch(console.error);

@@ -24,3 +24,8 @@ n8n
 *.sln
 *.sw?
 .env
+
+# Secrets — the real MCP config holds the Supabase access token.
+# Commit .mcp.json.example (redacted) instead.
+.mcp.json
+supabase/.temp
