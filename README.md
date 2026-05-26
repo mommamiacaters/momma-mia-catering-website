@@ -94,24 +94,45 @@ Then create a `.env` file for the web app (see [Environment Variables](#environm
 
 ## Running the Apps
 
-Run any of these from the **repo root**:
+Run any of these from the **repo root** (`pnpm run …` and `npm run …` both work):
 
-| Command                       | Runs                              | Where / Result                                   |
-|-------------------------------|-----------------------------------|--------------------------------------------------|
-| `npm run start`               | **Web + Mobile** together         | Web in browser **+ mobile on the Android emulator** |
-| `npm run start:web`           | Web only                          | http://localhost:5173                            |
-| `npm run start:mobile`        | Mobile on the **Android emulator**| Boots an Android Studio AVD and opens the app    |
-| `npm run start:mobile:expo`   | Mobile via **Expo Go**            | Prints a **QR code** to scan on your phone       |
+| Command                       | Runs                               | Result                                                          |
+|-------------------------------|------------------------------------|-----------------------------------------------------------------|
+| `npm run start`               | **Web + Mobile** together          | Web in the browser **and** the mobile app on the Android emulator |
+| `npm run start:web`           | Web only                           | http://localhost:5174 (or 5173 if free)                         |
+| `npm run start:mobile`        | Mobile on the **Android emulator** | Auto-boots the `momma_pixel` AVD, starts Metro, opens the app   |
+| `npm run start:mobile:expo`   | Mobile via **Expo Go**             | Prints a **QR code** for a physical iPhone / Android phone      |
 
-> 💡 `pnpm run start:web` (etc.) works identically — `npm run` is only acting as the script runner here.
+> 💡 `npm run start` is the everyday command: it launches the **website and the mobile app on the Android emulator** at the same time (color-coded `[web]` blue / `[mobile]` magenta; one `Ctrl+C` stops both).
 
-**Two ways to run mobile:**
-- `start:mobile` (also used by `npm run start`) runs `expo start --android` — it launches the Android emulator and opens the app directly. Have an AVD configured in Android Studio first.
-- `start:mobile:expo` runs plain `expo start` and prints a QR code; scan it with **Expo Go** on a physical phone (phone and computer must be on the same network).
+### Mobile — the two ways to run
 
-**Running both with `npm run start`:** output is split into color-coded `[web]` (blue) and `[mobile]` (magenta) streams, and a single `Ctrl+C` stops both. Note that Metro/Expo's interactive keypress menu (`r` to reload, etc.) is unreliable when both apps share one terminal — for active mobile debugging, run a mobile command in its own terminal.
+**① Android emulator** (default — used by `npm run start` and `npm run start:mobile`)
 
-> 🛠️ **Emulator won't launch?** If `--android` hangs or targets a phantom device, start the emulator manually from Android Studio first (or `emulator -avd <name>`), confirm it's listed under `adb devices`, then re-run the command.
+`start:mobile` runs `scripts/run-android.mjs`, which does the whole dance for you:
+1. starts the adb server,
+2. **boots the `momma_pixel` emulator** if one isn't already running,
+3. waits for it to finish booting,
+4. sets `adb reverse tcp:8081` (so the emulator can reach Metro),
+5. starts Metro and **opens the app on the emulator automatically**.
+
+_Prereqs:_ Android Studio + an AVD named **`momma_pixel`** (override with `MOMMA_AVD=<name>`), **Expo Go installed on that emulator**, and `ANDROID_HOME` / `ANDROID_SDK_ROOT` pointing at your SDK.
+
+**② Expo Go on a physical phone — iPhone _or_ Android**
+
+```bash
+npm run start:mobile:expo        # prints a QR code (phone + computer on the same Wi-Fi)
+```
+- **iPhone:** open the **Camera** app, point it at the QR → opens in Expo Go.
+- **Android:** open **Expo Go** → _Scan QR code_.
+- Strict/!shared network? use a tunnel: `pnpm --filter @momma-mia/mobile exec expo start --tunnel`.
+
+> For active mobile debugging, run `npm run start:mobile` in **its own terminal** — Metro's interactive keys (`r` reload, `a` reopen on Android) are unreliable when web + mobile share one terminal.
+
+> 🛠️ **Troubleshooting**
+> - **"No Android connected device found" / `expo start --android` fails:** that's exactly why `start:mobile` uses the helper script (it boots the emulator itself). If it still can't, open the AVD once from Android Studio, confirm `adb devices` lists `emulator-5554`, then re-run.
+> - **App shows a blue "Something went wrong":** the `adb reverse` mapping was lost (e.g. after `adb kill-server` or an emulator reboot). Just re-run `npm run start:mobile` — or manually `adb -s emulator-5554 reverse tcp:8081 tcp:8081` and reload. _(Tell-tale: the Metro log shows **no** "Bundled" line — it's a connectivity issue, not your code.)_
+> - **`expo start --android` targets a phantom `emulator-5562`:** the Nahimic `NTKDaemonService` (port 5563) confuses adb. The helper script sidesteps it; to use `--android` directly, stop that service (admin).
 
 ### Build & Lint (web)
 
