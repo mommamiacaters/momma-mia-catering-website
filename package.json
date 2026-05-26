@@ -6,8 +6,9 @@
   "scripts": {
     "start": "concurrently -k -n web,mobile -c blue,magenta \"pnpm run start:web\" \"pnpm run start:mobile\"",
     "start:web": "pnpm --filter @momma-mia/web dev",
-    "start:mobile": "pnpm --filter @momma-mia/mobile android",
+    "start:mobile": "node scripts/run-android.mjs",
     "start:mobile:expo": "pnpm --filter @momma-mia/mobile start",
+    "start:android": "node scripts/run-android.mjs",
     "web:build": "pnpm --filter @momma-mia/web build",
     "web:lint": "pnpm --filter @momma-mia/web lint",
     "typecheck": "pnpm -r exec tsc --noEmit",
