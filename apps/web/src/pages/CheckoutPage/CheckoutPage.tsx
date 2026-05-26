@@ -170,6 +170,7 @@ const CheckoutPage: React.FC = () => {
         order: {
           mealPlans: mealPlanOrders,
           items: selectedItems.map((i) => ({
+            menuItemId: i.menuItemId,
             name: i.name,
             type: i.type,
             image: i.image,

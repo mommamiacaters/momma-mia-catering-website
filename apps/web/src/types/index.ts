@@ -26,6 +26,7 @@ export interface MealPlanOrder {
 export interface AssignedItem {
   instanceId: string;       // unique per-dish-selection
   planInstanceId: string;   // FK back to PlanInstance.id
+  menuItemId: string;       // menu_items.id (UUID) — for server-side pricing via create_order
   name: string;
   description: string;
   price: number;
@@ -86,7 +87,7 @@ export interface OrderSubmission {
   customer: CheckoutFormData;
   order: {
     mealPlans: MealPlanOrder[];
-    items: { name: string; type: string; image: string }[];
+    items: { menuItemId?: string; name: string; type: string; image: string }[];
     subtotal: number;
     planInstances?: PlanInstance[];
   };

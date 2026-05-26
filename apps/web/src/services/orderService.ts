@@ -1,8 +1,6 @@
 import type { OrderSubmission } from "../types";
 import { supabase } from "../lib/supabase";
 
-const pesosToCents = (p: number): number => Math.round((p || 0) * 100);
-
 /** Convert a `data:` URI (payment proof screenshot) into a Blob for upload. */
 function dataUriToBlob(dataUri: string): { blob: Blob; mime: string } {
   const [meta, b64] = dataUri.split(",");
@@ -19,17 +17,19 @@ function dataUriToBlob(dataUri: string): { blob: Blob; mime: string } {
  * transition (later replaced by a Supabase Database Webhook -> n8n).
  */
 export async function submitOrder(data: OrderSubmission): Promise<void> {
-  const orderId = crypto.randomUUID();
   const { customer, order, orderRef, paymentProof } = data;
 
   // 1) upload payment proof to the private bucket (if provided)
   let paymentProofUrl: string | null = null;
   if (paymentProof?.base64) {
     const { blob, mime } = dataUriToBlob(paymentProof.base64);
-    const path = `${orderRef}/${paymentProof.fileName || "proof"}`;
+    // Unguessable path + upsert:false → a proof can't be overwritten/guessed
+    // (the low-entropy order_ref must not be derivable from the path).
+    const ext = (paymentProof.fileName?.split(".").pop() || mime.split("/")[1] || "jpg").toLowerCase();
+    const path = `${crypto.randomUUID()}.${ext}`;
     const { data: up, error: upErr } = await supabase.storage
       .from("payment-proofs")
-      .upload(path, blob, { contentType: mime, upsert: true });
+      .upload(path, blob, { contentType: mime, upsert: false });
     if (upErr) {
       // Non-fatal: keep the order, just note the proof failed to attach.
       console.error("Payment proof upload failed:", upErr.message);
@@ -38,88 +38,43 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
     }
   }
 
-  // 2) insert the order (id generated client-side so we can attach items
-  //    without needing SELECT permission as a guest)
-  const subtotalCents = pesosToCents(order.subtotal);
-  const { error: orderErr } = await supabase.from("orders").insert({
-    id: orderId,
-    order_ref: orderRef,
-    order_type: "delivery",
-    customer_first_name: customer.firstName,
-    customer_last_name: customer.lastName,
-    customer_email: customer.email,
-    customer_phone: customer.phone,
-    delivery_address: customer.deliveryAddress || null,
-    delivery_date: customer.deliveryDate || null,
-    delivery_time: customer.deliveryTime || null,
-    special_requests: customer.specialRequests || null,
-    subtotal_cents: subtotalCents,
-    delivery_fee_cents: 0,
-    total_cents: subtotalCents,
-    payment_proof_url: paymentProofUrl,
-  });
-  if (orderErr) throw new Error(`Failed to submit order: ${orderErr.message}`);
-
-  // 3) insert line items — prefer the richer planInstances (they carry price)
-  type ItemRow = {
-    order_id: string;
-    item_name: string;
-    item_type: string | null;
-    qty: number;
-    unit_price_cents: number;
-    plan_instance_id: string | null;
-    plan_type: string | null;
-  };
-  const rows: ItemRow[] = [];
-  if (order.planInstances?.length) {
-    for (const plan of order.planInstances) {
-      for (const item of plan.items) {
-        rows.push({
-          order_id: orderId,
-          item_name: item.name,
-          item_type: item.type ?? null,
+  // 2) create the order server-side. The create_order RPC looks up prices from
+  //    menu_items by id, recomputes the total, forces client_id = auth.uid(),
+  //    and inserts the order + items atomically — the client no longer sends
+  //    prices/totals/client_id or generates the PK. Each meal-plan dish becomes
+  //    one line (qty 1) carrying its plan grouping; the à-la-carte fallback maps
+  //    order.items by id (vestigial today, but kept loud rather than silent).
+  const items = order.planInstances?.length
+    ? order.planInstances.flatMap((plan) =>
+        plan.items.map((it) => ({
+          menu_item_id: it.menuItemId,
           qty: 1,
-          unit_price_cents: pesosToCents(item.price),
           plan_instance_id: plan.id,
           plan_type: plan.type,
-        });
-      }
-    }
-  } else {
-    for (const item of order.items) {
-      rows.push({
-        order_id: orderId,
-        item_name: item.name,
-        item_type: item.type ?? null,
-        qty: 1,
-        unit_price_cents: 0,
-        plan_instance_id: null,
-        plan_type: null,
-      });
-    }
-  }
-  if (rows.length) {
-    const { error: itemsErr } = await supabase.from("order_items").insert(rows);
-    if (itemsErr) console.error("Failed to insert order items:", itemsErr.message);
-  }
+        })),
+      )
+    : order.items.map((it) => ({ menu_item_id: it.menuItemId, qty: 1 }));
 
-  // 4) best-effort n8n notification (keeps existing order emails working)
-  void notifyN8n(data);
-}
+  const { error } = await supabase.rpc("create_order", {
+    p_items: items,
+    p_customer: {
+      first_name: customer.firstName,
+      last_name: customer.lastName,
+      email: customer.email,
+      phone: customer.phone,
+      delivery_address: customer.deliveryAddress || null,
+      delivery_date: customer.deliveryDate || null,
+      delivery_time: customer.deliveryTime || null,
+      special_requests: customer.specialRequests || null,
+      order_type: "delivery",
+    },
+    p_order_ref: orderRef,
+    p_payment_proof_url: paymentProofUrl,
+  });
+  if (error) throw new Error(`Failed to submit order: ${error.message}`);
 
-async function notifyN8n(data: OrderSubmission): Promise<void> {
-  const base = import.meta.env.VITE_N8N_BASE_URL || import.meta.env.VITE_N8N_LOCAL;
-  if (!base) return;
-  try {
-    await fetch(`${base}/webhook/checkout`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-MM-Auth-Token": import.meta.env.VITE_CHECKOUT_TOKEN || "",
-      },
-      body: JSON.stringify(data),
-    });
-  } catch (err) {
-    console.warn("n8n order notification failed (non-fatal):", err);
-  }
+  // Order notification email is now sent SERVER-SIDE: an AFTER-UPDATE trigger on
+  // `orders` (create_order finalize) fires the n8n webhook once for every order —
+  // web + mobile alike — with the recipient from company_profile. No client-side
+  // notify here (that path double-fired and was error-prone).
 }

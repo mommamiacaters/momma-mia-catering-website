@@ -363,6 +363,7 @@ export function useOrderManagement(
         const newItem: AssignedItem = {
           instanceId: generateItemId(item.name),
           planInstanceId: targetId,
+          menuItemId: item.id,
           name: item.name,
           description: item.description,
           price: item.price,

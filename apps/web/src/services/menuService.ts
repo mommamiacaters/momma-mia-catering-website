@@ -6,6 +6,7 @@
 import { supabase } from '../lib/supabase';
 
 export interface MenuItem {
+  id: string;    // menu_items.id (UUID) — threaded through to order_items for server-side pricing
   name: string;
   description: string;
   price: number; // pesos
@@ -117,6 +118,7 @@ class MenuService {
       const type = item.type as keyof MenuTypeData;
       if (type !== 'main' && type !== 'side' && type !== 'starch') continue;
       bucket[type].push({
+        id: item.id,
         name: item.name,
         description: item.description ?? '',
         price: item.price ?? 0,
