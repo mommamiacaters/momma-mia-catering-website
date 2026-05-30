@@ -41,6 +41,36 @@ export type Database = {
         }
         Relationships: []
       }
+      company_profile: {
+        Row: {
+          id: boolean
+          business_name: string
+          order_notification_email: string
+          contact_email: string | null
+          contact_phone: string | null
+          address: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          business_name?: string
+          order_notification_email?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          address?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          business_name?: string
+          order_notification_email?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          address?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -313,6 +343,15 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }
+      create_order: {
+        Args: {
+          p_items: Json
+          p_customer: Json
+          p_order_ref: string
+          p_payment_proof_url?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "client" | "driver" | "admin"

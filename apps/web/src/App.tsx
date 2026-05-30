@@ -20,6 +20,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminCompanyProfile from "./pages/admin/AdminCompanyProfile";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 function AppContent() {
@@ -101,6 +102,7 @@ function AppContent() {
           >
             <Route index element={<AdminProducts />} />
             <Route path="orders" element={<AdminOrders />} />
+            <Route path="company" element={<AdminCompanyProfile />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
         </Routes>

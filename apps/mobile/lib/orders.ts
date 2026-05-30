@@ -34,19 +34,54 @@ export interface ProofImage {
 }
 
 /**
+ * Map a raw `create_order` RPC error message to user-friendly copy. The RPC
+ * raises plain Postgres exceptions like "Item not available" which are useful
+ * for logs but terrible UX — we should NEVER show raw DB strings to users.
+ * Any unknown error falls back to a generic message so we don't accidentally
+ * leak internals (e.g. column names, plpgsql line numbers).
+ */
+export function mapOrderError(msg: string): string {
+  if (/item not available/i.test(msg)) {
+    return 'One of your items just sold out or was removed. Please refresh and try again.';
+  }
+  if (/unknown menu item/i.test(msg)) {
+    return 'An item in your cart is no longer on the menu. Please refresh.';
+  }
+  if (/qty/i.test(msg)) {
+    return 'Quantity is invalid. Please review your cart.';
+  }
+  if (/empty/i.test(msg)) {
+    return 'Your cart is empty.';
+  }
+  return "Couldn't place your order. Please try again.";
+}
+
+// Shape of the `create_order` RPC return value. The DB function returns
+// `Json`, so we narrow it here at the one place we read it.
+interface CreateOrderResult {
+  order_id: string;
+  order_ref: string;
+  total_cents: number;
+}
+
+/**
  * Submit an order via the server-authoritative `create_order` RPC.
  * The server looks up prices from menu_items by id, recomputes the total,
  * forces client_id = auth.uid(), and inserts the order + items atomically.
  * The client no longer sends prices/totals/client_id or generates the PK.
  * `clientId` is accepted for signature compat but intentionally unused — the
  * server derives the owner from the session. Mirrors apps/web orderService.
+ *
+ * Returns `totalCents` (the SERVER-AUTHORITATIVE charged total) so the
+ * confirmation screen can show what the customer was actually charged — never
+ * the client-side subtotal, which can differ if a price changed mid-order.
  */
 export async function submitOrder(opts: {
   customer: CheckoutCustomer;
   lines: CartLine[];
   clientId?: string | null;
   proof?: ProofImage | null;
-}): Promise<{ orderRef: string }> {
+}): Promise<{ orderRef: string; totalCents: number }> {
   const { customer, lines, proof } = opts;
   const orderRef = makeOrderRef();
 
@@ -73,7 +108,7 @@ export async function submitOrder(opts: {
 
   // 2) create the order server-side. Only menu_item_id + qty are sent per line;
   //    the server snapshots the catalog name/type/price.
-  const { error } = await supabase.rpc('create_order', {
+  const { data, error } = await supabase.rpc('create_order', {
     p_items: lines.map((l) => ({ menu_item_id: l.item.id, qty: l.qty })),
     p_customer: {
       first_name: customer.firstName,
@@ -87,9 +122,17 @@ export async function submitOrder(opts: {
     p_order_ref: orderRef,
     p_payment_proof_url: paymentProofUrl,
   });
-  if (error) throw new Error(error.message);
+  // Wrap raw plpgsql exceptions in friendly copy — UI never sees DB strings.
+  if (error) throw new Error(mapOrderError(error.message));
 
-  return { orderRef };
+  // The RPC returns { order_id, order_ref, total_cents }. We trust the SERVER's
+  // total — not the client subtotal — so the confirmation screen reflects what
+  // was actually charged. Falls back to 0 only if the RPC ever drops the field;
+  // a wrong-by-zero is loud and easy to catch, vs. silently showing client math.
+  const result = (data ?? {}) as Partial<CreateOrderResult>;
+  const totalCents = typeof result.total_cents === 'number' ? result.total_cents : 0;
+
+  return { orderRef, totalCents };
 }
 
 export interface OrderSummary {

@@ -12,9 +12,11 @@ function dataUriToBlob(dataUri: string): { blob: Blob; mime: string } {
 }
 
 /**
- * Submit an order. Supabase is the system of record; the n8n webhook is fired
- * best-effort afterwards so the owner keeps receiving order emails during the
- * transition (later replaced by a Supabase Database Webhook -> n8n).
+ * Submit an order. Supabase is the system of record. The store + customer
+ * emails are sent server-side: an AFTER-UPDATE trigger on `orders` (keyed off
+ * the `notified_at` stamp written by create_order's finalize) calls the
+ * order-notify Edge Function via pg_net. The client makes no notification
+ * call — web and mobile share the same single send path.
  */
 export async function submitOrder(data: OrderSubmission): Promise<void> {
   const { customer, order, orderRef, paymentProof } = data;
@@ -22,19 +24,28 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
   // 1) upload payment proof to the private bucket (if provided)
   let paymentProofUrl: string | null = null;
   if (paymentProof?.base64) {
-    const { blob, mime } = dataUriToBlob(paymentProof.base64);
-    // Unguessable path + upsert:false → a proof can't be overwritten/guessed
-    // (the low-entropy order_ref must not be derivable from the path).
-    const ext = (paymentProof.fileName?.split(".").pop() || mime.split("/")[1] || "jpg").toLowerCase();
-    const path = `${crypto.randomUUID()}.${ext}`;
-    const { data: up, error: upErr } = await supabase.storage
-      .from("payment-proofs")
-      .upload(path, blob, { contentType: mime, upsert: false });
-    if (upErr) {
-      // Non-fatal: keep the order, just note the proof failed to attach.
-      console.error("Payment proof upload failed:", upErr.message);
-    } else {
-      paymentProofUrl = up?.path ?? path;
+    // dataUriToBlob lives INSIDE this try-block: a malformed data URI (bad
+    // base64, no comma, etc.) would throw in atob and abort the whole order
+    // submission. Better to degrade to "no proof attached" than to fail
+    // checkout — the proof is best-effort metadata, not the system of record.
+    try {
+      const { blob, mime } = dataUriToBlob(paymentProof.base64);
+      // Unguessable path + upsert:false → a proof can't be overwritten/guessed
+      // (the low-entropy order_ref must not be derivable from the path).
+      const ext = (paymentProof.fileName?.split(".").pop() || mime.split("/")[1] || "jpg").toLowerCase();
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { data: up, error: upErr } = await supabase.storage
+        .from("payment-proofs")
+        .upload(path, blob, { contentType: mime, upsert: false });
+      if (upErr) {
+        // Non-fatal: keep the order, just note the proof failed to attach.
+        console.error("Payment proof upload failed:", upErr.message);
+      } else {
+        paymentProofUrl = up?.path ?? path;
+      }
+    } catch (e) {
+      // Malformed data URI — keep the order, drop the proof.
+      console.error("Payment proof parse failed:", e instanceof Error ? e.message : e);
     }
   }
 
@@ -72,9 +83,6 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
     p_payment_proof_url: paymentProofUrl,
   });
   if (error) throw new Error(`Failed to submit order: ${error.message}`);
-
-  // Order notification email is now sent SERVER-SIDE: an AFTER-UPDATE trigger on
-  // `orders` (create_order finalize) fires the n8n webhook once for every order —
-  // web + mobile alike — with the recipient from company_profile. No client-side
-  // notify here (that path double-fired and was error-prone).
+  // No client-side notify call. See the docstring above — emails are sent
+  // server-side via the order-notify trigger.
 }

@@ -6,6 +6,7 @@ import { logo } from "../../images";
 const navItems = [
   { to: "/admin", label: "Products & Menu", icon: "pi-box", end: true },
   { to: "/admin/orders", label: "Orders", icon: "pi-receipt", end: false },
+  { to: "/admin/company", label: "Company Profile", icon: "pi-building", end: false },
   { to: "/admin/settings", label: "Settings", icon: "pi-cog", end: false },
 ];
 

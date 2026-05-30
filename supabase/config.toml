@@ -366,6 +366,12 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Order-notification email function — called server-to-server by the DB trigger
+# (notify_order_created), so JWT verification is off; it checks a shared secret
+# header (X-MM-Auth-Token = ORDER_NOTIFY_SECRET) instead.
+[functions.order-notify]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
