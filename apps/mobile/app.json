@@ -43,6 +43,18 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ab9df9a6-e698-420d-895e-467d8a6bf739"
+    },
+    "owner": "kitdaniellim",
+    "extra": {
+      "eas": {
+        "projectId": "ab9df9a6-e698-420d-895e-467d8a6bf739"
+      }
     }
   }
 }
