@@ -1,0 +1,18 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 0b333458104c5cf5718e39a9e76bd17b98265ec0..00d92b231194b242df2628d9cedbbb29a3e8afbe 100644
+--- a/dist/index.mjs	
++++ b/dist/index.mjs	
+@@ -68,7 +68,12 @@ function __awaiter(thisArg, _arguments, P, generator) {
+ let otelModulePromise = null;
+ const OTEL_PKG = "@opentelemetry/api";
+ function loadOtel() {
+-	if (otelModulePromise === null) otelModulePromise = import(/* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ OTEL_PKG).catch(() => null);
++	// PATCH: Hermes (RN's prod JS engine) refuses to compile `import(VARIABLE)`
++	// because it can't statically resolve the module path. Supabase only loads
++	// @opentelemetry/api defensively for optional distributed tracing — we don't
++	// use OTEL on mobile, so short-circuiting to null is equivalent to "OTEL not
++	// installed", which is the path Supabase already handles gracefully.
++	if (otelModulePromise === null) otelModulePromise = Promise.resolve(null);
+ 	return otelModulePromise;
+ }
+ /**

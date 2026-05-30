@@ -7,6 +7,9 @@ settings:
 overrides:
   '@types/react': 19.2.15
 
+patchedDependencies:
+  '@supabase/supabase-js@2.106.1': 7f6d7091273c2d5ec36b05ea9bcf44cb4e1f12bd1fb804ea0cf2a488525fdfab
+
 importers:
 
   .:
@@ -31,7 +34,7 @@ importers:
         version: 2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.1.0))
       '@supabase/supabase-js':
         specifier: ^2.106.1
-        version: 2.106.1
+        version: 2.106.1(patch_hash=7f6d7091273c2d5ec36b05ea9bcf44cb4e1f12bd1fb804ea0cf2a488525fdfab)
       expo:
         specifier: ~54.0.0
         version: 54.0.35(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
@@ -107,7 +110,7 @@ importers:
         version: link:../../packages/db
       '@supabase/supabase-js':
         specifier: ^2.106.1
-        version: 2.106.1
+        version: 2.106.1(patch_hash=7f6d7091273c2d5ec36b05ea9bcf44cb4e1f12bd1fb804ea0cf2a488525fdfab)
       lucide-react:
         specifier: ^0.344.0
         version: 0.344.0(react@18.3.1)
@@ -194,7 +197,7 @@ importers:
         version: link:../db
       '@supabase/supabase-js':
         specifier: ^2.106.1
-        version: 2.106.1
+        version: 2.106.1(patch_hash=7f6d7091273c2d5ec36b05ea9bcf44cb4e1f12bd1fb804ea0cf2a488525fdfab)
 
 packages:
 
@@ -6473,7 +6476,7 @@ snapshots:
       iceberg-js: 0.8.1
       tslib: 2.8.1
 
-  '@supabase/supabase-js@2.106.1':
+  '@supabase/supabase-js@2.106.1(patch_hash=7f6d7091273c2d5ec36b05ea9bcf44cb4e1f12bd1fb804ea0cf2a488525fdfab)':
     dependencies:
       '@supabase/auth-js': 2.106.1
       '@supabase/functions-js': 2.106.1

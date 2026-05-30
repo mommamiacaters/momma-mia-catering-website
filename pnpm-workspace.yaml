@@ -20,3 +20,6 @@ allowBuilds:
 # Web ships via Vite (esbuild, no tsc gate) so React-18 runtime is unaffected.
 overrides:
   '@types/react': 19.2.15
+
+patchedDependencies:
+  '@supabase/supabase-js@2.106.1': patches/@supabase__supabase-js@2.106.1.patch
