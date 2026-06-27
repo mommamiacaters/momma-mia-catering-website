@@ -10,6 +10,8 @@ const ContactPage: React.FC = () => {
     message: "",
   });
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  // Honeypot: real users leave this empty; bots fill every field they find.
+  const [honeypot, setHoneypot] = useState("");
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -23,28 +25,33 @@ const ContactPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Bot caught by the honeypot → pretend success, do nothing. No insert means
+    // no notification email (which now fires server-side on every insert).
+    if (honeypot.trim()) {
+      setStatus("success");
+      setFormData({ firstName: "", lastName: "", email: "", topic: "", message: "" });
+      return;
+    }
+
     setStatus("sending");
 
     try {
-      // System of record: store the message in Supabase.
-      const { error } = await supabase.from("contact_submissions").insert({
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        email: formData.email,
-        topic: formData.topic || null,
-        message: formData.message,
+      // Go through the submit_contact_message RPC (SECURITY DEFINER) rather than
+      // a raw table insert: direct anon INSERT on contact_submissions is now
+      // revoked, and the RPC enforces a server-side honeypot + input bounds so
+      // the email trigger can't be driven as an unauthenticated spam amplifier.
+      // On success an AFTER INSERT trigger emails the owner via order-notify
+      // (Resend) — the n8n notification hop is retired.
+      const { error } = await supabase.rpc("submit_contact_message", {
+        p_first_name: formData.firstName,
+        p_last_name: formData.lastName,
+        p_email: formData.email,
+        p_topic: formData.topic || null,
+        p_message: formData.message,
+        p_hp: honeypot,
       });
       if (error) throw error;
-
-      // Best-effort: fire n8n so the owner still gets the notification email.
-      const base = import.meta.env.VITE_N8N_BASE_URL || import.meta.env.VITE_N8N_LOCAL;
-      if (base) {
-        void fetch(`${base}/webhook/contact-form`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        }).catch(() => {});
-      }
 
       setStatus("success");
       setFormData({ firstName: "", lastName: "", email: "", topic: "", message: "" });
@@ -89,6 +96,18 @@ const ContactPage: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Honeypot — hidden from humans, irresistible to bots. Off-screen
+                    (not display:none) so naive bots still see + fill it. */}
+                <input
+                  type="text"
+                  name="company"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  className="absolute left-[-9999px] top-[-9999px] h-0 w-0 opacity-0"
+                />
                 <div>
                   <label
                     htmlFor="firstName"

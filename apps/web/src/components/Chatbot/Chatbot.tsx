@@ -52,10 +52,13 @@ A: Absolutely! We love working with you to create the perfect menu for your need
 
 Feel free to type a message if you have more questions!`;
 
+// The chatbot is served by the Supabase `chat` Edge Function (Gemini-backed),
+// which replaced the old self-hosted n8n webhook. Same request/response shape.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
 const Chatbot: React.FC<ChatbotProps> = ({
-  webhookUrl = `${
-    import.meta.env.VITE_N8N_BASE_URL || import.meta.env.VITE_N8N_LOCAL
-  }/webhook/momma-mia-chat`,
+  webhookUrl = `${SUPABASE_URL}/functions/v1/chat`,
   className = "",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -122,6 +125,10 @@ const Chatbot: React.FC<ChatbotProps> = ({
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
+            // Supabase Edge Function gateway requires the anon key (publishable;
+            // safe in the browser — RLS + the function's own guards are the boundary).
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
             message,
@@ -144,7 +151,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
         const data: WebhookResponse = JSON.parse(responseText);
 
-        // Replace context with what n8n returns (it manages full conversation state)
+        // Replace context with what the chat function returns (the widget holds
+        // conversation state and replays it; the function echoes it back updated).
         if (data.context) {
           setContext(data.context);
         }
