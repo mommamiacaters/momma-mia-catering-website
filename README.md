@@ -1,6 +1,6 @@
 # Momma Mia Catering Website
 
-A React-based website for Momma Mia Catering -- a food service business offering packed lunches, party trays, fun boxes, full-service catering, and equipment rental. The site features a dynamic meal ordering system, AI-powered chatbot, and contact form, all backed by n8n webhooks on AWS. 
+A React-based website for Momma Mia Catering -- a food service business offering packed lunches, party trays, fun boxes, full-service catering, and equipment rental. The site features a dynamic meal ordering system, AI-powered chatbot, and contact form, all backed by Supabase (Postgres + Edge Functions). 
 
 **Live site:** [https://mommamiacaters.com](https://mommamiacaters.com)
 
@@ -13,7 +13,7 @@ A React-based website for Momma Mia Catering -- a food service business offering
 - **Tailwind CSS** -- Utility-first styling with custom design tokens
 - **PrimeReact** -- Sidebar, Accordion, and ProgressBar components
 - **React Router v7** -- Client-side routing with SPA navigation
-- **n8n** -- Webhook backend for menu data, chatbot, and contact form.
+- **Supabase** -- Postgres (catalog, orders, leads), Auth, Storage, and Edge Functions (order emails + Gemini chatbot)
 - **GitHub Pages** -- Hosting with custom domain
 
 ---
@@ -271,27 +271,32 @@ After the TestFlight beta is stable:
 
 ## Environment Variables
 
-Create a `.env` file in the project root:
+Create `apps/web/.env`:
 
 ```env
-VITE_N8N_BASE_URL=http://your-n8n-instance:5678
-VITE_N8N_LOCAL=http://localhost:5678
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<publishable anon key>
 ```
 
-- `VITE_N8N_BASE_URL` is used in production.
-- `VITE_N8N_LOCAL` is the fallback for local development.
+Only the publishable (anon) key belongs in the client — RLS is the real boundary.
+n8n is fully retired, so the old `VITE_N8N_*` / `VITE_CHECKOUT_TOKEN` vars are gone.
 
 ---
 
 ## Backend Integration
 
-The website connects to n8n webhooks for the following endpoints:
+Everything runs on Supabase (n8n decommissioned):
 
-| Endpoint                     | Method | Description                                      |
-|------------------------------|--------|--------------------------------------------------|
-| `/webhook/menu`              | GET    | Fetches menu data with 5-minute client-side cache |
-| `/webhook/momma-mia-chat`    | POST   | AI chatbot conversation                          |
-| `/webhook/contact-form`      | POST   | Contact form submission                          |
+| Feature        | How                                                                           |
+|----------------|-------------------------------------------------------------------------------|
+| Menu / catalog | `menu_items` table read by `menuService.ts` (5-minute client cache)           |
+| Orders         | `create_order` SECURITY DEFINER RPC; emails via `order-notify` Edge Function   |
+| AI chatbot     | `chat` Edge Function (Gemini 2.5 Flash); quote leads → `quote_requests` table  |
+| Contact form   | Insert into `contact_submissions`; owner email via a trigger → `order-notify`   |
+
+All transactional email is sent by the `order-notify` Edge Function (Resend),
+driven by DB triggers (`kind`: `store_alert`, `customer_confirmation`,
+`customer_receipt`, `contact_message`, `quote_lead`).
 
 ---
 

@@ -2,7 +2,8 @@
 
 > Status: **Proposal / not yet started.** Author: senior review (backend + frontend + UX).
 > Scope: migrate the data layer from n8n+Google Sheets to **Supabase**, refactor the codebase into a **monorepo**, and add a **React Native (Expo) mobile app** for **clients, riders, and admins** with **live map tracking** (a "Grab for Momma Mia"). Eventually surface the map on the website too.
-> Standing constraint: **n8n stays connected** — it becomes a downstream automation layer (email, Sheets mirror, chatbot), not the system of record.
+> Standing constraint: ~~**n8n stays connected** — it becomes a downstream automation layer (email, Sheets mirror, chatbot), not the system of record.~~
+> **SUPERSEDED 2026-06-27: n8n is fully retired.** The self-hosted n8n box's TLS cert kept breaking and taking the chatbot + contact form down, so the last two integrations moved onto Supabase: the chatbot is now a `chat` Edge Function (Gemini 2.5 Flash) and the contact-form/quote-lead emails are sent by the `order-notify` Edge Function (Resend) via DB triggers. Quote leads persist to a `quote_requests` table (the Google Sheets mirror was dropped). No part of the live site calls n8n anymore.
 
 ---
 
