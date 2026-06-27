@@ -21,10 +21,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       # pnpm must be installed BEFORE setup-node so the pnpm store cache resolves.
+      # Version is read from package.json "packageManager" (pnpm@11.2.2) so CI uses
+      # the SAME pnpm as local + the lockfile — a hard-pinned v9 here failed
+      # `pnpm install --frozen-lockfile` against the v11-written lockfile.
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
