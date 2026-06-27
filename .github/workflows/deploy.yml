@@ -29,7 +29,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # pnpm 11 requires Node >= 22.13 (it uses the node:sqlite built-in,
+          # which doesn't exist on Node 20). 22 is current LTS and builds Vite fine.
+          node-version: "22"
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
