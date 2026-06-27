@@ -45,13 +45,29 @@ const PROOF_BUCKET = "payment-proofs";
 // purpose: stricter regexes reject valid addresses.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type Kind = "store_alert" | "customer_confirmation" | "customer_receipt";
+type Kind =
+  | "store_alert"
+  | "customer_confirmation"
+  | "customer_receipt"
+  | "contact_message"   // contact-form submission → owner inbox
+  | "quote_lead";       // chatbot quote lead → owner inbox
 
 interface Item { item_name: string; qty: number; unit_price_cents: number; plan_type: string | null }
+interface ContactInfo {
+  firstName?: string; lastName?: string; email?: string;
+  topic?: string | null; message?: string; createdAt?: string;
+}
+interface QuoteInfo {
+  name?: string; email?: string; eventType?: string | null; pax?: string | null;
+  eventDate?: string | null; orderRequest?: string | null;
+  leadScore?: number; leadLevel?: string | null; leadPriority?: string | null;
+  intents?: string[]; createdAt?: string;
+}
 interface Payload {
   kind?: Kind;
   to?: string;                  // explicit recipient
   notificationEmail?: string;   // legacy alias ⇒ store_alert recipient
+  replyTo?: string;             // set Reply-To (e.g. the customer) on owner-facing mail
   order?: {
     orderRef?: string; status?: string; orderType?: string;
     subtotalCents?: number; deliveryFeeCents?: number; totalCents?: number;
@@ -63,6 +79,8 @@ interface Payload {
     specialRequests?: string | null;
   };
   items?: Item[];
+  contact?: ContactInfo;
+  quote?: QuoteInfo;
 }
 
 const BRAND = "#E36A2E";
@@ -157,6 +175,57 @@ function renderCustomerReceipt(p: Payload): string {
   `);
 }
 
+// Owner-facing label/value table (used by the contact + quote lead emails).
+function kvTable(rows: Array<[string, string]>): string {
+  return `<table style="width:100%;border-collapse:collapse">${rows
+    .filter(([, v]) => v != null && v !== "")
+    .map(([k, v]) => `<tr><td style="padding:6px 0;color:${MUTE};vertical-align:top;width:130px">${esc(k)}</td><td style="padding:6px 0">${v}</td></tr>`)
+    .join("")}</table>`;
+}
+
+// Contact-form submission → store inbox. Reply-To is the sender so the owner can
+// just hit reply. (Replaces the old n8n "Contact Form - Send Email" workflow.)
+function renderContactMessage(p: Payload): string {
+  const c = p.contact ?? {};
+  const name = [c.firstName, c.lastName].filter(Boolean).map((s) => esc(s)).join(" ");
+  return shell(`
+    <h2 style="color:${BRAND};margin:0 0 4px">New contact message</h2>
+    <p style="margin:0 0 16px;color:${MUTE}">${esc(c.createdAt)}</p>
+    ${kvTable([
+      ["Name", name],
+      ["Email", c.email ? `<a href="mailto:${esc(c.email)}" style="color:${BRAND}">${esc(c.email)}</a>` : ""],
+      ["Topic", esc(c.topic)],
+    ])}
+    <h3 style="margin:20px 0 6px">Message</h3>
+    <p style="margin:0;line-height:1.6;white-space:pre-wrap">${esc(c.message)}</p>
+  `);
+}
+
+// Chatbot quote lead → store inbox. (Replaces the old n8n Google-Sheets + email
+// step; the lead is also persisted to public.quote_requests.)
+function renderQuoteLead(p: Payload): string {
+  const q = p.quote ?? {};
+  const lvl = (q.leadLevel ?? "").toLowerCase();
+  const badgeColor = lvl === "hot" ? "#C2410C" : lvl === "warm" ? BRAND : MUTE;
+  const badge = q.leadLevel
+    ? `<span style="display:inline-block;background:${badgeColor};color:#fff;border-radius:999px;padding:2px 10px;font-size:12px;text-transform:uppercase">${esc(q.leadLevel)}${q.leadScore != null ? ` · ${q.leadScore}` : ""}</span>`
+    : "";
+  return shell(`
+    <h2 style="color:${BRAND};margin:0 0 4px">New quote request 💰</h2>
+    <p style="margin:0 0 16px;color:${MUTE}">${esc(q.createdAt)} ${badge}</p>
+    ${kvTable([
+      ["Name", esc(q.name)],
+      ["Email", q.email ? `<a href="mailto:${esc(q.email)}" style="color:${BRAND}">${esc(q.email)}</a>` : ""],
+      ["Event type", esc(q.eventType)],
+      ["Guests (pax)", esc(q.pax)],
+      ["Date / time", esc(q.eventDate)],
+      ["Intents", esc((q.intents ?? []).join(", "))],
+    ])}
+    <h3 style="margin:20px 0 6px">Request / preferences</h3>
+    <p style="margin:0;line-height:1.6;white-space:pre-wrap">${esc(q.orderRequest)}</p>
+  `);
+}
+
 function render(kind: Kind, p: Payload, opts: { proofAttached?: boolean } = {}): { subject: string; html: string } {
   const ref = p.order?.orderRef ?? "";
   // Avoid the double-space / dangling em-dash when orderRef is missing
@@ -167,6 +236,16 @@ function render(kind: Kind, p: Payload, opts: { proofAttached?: boolean } = {}):
       return { subject: `🍱 Order confirmed${refTail} · Momma Mia Caters`, html: renderCustomerConfirmation(p) };
     case "customer_receipt":
       return { subject: ref ? `✅ Delivered — your receipt for ${ref}` : `✅ Delivered — your receipt`, html: renderCustomerReceipt(p) };
+    case "contact_message": {
+      const who = [p.contact?.firstName, p.contact?.lastName].filter(Boolean).join(" ");
+      const topic = p.contact?.topic ? `${p.contact.topic}` : "message";
+      return { subject: `📨 New contact: ${topic}${who ? ` — ${who}` : ""}`, html: renderContactMessage(p) };
+    }
+    case "quote_lead": {
+      const who = p.quote?.name ? ` from ${p.quote.name}` : "";
+      const ev = p.quote?.eventType ? ` — ${p.quote.eventType}` : "";
+      return { subject: `💰 New quote request${who}${ev}`, html: renderQuoteLead(p) };
+    }
     case "store_alert":
     default:
       return { subject: `🧾 New order${refTail} — ${peso(p.order?.totalCents)}`, html: renderStoreAlert(p, opts.proofAttached ?? false) };
@@ -199,9 +278,11 @@ async function fetchProofAttachment(path: string): Promise<Attachment | null> {
 }
 
 // ---- providers ------------------------------------------------------------
-async function sendResend(to: string, subject: string, html: string, attachments?: Attachment[]) {
+async function sendResend(to: string, subject: string, html: string, attachments?: Attachment[], replyTo?: string) {
   const body: Record<string, unknown> = { from: FROM, to, subject, html };
   if (attachments?.length) body.attachments = attachments;
+  // Reply-To lets the owner reply straight to the customer on contact/quote mail.
+  if (replyTo && EMAIL_RE.test(replyTo)) body.reply_to = replyTo;
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
@@ -273,7 +354,7 @@ Deno.serve(async (req) => {
 
   try {
     if (RESEND_API_KEY) {
-      await sendResend(to, subject, html, attachments);
+      await sendResend(to, subject, html, attachments, payload.replyTo);
     } else {
       // No provider configured (RESEND_API_KEY unset). Safe to deploy without
       // it — log and no-op so the trigger isn't hammered with errors.
