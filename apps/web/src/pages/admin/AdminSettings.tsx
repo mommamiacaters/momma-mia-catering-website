@@ -23,9 +23,12 @@ const AdminSettings: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // Hide internal infra config (e.g. n8n_* webhook url/token) from this
-      // storefront-tuning page — those are server-side secrets, not store settings.
-      const rows = (await fetchAllSettings()).filter((r) => !r.key.startsWith("n8n_"));
+      // Hide internal infra config (notify URLs + shared secrets) from this
+      // storefront-tuning page — those are server-side wiring, not store settings.
+      // Covers the retired n8n_* keys and the live order_notify_* / *secret* / *token*.
+      const rows = (await fetchAllSettings()).filter(
+        (r) => !/^(n8n_|order_notify_)/.test(r.key) && !/secret|token/i.test(r.key),
+      );
       setSettings(rows);
       setDrafts(Object.fromEntries(rows.map((r) => [r.key, r.value])));
       setError(null);
