@@ -20,21 +20,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      # pnpm must be installed BEFORE setup-node so the pnpm store cache resolves.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          cache: "pnpm"
       - name: Install dependencies
-        run: npm install
-      - name: Build project
+        run: pnpm install --frozen-lockfile
+      # Build the web app from the monorepo. The Supabase vars are required by
+      # apps/web/src/lib/supabase.ts; the anon key is publishable (RLS-protected),
+      # so exposing it in the client bundle is expected and safe. n8n is fully
+      # retired — the chatbot now calls the Supabase `chat` Edge Function using
+      # VITE_SUPABASE_URL, so no n8n build secret is needed.
+      - name: Build web app
         env:
-          VITE_N8N_BASE_URL: ${{ secrets.VITE_N8N_BASE_URL }}
-        run: npm run build
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: pnpm web:build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "./dist"
+          # Vite copies apps/web/public/{CNAME,404.html} into dist, preserving
+          # the custom domain and SPA fallback routing.
+          path: "apps/web/dist"
 
   deploy:
     environment:
