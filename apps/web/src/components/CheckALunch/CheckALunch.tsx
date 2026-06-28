@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Zap,
   Plus,
-  Sparkles,
 } from "lucide-react";
 import {
   MealPlanType,
@@ -204,36 +203,9 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           Step by Step
         </span>
         <div className="mb-3">
-          <div className="relative inline-block">
-            <Sparkles
-              aria-hidden="true"
-              className="sparkle absolute -top-3 -left-5 w-5 h-5 text-brand-accent"
-              style={{ animationDelay: "0s" }}
-            />
-            <Sparkles
-              aria-hidden="true"
-              className="sparkle absolute top-0 -right-7 w-6 h-6 text-brand-primary"
-              style={{ animationDelay: "0.6s" }}
-            />
-            <Sparkles
-              aria-hidden="true"
-              className="sparkle absolute -top-4 left-1/2 w-4 h-4 text-brand-accent"
-              style={{ animationDelay: "0.9s" }}
-            />
-            <Sparkles
-              aria-hidden="true"
-              className="sparkle absolute -bottom-2 left-1/4 w-4 h-4 text-brand-accent"
-              style={{ animationDelay: "1.2s" }}
-            />
-            <Sparkles
-              aria-hidden="true"
-              className="sparkle absolute -bottom-3 right-1/3 w-5 h-5 text-brand-primary"
-              style={{ animationDelay: "1.8s" }}
-            />
-            <h2 className="glitter-text font-arvo text-3xl md:text-4xl font-bold relative px-2">
-              Build Your Lunch Box
-            </h2>
-          </div>
+          <h2 className="glitter-text font-arvo text-3xl md:text-4xl font-bold px-2">
+            Build Your Lunch Box
+          </h2>
         </div>
         <p className="font-poppins text-brand-text/50 max-w-md mx-auto leading-relaxed">
           Choose a plan, pick your favorites, and we&rsquo;ll pack it fresh
