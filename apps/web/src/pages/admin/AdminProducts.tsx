@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import type { AvailabilityFilter, Category, MenuItemRecord } from "../../types/menu";
 import MenuToolbar from "../../components/admin/MenuToolbar";
 import CategoryAccordion from "../../components/admin/CategoryAccordion";
-import MenuItemRow from "../../components/admin/MenuItemRow";
+import CategoryItemList from "../../components/admin/CategoryItemList";
 import ItemFormModal from "../../components/admin/ItemFormModal";
 import CategoryFormModal from "../../components/admin/CategoryFormModal";
 import CustomerPreview from "../../components/admin/CustomerPreview";
@@ -170,26 +170,16 @@ const AdminProducts: React.FC = () => {
                   onToggle={() => toggleCat(cat.id)}
                   onAdd={() => setItemModal({ open: true, initial: null, defaultCategoryId: cat.id })}
                 >
-                  {visible.length === 0 ? (
-                    <button
-                      onClick={() => setItemModal({ open: true, initial: null, defaultCategoryId: cat.id })}
-                      className="w-full px-4 py-8 font-poppins text-sm text-brand-text/50 hover:bg-brand-secondary/50 cursor-pointer text-center"
-                    >
-                      No dishes here yet — click to add the first one.
-                    </button>
-                  ) : (
-                    <ul className="divide-y divide-brand-divider">
-                      {visible.map((it) => (
-                        <MenuItemRow
-                          key={it.id}
-                          item={it}
-                          onToggle={toggleAvailable}
-                          onEdit={(item) => setItemModal({ open: true, initial: item })}
-                          onDelete={remove}
-                        />
-                      ))}
-                    </ul>
-                  )}
+                  <CategoryItemList
+                    categoryName={cat.name}
+                    items={visible}
+                    onToggle={toggleAvailable}
+                    onEdit={(item) => setItemModal({ open: true, initial: item })}
+                    onDelete={remove}
+                    onAddFirst={() =>
+                      setItemModal({ open: true, initial: null, defaultCategoryId: cat.id })
+                    }
+                  />
                 </CategoryAccordion>
               );
             })}

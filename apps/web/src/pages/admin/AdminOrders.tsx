@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import MapPlaceholder from "../../components/maps/MapPlaceholder";
+import PaginationBar from "../../components/ui/PaginationBar";
 import {
   ORDER_STATUSES,
   itemCountLabel,
@@ -36,7 +37,7 @@ const SELECT =
   "customer_phone, delivery_address, delivery_date, total_cents, created_at, " +
   "order_items(id, item_name, qty, unit_price_cents)";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 
 const startOfToday = () => {
   const d = new Date();
@@ -48,24 +49,26 @@ const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [todayCount, setTodayCount] = useState<number | null>(null);
-  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [paging, setPaging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   /**
-   * Paged deliberately. PostgREST caps responses at max_rows (1000 for this
-   * project), so an unbounded select would silently truncate as the store grows
-   * and the console would quietly stop showing the oldest orders. `count: exact`
-   * gives the real total so the footer can be honest about what is on screen.
+   * Paged on the SERVER, one page per request. PostgREST caps responses at
+   * max_rows (1000 here), so an unbounded select would silently truncate as the
+   * store grows and the console would quietly stop showing the oldest orders.
+   * `count: exact` returns the true total so the pager can size itself and the
+   * footer can be honest about what is on screen.
    */
-  const load = async (nextLimit: number) => {
+  const load = async (targetPage: number) => {
+    const from = (targetPage - 1) * PAGE_SIZE;
     const { data, error, count } = await supabase
       .from("orders")
       .select(SELECT, { count: "exact" })
       .order("created_at", { ascending: false })
-      .range(0, nextLimit - 1);
+      .range(from, from + PAGE_SIZE - 1);
 
     if (error) {
       setError(error.message);
@@ -79,7 +82,7 @@ const AdminOrders: React.FC = () => {
   useEffect(() => {
     void (async () => {
       const [, todayRes] = await Promise.all([
-        load(PAGE_SIZE),
+        load(1),
         supabase
           .from("orders")
           .select("id", { count: "exact", head: true })
@@ -88,16 +91,22 @@ const AdminOrders: React.FC = () => {
       setTodayCount(todayRes.count ?? 0);
       setLoading(false);
     })();
-    // Intentionally runs once — paging is driven by loadMore, not by re-running this.
+    // Runs once — page changes go through goToPage, not a re-run of this effect.
   }, []);
 
-  const loadMore = async () => {
-    const next = limit + PAGE_SIZE;
-    setLoadingMore(true);
-    setLimit(next);
+  const goToPage = async (next: number) => {
+    setPaging(true);
+    setPage(next);
+    // An expanded row belongs to the page you were on; carrying the id across
+    // would leave a stale detail panel open on unrelated rows.
+    setExpanded(null);
     await load(next);
-    setLoadingMore(false);
+    setPaging(false);
   };
+
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, total);
 
   const setStatus = async (order: Order, status: string) => {
     const previous = order.status;
@@ -155,7 +164,12 @@ const AdminOrders: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm border border-brand-divider overflow-hidden">
+          <div
+            className={`bg-white rounded-xl shadow-sm border border-brand-divider overflow-hidden transition-opacity ${
+              paging ? "opacity-60" : "opacity-100"
+            }`}
+            aria-busy={paging}
+          >
             <ul className="divide-y divide-brand-divider">
               {orders.map((order) => {
                 const isOpen = expanded === order.id;
@@ -249,21 +263,16 @@ const AdminOrders: React.FC = () => {
                 );
               })}
             </ul>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between gap-4">
-            <p className="font-poppins text-xs text-brand-text/50">
-              Showing {orders.length} of {total}
-            </p>
-            {orders.length < total && (
-              <button
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="rounded-lg border border-brand-divider bg-white px-4 py-2 font-arvo-bold text-sm text-brand-text transition-colors hover:bg-white/60 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {loadingMore ? "Loading…" : "Load more"}
-              </button>
-            )}
+            <PaginationBar
+              page={page}
+              pageCount={pageCount}
+              onPageChange={(p) => void goToPage(p)}
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+              total={total}
+              noun="orders"
+              label="Order pages"
+            />
           </div>
         </>
       )}
