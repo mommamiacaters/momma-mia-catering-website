@@ -1,41 +1,93 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  /**
+   * Pinned action row. Kept OUT of the scroll area so the primary button is
+   * always on screen — previously the whole dialog was one scroll box and
+   * "Save changes" fell below the fold on a short viewport.
+   */
+  footer?: React.ReactNode;
   /** max-w-* tailwind class for the dialog width. */
   maxWidthClass?: string;
 }
 
-/** Reusable centered modal: overlay, header with close, scrollable body. */
-const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, maxWidthClass = "max-w-lg" }) => {
+/**
+ * Reusable dialog: dimmed backdrop, pinned header + footer, scrolling body.
+ * Presents as a bottom sheet under `sm` and a centered card above it.
+ */
+const Modal: React.FC<ModalProps> = ({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  maxWidthClass = "max-w-lg",
+}) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+
+    // Freeze the page behind the overlay. Without this the list keeps scrolling
+    // under the dialog whenever the pointer leaves the panel, which is most of
+    // what made the modal feel unanchored.
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Move focus into the dialog so Tab starts inside it and screen readers
+    // announce the title rather than staying on the page behind.
+    panelRef.current?.focus();
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className={`w-full ${maxWidthClass} rounded-2xl bg-white shadow-xl max-h-[92vh] overflow-y-auto`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-divider sticky top-0 bg-white z-10">
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className={`flex w-full ${maxWidthClass} max-h-[92dvh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl outline-none sm:max-h-[min(88vh,46rem)] sm:rounded-2xl motion-safe:animate-page-in`}
+      >
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-brand-divider px-6 py-4">
           <h2 className="font-arvo-bold text-lg text-brand-text">{title}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-brand-secondary cursor-pointer" aria-label="Close">
-            <i className="pi pi-times text-brand-text/60" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-brand-text/60 transition-colors hover:bg-brand-secondary hover:text-brand-text cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            aria-label="Close"
+          >
+            <i className="pi pi-times" aria-hidden="true" />
           </button>
-        </div>
-        {children}
+        </header>
+
+        {/* min-h-0 lets this flex child actually shrink so the footer stays put. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+
+        {footer && (
+          <footer className="shrink-0 border-t border-brand-divider bg-white px-6 py-4">
+            {footer}
+          </footer>
+        )}
       </div>
     </div>
   );

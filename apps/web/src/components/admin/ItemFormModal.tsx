@@ -29,6 +29,9 @@ const blank = {
 const inputClass =
   "w-full rounded-lg border border-brand-divider bg-white px-3 py-2.5 font-poppins text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent";
 
+/** Links the footer's submit button back to the form it lives outside of. */
+const FORM_ID = "admin-item-form";
+
 const ItemFormModal: React.FC<ItemFormModalProps> = ({
   open,
   onClose,
@@ -87,8 +90,36 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={initial ? "Edit dish" : "Add a dish"}>
-      <form onSubmit={save} className="p-6 space-y-5">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={initial ? "Edit dish" : "Add a dish"}
+      /*
+       * The actions live in the pinned footer while the fields scroll, so Save is
+       * reachable on any viewport. The buttons sit OUTSIDE <form>, so they're tied
+       * back to it with the `form` attribute rather than by nesting.
+       */
+      footer={
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-brand-divider px-4 py-2.5 font-arvo-bold text-sm text-brand-text hover:bg-brand-secondary cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form={FORM_ID}
+            disabled={saving}
+            className="rounded-lg bg-brand-primary px-5 py-2.5 font-arvo-bold text-sm text-white hover:bg-brand-primary/90 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
+          >
+            {saving ? "Saving…" : initial ? "Save changes" : "Add dish"}
+          </button>
+        </div>
+      }
+    >
+      <form id={FORM_ID} onSubmit={save} className="p-6 space-y-5">
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm font-poppins text-red-700">
             {error}
@@ -106,7 +137,7 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
 
         <div>
           <label className="block text-sm font-poppins font-medium text-brand-text mb-1.5">Dish name</label>
-          <input className={inputClass} required value={form.name} placeholder="e.g. Chicken Adobo" onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input className={inputClass} required autoFocus value={form.name} placeholder="e.g. Chicken Adobo" onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -149,14 +180,6 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
           </label>
         </div>
 
-        <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="rounded-lg border border-brand-divider px-4 py-2.5 font-arvo-bold text-sm text-brand-text hover:bg-brand-secondary cursor-pointer">
-            Cancel
-          </button>
-          <button type="submit" disabled={saving} className="rounded-lg bg-brand-primary px-5 py-2.5 font-arvo-bold text-sm text-white hover:bg-brand-primary/90 disabled:opacity-60 cursor-pointer">
-            {saving ? "Saving…" : initial ? "Save changes" : "Add dish"}
-          </button>
-        </div>
       </form>
     </Modal>
   );
