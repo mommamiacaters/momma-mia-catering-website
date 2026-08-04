@@ -32,7 +32,11 @@ interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  /**
+   * Resolves only once the caller's role is known, so a redirect decided from the
+   * result can never send an admin to the customer view first.
+   */
+  signIn: (email: string, password: string) => Promise<{ error?: string; role?: AppRole }>;
   signUp: (input: SignUpInput) => Promise<{ error?: string; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -89,8 +93,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile]);
 
   const signIn: AuthContextValue["signIn"] = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error ? { error: error.message } : {};
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+
+    // onAuthStateChange also fetches the profile, but it defers to a macrotask to
+    // avoid the Supabase auth deadlock — so `profile` is still null when this
+    // returns. Fetch it here too and hand the role back, otherwise the login page
+    // has to guess where to redirect and an admin flashes the customer account
+    // page on the way to the console.
+    const { data: row } = await supabase
+      .from("profiles")
+      .select("id, role, full_name, phone, avatar_url")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    const loaded = (row as Profile | null) ?? null;
+    if (loaded) setProfile(loaded);
+    return { role: loaded?.role };
   };
 
   const signUp: AuthContextValue["signUp"] = async ({ email, password, fullName, phone }) => {

@@ -20,9 +20,16 @@ export default {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
         },
+        // Route-change enter: opacity + a 4px rise. Kept to transform/opacity only
+        // so it stays on the compositor and never triggers layout.
+        'page-in': {
+          '0%': { opacity: '0', transform: 'translateY(4px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         shimmer: 'shimmer 1.5s infinite',
+        'page-in': 'page-in 200ms ease-out both',
       },
     },
   },

@@ -88,9 +88,11 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
             {isAdmin && (
               <Link
                 to="/admin"
-                className="rounded-full bg-white/15 px-3 py-1.5 text-sm font-arvo-bold text-white hover:bg-white/25 transition-colors cursor-pointer"
+                title="Admin console"
+                aria-label="Admin console"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/70 cursor-pointer"
               >
-                Admin
+                <i className="pi pi-cog text-base" aria-hidden="true" />
               </Link>
             )}
             <Link
@@ -145,12 +147,14 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
           ))}
 
           <div className="mt-2 pt-2 border-t border-white/20 space-y-1">
+            {/* Stacked menu keeps the label: an icon alone has no affordance here. */}
             {isAdmin && (
               <Link
                 to="/admin"
                 onClick={toggleMenu}
-                className="block px-3 py-3 text-base font-arvo-bold rounded text-white hover:bg-white/5"
+                className="flex items-center gap-2 px-3 py-3 text-base font-arvo-bold rounded text-white hover:bg-white/5"
               >
+                <i className="pi pi-cog text-sm" aria-hidden="true" />
                 Admin console
               </Link>
             )}

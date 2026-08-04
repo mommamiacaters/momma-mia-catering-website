@@ -3,8 +3,10 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
   useLocation,
 } from "react-router-dom";
+import { PageTransition } from "./components/ui/PageTransition";
 import Navigation from "./components/Navigation/Navigation";
 import Footer from "./components/Footer/Footer";
 import Chatbot from "./components/Chatbot/Chatbot";
@@ -67,10 +69,17 @@ function AppContent() {
   // "Bare" pages render their own full-screen chrome (no marketing nav/footer/chatbot)
   const isBarePage = path === '/login' || path === '/register' || path.startsWith('/admin');
 
+  // Transition per ROUTE GROUP, not per pathname: moving between admin sub-pages
+  // must not remount AdminLayout, or the sidebar and brand bar would flash on
+  // every tab click. AdminLayout runs its own PageTransition around the content
+  // pane so only that region crossfades.
+  const routeGroup = path.startsWith('/admin') ? '/admin' : path;
+
   return (
     <div className="min-h-screen bg-brand-secondary">
       {!isServicePage && !isBarePage && <Navigation isVisible={showNavbar} />}
       <main className={!isServicePage && !isBarePage ? 'pt-16 md:pt-20' : ''}>
+        <PageTransition transitionKey={routeGroup}>
         <Routes>
           <Route path="/" element={<MealsPage />} />
           <Route path="/meals" element={<MealsPage />} />
@@ -100,12 +109,15 @@ function AppContent() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<AdminProducts />} />
-            <Route path="orders" element={<AdminOrders />} />
+            <Route index element={<AdminOrders />} />
+            <Route path="menu" element={<AdminProducts />} />
             <Route path="company" element={<AdminCompanyProfile />} />
             <Route path="settings" element={<AdminSettings />} />
+            {/* Orders moved to the index; keep old links and bookmarks alive. */}
+            <Route path="orders" element={<Navigate to="/admin" replace />} />
           </Route>
         </Routes>
+        </PageTransition>
       </main>
       {!isBarePage && <Footer />}
       {!isBarePage && <Chatbot />}

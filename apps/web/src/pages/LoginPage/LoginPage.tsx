@@ -8,7 +8,9 @@ const LoginPage: React.FC = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? "/account";
+  // A deep link the user was bounced off wins; otherwise the landing page is
+  // chosen from the role we get back from signIn().
+  const from = (location.state as { from?: string } | null)?.from ?? null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,13 +21,13 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const { error } = await signIn(email.trim(), password);
+    const { error, role } = await signIn(email.trim(), password);
     setSubmitting(false);
     if (error) {
       setError(error);
       return;
     }
-    navigate(from, { replace: true });
+    navigate(from ?? (role === "admin" ? "/admin" : "/account"), { replace: true });
   };
 
   return (
