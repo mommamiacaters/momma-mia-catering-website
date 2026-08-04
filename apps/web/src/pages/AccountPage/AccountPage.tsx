@@ -56,8 +56,10 @@ const AccountPage: React.FC = () => {
   }, [user, isAdmin]);
 
   const handleSignOut = async () => {
+    // Navigate off the guarded route first — see AdminLayout for the race this
+    // avoids (ProtectedRoute would otherwise redirect to /login mid-sign-out).
+    navigate("/", { replace: true });
     await signOut();
-    navigate("/");
   };
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "there";

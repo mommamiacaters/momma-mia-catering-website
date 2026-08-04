@@ -19,8 +19,12 @@ const AdminLayout: React.FC = () => {
   const { pathname } = useLocation();
 
   const handleSignOut = async () => {
+    // Leave the guarded route BEFORE dropping the session. Signing out first lets
+    // ProtectedRoute re-render with no user and bounce to /login, which wins the
+    // race against this navigate — so "Sign out" stranded you on the login page
+    // instead of the storefront.
+    navigate("/", { replace: true });
     await signOut();
-    navigate("/");
   };
 
   return (
