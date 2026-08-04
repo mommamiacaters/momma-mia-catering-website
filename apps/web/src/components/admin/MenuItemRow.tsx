@@ -1,6 +1,7 @@
 import React from "react";
 import type { MenuItemRecord } from "../../types/menu";
 import { formatPeso } from "../../utils/format";
+import SafeImage from "../ui/SafeImage";
 
 interface MenuItemRowProps {
   item: MenuItemRecord;
@@ -13,11 +14,7 @@ interface MenuItemRowProps {
 const MenuItemRow: React.FC<MenuItemRowProps> = ({ item, onToggle, onEdit, onDelete }) => (
   <li className={`flex items-center gap-4 px-4 py-3 ${!item.is_available ? "opacity-60" : ""}`}>
     <div className="h-14 w-14 flex-shrink-0 rounded-lg bg-brand-secondary overflow-hidden flex items-center justify-center">
-      {item.image_url ? (
-        <img src={item.image_url} alt="" className="h-full w-full object-cover" loading="lazy" />
-      ) : (
-        <i className="pi pi-image text-brand-text/30 text-lg" aria-hidden="true" />
-      )}
+      <SafeImage src={item.image_url} alt="" className="h-full w-full object-cover" />
     </div>
 
     <div className="min-w-0 flex-1">

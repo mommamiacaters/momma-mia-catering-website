@@ -1,17 +1,19 @@
 import React from "react";
 import type { MenuItemRecord } from "../../types/menu";
 import { formatPeso } from "../../utils/format";
+import SafeImage from "../ui/SafeImage";
 
 /** Customer-facing product card (used in the "View as customer" preview, and
  *  reusable by the public storefront / mobile app later). */
 const ProductCard: React.FC<{ item: MenuItemRecord }> = ({ item }) => (
   <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-brand-divider">
     <div className="aspect-square bg-brand-secondary overflow-hidden flex items-center justify-center">
-      {item.image_url ? (
-        <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
-      ) : (
-        <i className="pi pi-image text-brand-text/20 text-3xl" aria-hidden="true" />
-      )}
+      <SafeImage
+        src={item.image_url}
+        alt={item.name}
+        className="h-full w-full object-cover"
+        iconClass="text-brand-text/20 text-3xl"
+      />
     </div>
     <div className="p-3">
       <p className="font-poppins font-medium text-brand-text text-sm leading-snug">{item.name}</p>
