@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import MapPlaceholder from "../../components/maps/MapPlaceholder";
+import {
+  itemCountLabel,
+  orderDate,
+  orderStatusClass,
+  orderStatusLabel,
+  peso,
+} from "../../constants/orders";
 
 interface OrderRow {
   id: string;
@@ -15,19 +22,6 @@ interface OrderRow {
   order_items: { id: string; item_name: string; qty: number }[];
 }
 
-const peso = (cents: number) => `₱${(cents / 100).toFixed(2)}`;
-
-const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700",
-  confirmed: "bg-blue-100 text-blue-700",
-  preparing: "bg-indigo-100 text-indigo-700",
-  ready: "bg-purple-100 text-purple-700",
-  assigned: "bg-cyan-100 text-cyan-700",
-  picked_up: "bg-teal-100 text-teal-700",
-  delivered: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
-};
-
 const AccountPage: React.FC = () => {
   const { user, profile, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
@@ -35,11 +29,21 @@ const AccountPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Admins are redirected below; skip the fetch so it never runs for them.
+    if (!user || isAdmin) return;
     let active = true;
     (async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("id, order_ref, status, total_cents, delivery_date, delivery_address, created_at, order_items(id, item_name, qty)")
+        .select(
+          "id, order_ref, status, total_cents, delivery_date, delivery_address, created_at, order_items(id, item_name, qty)",
+        )
+        // Filter by client_id explicitly. RLS permits `client_id = auth.uid() OR
+        // is_admin()`, which is the right AUTHORIZATION rule but the wrong query:
+        // without this filter an admin's "Order history" listed every customer's
+        // orders as if they were their own. A policy that says "you MAY see this"
+        // is not a statement that "this is YOURS".
+        .eq("client_id", user.id)
         .order("created_at", { ascending: false });
       if (!active) return;
       if (error) console.error("Failed to load orders:", error.message);
@@ -49,7 +53,7 @@ const AccountPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user, isAdmin]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -57,6 +61,12 @@ const AccountPage: React.FC = () => {
   };
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "there";
+
+  // This page is the CUSTOMER view — personal details, own orders, own delivery.
+  // None of it is meaningful for staff, so admins go straight to the console
+  // instead of seeing a half-relevant copy of it. Placed after every hook so the
+  // hook order stays stable across renders.
+  if (isAdmin) return <Navigate to="/admin" replace />;
 
   return (
     <div className="min-h-screen bg-brand-secondary">
@@ -68,14 +78,6 @@ const AccountPage: React.FC = () => {
             <p className="font-poppins text-brand-text/60 mt-1">Manage your orders and details.</p>
           </div>
           <div className="flex items-center gap-2">
-            {isAdmin && (
-              <Link
-                to="/admin"
-                className="inline-flex items-center gap-2 rounded-lg bg-brand-text px-4 py-2.5 font-arvo-bold text-sm text-white hover:bg-brand-text/90 cursor-pointer"
-              >
-                <i className="pi pi-cog" aria-hidden="true" /> Admin
-              </Link>
-            )}
             <button
               onClick={handleSignOut}
               className="inline-flex items-center gap-2 rounded-lg border border-brand-divider bg-white px-4 py-2.5 font-arvo-bold text-sm text-brand-text hover:bg-brand-secondary cursor-pointer"
@@ -141,21 +143,19 @@ const AccountPage: React.FC = () => {
                       <div>
                         <p className="font-arvo-bold text-brand-text">{order.order_ref}</p>
                         <p className="font-poppins text-xs text-brand-text/50">
-                          {new Date(order.created_at).toLocaleDateString("en-PH", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                          {order.order_items?.length ? ` · ${order.order_items.length} item(s)` : ""}
+                          {orderDate(order.created_at)}
+                          {order.order_items?.length
+                            ? ` · ${itemCountLabel(order.order_items.length)}`
+                            : ""}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
                         <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-poppins font-medium capitalize ${
-                            STATUS_STYLES[order.status] ?? "bg-gray-100 text-gray-600"
-                          }`}
+                          className={`rounded-full px-2.5 py-1 text-xs font-poppins font-medium capitalize ${orderStatusClass(
+                            order.status,
+                          )}`}
                         >
-                          {order.status.replace("_", " ")}
+                          {orderStatusLabel(order.status)}
                         </span>
                         <span className="font-arvo-bold text-brand-text">{peso(order.total_cents)}</span>
                       </div>
