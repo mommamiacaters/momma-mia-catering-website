@@ -84,24 +84,35 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
           <div className="hidden md:flex items-center space-x-3">
             <SocialIcon platform="facebook" className="p-1" />
             <SocialIcon platform="instagram" className="p-1" />
-            <span className="w-px h-6 bg-white/25" aria-hidden="true" />
-            {isAdmin && (
-              <Link
-                to="/admin"
-                title="Admin console"
-                aria-label="Admin console"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/70 cursor-pointer"
-              >
-                <i className="pi pi-cog text-base" aria-hidden="true" />
-              </Link>
+            {/*
+              No "Sign in" for logged-out visitors. Checkout is guest-first, so an
+              account buys a customer nothing they need, and surfacing a login door
+              on the storefront only advertises the admin console. Staff reach
+              /login by URL. Signed-in users still get their controls below.
+              The divider is inside the guard — it has nothing to divide otherwise.
+            */}
+            {user && (
+              <>
+                <span className="w-px h-6 bg-white/25" aria-hidden="true" />
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    title="Admin console"
+                    aria-label="Admin console"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/70 cursor-pointer"
+                  >
+                    <i className="pi pi-cog text-base" aria-hidden="true" />
+                  </Link>
+                )}
+                <Link
+                  to="/account"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-sm font-arvo-bold text-brand-primary hover:bg-brand-secondary transition-colors cursor-pointer"
+                >
+                  <i className="pi pi-user text-xs" aria-hidden="true" />
+                  Account
+                </Link>
+              </>
             )}
-            <Link
-              to={user ? "/account" : "/login"}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-sm font-arvo-bold text-brand-primary hover:bg-brand-secondary transition-colors cursor-pointer"
-            >
-              <i className="pi pi-user text-xs" aria-hidden="true" />
-              {user ? "Account" : "Sign in"}
-            </Link>
           </div>
 
           {/* Mobile: Social + Hamburger */}
@@ -146,27 +157,31 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
             </Link>
           ))}
 
-          <div className="mt-2 pt-2 border-t border-white/20 space-y-1">
-            {/* Stacked menu keeps the label: an icon alone has no affordance here. */}
-            {isAdmin && (
+          {/* Mirrors the desktop rule — no auth entry point for logged-out visitors,
+              and no trailing divider when the section would be empty. */}
+          {user && (
+            <div className="mt-2 pt-2 border-t border-white/20 space-y-1">
+              {/* Stacked menu keeps the label: an icon alone has no affordance here. */}
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  onClick={toggleMenu}
+                  className="flex items-center gap-2 px-3 py-3 text-base font-arvo-bold rounded text-white hover:bg-white/5"
+                >
+                  <i className="pi pi-cog text-sm" aria-hidden="true" />
+                  Admin console
+                </Link>
+              )}
               <Link
-                to="/admin"
+                to="/account"
                 onClick={toggleMenu}
                 className="flex items-center gap-2 px-3 py-3 text-base font-arvo-bold rounded text-white hover:bg-white/5"
               >
-                <i className="pi pi-cog text-sm" aria-hidden="true" />
-                Admin console
+                <i className="pi pi-user text-sm" aria-hidden="true" />
+                My account
               </Link>
-            )}
-            <Link
-              to={user ? "/account" : "/login"}
-              onClick={toggleMenu}
-              className="flex items-center gap-2 px-3 py-3 text-base font-arvo-bold rounded text-white hover:bg-white/5"
-            >
-              <i className="pi pi-user text-sm" aria-hidden="true" />
-              {user ? "My account" : "Sign in"}
-            </Link>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </nav>
