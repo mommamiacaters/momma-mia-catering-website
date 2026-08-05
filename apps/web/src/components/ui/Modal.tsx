@@ -1,6 +1,21 @@
 import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+/**
+ * Three sizes, so every dialog in the console reads as the same component
+ * rather than each picking its own max-w-*.
+ *   sm — a single decision or one field (New category)
+ *   md — a normal form; wide enough for a two-column field grid (the default)
+ *   lg — dense or media-heavy content
+ */
+export type ModalSize = "sm" | "md" | "lg";
+
+const SIZE_CLASS: Record<ModalSize, string> = {
+  sm: "max-w-md",
+  md: "max-w-2xl",
+  lg: "max-w-4xl",
+};
+
 interface ModalProps {
   open: boolean;
   onClose: () => void;
@@ -12,8 +27,7 @@ interface ModalProps {
    * "Save changes" fell below the fold on a short viewport.
    */
   footer?: React.ReactNode;
-  /** max-w-* tailwind class for the dialog width. */
-  maxWidthClass?: string;
+  size?: ModalSize;
 }
 
 /**
@@ -26,7 +40,7 @@ const Modal: React.FC<ModalProps> = ({
   title,
   children,
   footer,
-  maxWidthClass = "max-w-lg",
+  size = "md",
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -78,7 +92,7 @@ const Modal: React.FC<ModalProps> = ({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className={`flex w-full ${maxWidthClass} max-h-[92dvh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl outline-none sm:max-h-[min(88vh,46rem)] sm:rounded-2xl motion-safe:animate-page-in`}
+        className={`flex w-full ${SIZE_CLASS[size]} max-h-[92dvh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl outline-none sm:max-h-[min(88vh,46rem)] sm:rounded-2xl motion-safe:animate-page-in`}
       >
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-brand-divider px-6 py-4">
           <h2 className="font-arvo-bold text-lg text-brand-text">{title}</h2>

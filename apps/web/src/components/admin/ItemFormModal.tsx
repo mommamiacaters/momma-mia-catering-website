@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import type { Category, MenuItemRecord, SubCategory } from "../../types/menu";
 import Modal from "../ui/Modal";
+import ModalActions from "../ui/ModalActions";
 import Select from "../ui/Select";
 import ImageUploader from "./ImageUploader";
 
@@ -128,23 +129,12 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
        * back to it with the `form` attribute rather than by nesting.
        */
       footer={
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-brand-divider px-4 py-2.5 font-arvo-bold text-sm text-brand-text hover:bg-brand-secondary cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form={FORM_ID}
-            disabled={saving}
-            className="rounded-lg bg-brand-primary px-5 py-2.5 font-arvo-bold text-sm text-white hover:bg-brand-primary/90 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
-          >
-            {saving ? "Saving…" : initial ? "Save changes" : "Add dish"}
-          </button>
-        </div>
+        <ModalActions
+          onCancel={onClose}
+          formId={FORM_ID}
+          busy={saving}
+          submitLabel={initial ? "Save changes" : "Add dish"}
+        />
       }
     >
       <form id={FORM_ID} onSubmit={save} className="p-6 space-y-5">

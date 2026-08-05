@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { slugify } from "../../utils/format";
 import Modal from "../ui/Modal";
+import ModalActions from "../ui/ModalActions";
 
 /** Links the footer's submit button back to the form it lives outside of. */
 const FORM_ID = "admin-category-form";
@@ -48,25 +49,15 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ open, onClose, ne
       open={open}
       onClose={onClose}
       title="New category"
-      maxWidthClass="max-w-sm"
+      size="sm"
       footer={
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-brand-divider px-4 py-2.5 font-arvo-bold text-sm text-brand-text hover:bg-brand-secondary cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form={FORM_ID}
-            disabled={saving}
-            className="rounded-lg bg-brand-primary px-5 py-2.5 font-arvo-bold text-sm text-white hover:bg-brand-primary/90 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
-          >
-            {saving ? "Adding…" : "Add category"}
-          </button>
-        </div>
+        <ModalActions
+          onCancel={onClose}
+          formId={FORM_ID}
+          busy={saving}
+          busyLabel="Adding…"
+          submitLabel="Add category"
+        />
       }
     >
       <form id={FORM_ID} onSubmit={save} className="p-6 space-y-4">
