@@ -5,13 +5,21 @@ import SafeImage from "../ui/SafeImage";
 
 interface MenuItemRowProps {
   item: MenuItemRecord;
+  /** Resolved sub-category label; falls back to the legacy item_type. */
+  subCategoryName?: string;
   onToggle: (item: MenuItemRecord) => void;
   onEdit: (item: MenuItemRecord) => void;
   onDelete: (item: MenuItemRecord) => void;
 }
 
 /** A single editable dish row in the admin manage list. */
-const MenuItemRow: React.FC<MenuItemRowProps> = ({ item, onToggle, onEdit, onDelete }) => (
+const MenuItemRow: React.FC<MenuItemRowProps> = ({
+  item,
+  subCategoryName,
+  onToggle,
+  onEdit,
+  onDelete,
+}) => (
   <li className={`flex items-center gap-4 px-4 py-3 ${!item.is_available ? "opacity-60" : ""}`}>
     <div className="h-14 w-14 flex-shrink-0 rounded-lg bg-brand-secondary overflow-hidden flex items-center justify-center">
       <SafeImage src={item.image_url} alt="" className="h-full w-full object-cover" />
@@ -20,7 +28,10 @@ const MenuItemRow: React.FC<MenuItemRowProps> = ({ item, onToggle, onEdit, onDel
     <div className="min-w-0 flex-1">
       <p className="font-poppins font-medium text-brand-text truncate">{item.name}</p>
       <p className="font-poppins text-xs text-brand-text/50">
-        {item.item_type ? `${item.item_type} · ` : ""}
+        {(() => {
+          const group = subCategoryName ?? item.item_type;
+          return group ? `${group} · ` : "";
+        })()}
         {formatPeso(item.price_cents)}
       </p>
     </div>

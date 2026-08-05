@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import type { AvailabilityFilter, Category, MenuItemRecord } from "../../types/menu";
+import type { AvailabilityFilter, Category, MenuItemRecord, SubCategory } from "../../types/menu";
 import MenuToolbar from "../../components/admin/MenuToolbar";
 import CategoryAccordion from "../../components/admin/CategoryAccordion";
 import CategoryItemList from "../../components/admin/CategoryItemList";
@@ -9,10 +9,11 @@ import CategoryFormModal from "../../components/admin/CategoryFormModal";
 import CustomerPreview from "../../components/admin/CustomerPreview";
 
 const SELECT =
-  "id, category_id, name, description, image_url, price_cents, item_type, is_available, is_catering, sort_order";
+  "id, category_id, name, description, image_url, price_cents, item_type, sub_category_id, is_available, is_catering, sort_order";
 
 const AdminProducts: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [items, setItems] = useState<MenuItemRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,12 +31,18 @@ const AdminProducts: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: cats }, { data: its, error: itErr }] = await Promise.all([
+    const [{ data: cats }, { data: subs }, { data: its, error: itErr }] = await Promise.all([
       supabase.from("categories").select("id, slug, name, sort_order").order("sort_order"),
+      supabase
+        .from("sub_categories")
+        .select("id, slug, name, slot, sort_order, is_active")
+        .eq("is_active", true)
+        .order("sort_order"),
       supabase.from("menu_items").select(SELECT).order("sort_order"),
     ]);
     if (itErr) setError(itErr.message);
     setCategories((cats as Category[]) ?? []);
+    setSubCategories((subs as SubCategory[]) ?? []);
     setItems((its as MenuItemRecord[]) ?? []);
     setLoading(false);
   };
@@ -53,6 +60,13 @@ const AdminProducts: React.FC = () => {
     }
     return byCat;
   }, [items]);
+
+  // id → display name, so a row can label its group without each row re-scanning
+  // the sub-category list.
+  const subCategoryNames = useMemo(
+    () => new Map(subCategories.map((s) => [s.id, s.name])),
+    [subCategories],
+  );
 
   const normalizedQuery = query.trim().toLowerCase();
   const isFiltering = normalizedQuery !== "" || availability !== "all";
@@ -173,6 +187,7 @@ const AdminProducts: React.FC = () => {
                   <CategoryItemList
                     categoryName={cat.name}
                     items={visible}
+                    subCategoryNames={subCategoryNames}
                     onToggle={toggleAvailable}
                     onEdit={(item) => setItemModal({ open: true, initial: item })}
                     onDelete={remove}
@@ -206,6 +221,7 @@ const AdminProducts: React.FC = () => {
         open={itemModal.open}
         onClose={() => setItemModal({ open: false, initial: null })}
         categories={categories}
+        subCategories={subCategories}
         initial={itemModal.initial}
         defaultCategoryId={itemModal.defaultCategoryId}
         onSaved={load}

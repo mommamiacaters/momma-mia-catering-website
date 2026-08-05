@@ -7,6 +7,7 @@ import MenuItemRow from "./MenuItemRow";
 interface CategoryItemListProps {
   categoryName: string;
   items: MenuItemRecord[];
+  subCategoryNames: Map<number, string>;
   onToggle: (item: MenuItemRecord) => void;
   onEdit: (item: MenuItemRecord) => void;
   onDelete: (item: MenuItemRecord) => void;
@@ -26,6 +27,7 @@ const PAGE_SIZE = 8;
 const CategoryItemList: React.FC<CategoryItemListProps> = ({
   categoryName,
   items,
+  subCategoryNames,
   onToggle,
   onEdit,
   onDelete,
@@ -54,6 +56,9 @@ const CategoryItemList: React.FC<CategoryItemListProps> = ({
           <MenuItemRow
             key={item.id}
             item={item}
+            subCategoryName={
+              item.sub_category_id ? subCategoryNames.get(item.sub_category_id) : undefined
+            }
             onToggle={onToggle}
             onEdit={onEdit}
             onDelete={onDelete}

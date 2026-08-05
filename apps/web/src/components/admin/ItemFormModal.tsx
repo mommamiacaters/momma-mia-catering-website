@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import type { Category, MenuItemRecord } from "../../types/menu";
+import type { Category, MenuItemRecord, SubCategory } from "../../types/menu";
 import Modal from "../ui/Modal";
+import Select from "../ui/Select";
 import ImageUploader from "./ImageUploader";
 
 interface ItemFormModalProps {
   open: boolean;
   onClose: () => void;
   categories: Category[];
+  subCategories: SubCategory[];
   /** item being edited, or null when adding */
   initial: MenuItemRecord | null;
   /** preselected category when adding from a category header */
@@ -18,7 +20,7 @@ interface ItemFormModalProps {
 const blank = {
   name: "",
   category_id: 0,
-  item_type: "",
+  sub_category_id: 0,
   price: "",
   image_url: "",
   description: "",
@@ -32,10 +34,25 @@ const inputClass =
 /** Links the footer's submit button back to the form it lives outside of. */
 const FORM_ID = "admin-item-form";
 
+/**
+ * sub_category_id is the source of truth now, but the storefront builder still
+ * reads the legacy item_type column and filters on main/side/starch. Writing the
+ * SLOT back (not the slug) keeps that path working while both exist — otherwise
+ * editing "Pork Adobo" would stamp item_type='pork' and silently drop the dish
+ * off the website. Remove once the storefront reads sub_category_id directly.
+ */
+const LEGACY_TYPE_BY_SLOT: Record<string, string> = {
+  main: "main",
+  side: "side",
+  dessert: "dessert",
+  rice: "starch",
+};
+
 const ItemFormModal: React.FC<ItemFormModalProps> = ({
   open,
   onClose,
   categories,
+  subCategories,
   initial,
   defaultCategoryId,
   onSaved,
@@ -51,7 +68,7 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
       setForm({
         name: initial.name,
         category_id: initial.category_id ?? categories[0]?.id ?? 0,
-        item_type: initial.item_type ?? "",
+        sub_category_id: initial.sub_category_id ?? 0,
         price: initial.price_cents == null ? "" : String(initial.price_cents / 100),
         image_url: initial.image_url ?? "",
         description: initial.description ?? "",
@@ -73,7 +90,14 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
       description: form.description.trim() || null,
       image_url: form.image_url.trim() || null,
       price_cents: form.price.trim() === "" ? null : Math.round(Number(form.price) * 100),
-      item_type: form.item_type.trim() || null,
+      sub_category_id: form.sub_category_id || null,
+      item_type: (() => {
+        const sub = subCategories.find((s) => s.id === form.sub_category_id);
+        if (!sub) return null;
+        // Slot-bearing groups map to the legacy vocabulary; the rest (Pasta,
+        // Beef …) were never part of the builder, so their slug is fine.
+        return sub.slot ? LEGACY_TYPE_BY_SLOT[sub.slot] : sub.slug;
+      })(),
       is_available: form.is_available,
       is_catering: form.is_catering,
     };
@@ -140,20 +164,44 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
           <input className={inputClass} required autoFocus value={form.name} placeholder="e.g. Chicken Adobo" onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-poppins font-medium text-brand-text mb-1.5">Category</label>
-            <select className={inputClass} value={form.category_id} onChange={(e) => setForm({ ...form, category_id: Number(e.target.value) })}>
+            <label htmlFor="item-category" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
+              Category
+            </label>
+            <Select
+              id="item-category"
+              value={form.category_id}
+              onChange={(e) => setForm({ ...form, category_id: Number(e.target.value) })}
+            >
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
-            <label className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
-              Group <span className="text-brand-text/40 font-normal">(optional)</span>
+            <label htmlFor="item-sub-category" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
+              Sub-category
             </label>
-            <input className={inputClass} value={form.item_type} placeholder="main, side, drink…" onChange={(e) => setForm({ ...form, item_type: e.target.value })} />
+            {/*
+              Was a free-text "Group" field, which is how the data drifted into
+              "vegetable" vs "vegetables" and 38 untyped rows. A meal plan asks
+              for "1 main dish" and resolves that through the sub-category's
+              slot, so a typo here silently drops a dish out of the builder.
+            */}
+            <Select
+              id="item-sub-category"
+              placeholder="— None —"
+              value={form.sub_category_id}
+              onChange={(e) => setForm({ ...form, sub_category_id: Number(e.target.value) })}
+            >
+              {subCategories.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {s.slot ? ` — counts as ${s.slot}` : ""}
+                </option>
+              ))}
+            </Select>
           </div>
         </div>
 
