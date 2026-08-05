@@ -1,7 +1,8 @@
 import React from "react";
 import { Minus, Plus, Check } from "lucide-react";
-import { MealPlanType, MealPlanOrder, PlanSlot } from "../../../types";
+import { MealPlanType, MealPlanOrder } from "../../../types";
 import type { MealPlan } from "../../../services/menuService";
+import { compositionEmoji } from "../../../constants/planSlots";
 
 interface MealPlanSelectorProps {
   plans: MealPlan[];
@@ -9,22 +10,6 @@ interface MealPlanSelectorProps {
   onSelect: (type: MealPlanType) => void;
   onQuantityChange: (type: MealPlanType, quantity: number) => void;
   getPrice: (type: MealPlanType) => number;
-}
-
-const SLOT_EMOJI: Record<PlanSlot, string> = {
-  main: "\u{1F356}",
-  side: "\u{1F957}",
-  rice: "\u{1F35A}",
-  dessert: "\u{1F370}",
-};
-
-const SLOT_ORDER: PlanSlot[] = ["main", "side", "rice", "dessert"];
-
-/** One emoji per included dish, so the picture matches the composition exactly. */
-function compositionEmoji(plan: MealPlan): string {
-  return SLOT_ORDER.flatMap((slot) =>
-    Array.from({ length: plan.slots[slot] ?? 0 }, () => SLOT_EMOJI[slot]),
-  ).join(" ");
 }
 
 const peso = (n: number) => `₱${n.toFixed(0)}`;
@@ -80,7 +65,7 @@ const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
               }}
             >
               <div className="text-3xl mb-3 select-none" aria-hidden="true">
-                {compositionEmoji(plan)}
+                {compositionEmoji(plan.slots)}
               </div>
 
               <h3 className="font-arvo font-bold text-brand-text text-xl mb-1">

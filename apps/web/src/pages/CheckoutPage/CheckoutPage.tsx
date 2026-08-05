@@ -14,6 +14,7 @@ import { getCategoryDisplayName } from "../../constants";
 import { FALLBACK_IMAGE } from "../../components/CachedImage";
 import { generateSecureOrderRef } from "../../utils/validation";
 import { canSubmitOrder, recordSubmission, getSecondsUntilNext } from "../../utils/rateLimiter";
+import { PLAN_SLOTS } from "../../constants/planSlots";
 import StepIndicator from "./components/StepIndicator";
 import DeliveryStep from "./components/DeliveryStep";
 import PaymentStep from "./components/PaymentStep";
@@ -75,7 +76,7 @@ function findCartInSession(): CheckoutState | null {
   return null;
 }
 
-const CATEGORY_ORDER = ["main", "side", "starch"] as const;
+const CATEGORY_ORDER = PLAN_SLOTS;
 
 const CheckoutPage: React.FC = () => {
   const location = useLocation();

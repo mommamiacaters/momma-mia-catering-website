@@ -35,19 +35,8 @@ const inputClass =
 /** Links the footer's submit button back to the form it lives outside of. */
 const FORM_ID = "admin-item-form";
 
-/**
- * sub_category_id is the source of truth now, but the storefront builder still
- * reads the legacy item_type column and filters on main/side/starch. Writing the
- * SLOT back (not the slug) keeps that path working while both exist — otherwise
- * editing "Pork Adobo" would stamp item_type='pork' and silently drop the dish
- * off the website. Remove once the storefront reads sub_category_id directly.
- */
-const LEGACY_TYPE_BY_SLOT: Record<string, string> = {
-  main: "main",
-  side: "side",
-  dessert: "dessert",
-  rice: "starch",
-};
+// item_type mirrors the sub-category's slot. It is snapshotted onto order lines,
+// so it is what the kitchen ticket reads.
 
 const ItemFormModal: React.FC<ItemFormModalProps> = ({
   open,
@@ -96,13 +85,7 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
       image_url: form.image_url.trim() || null,
       price_cents: form.price.trim() === "" ? null : Math.round(Number(form.price) * 100),
       sub_category_id: form.sub_category_id || null,
-      // Slot-bearing groups map to the legacy vocabulary; the rest (Pasta,
-      // Beef …) were never part of the builder, so their slug is fine.
-      item_type: selectedSub
-        ? selectedSub.slot
-          ? LEGACY_TYPE_BY_SLOT[selectedSub.slot]
-          : selectedSub.slug
-        : null,
+      item_type: selectedSub ? (selectedSub.slot ?? selectedSub.slug) : null,
       is_available: form.is_available,
       is_catering: form.is_catering,
     };

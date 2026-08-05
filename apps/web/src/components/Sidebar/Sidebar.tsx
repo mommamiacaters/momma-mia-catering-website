@@ -18,6 +18,7 @@ import type {
   PlanInstance,
 } from "../../types";
 import { isPlanInstanceComplete } from "../../utils/mealPlanUtils";
+import { PLAN_SLOT_META, compositionEmoji } from "../../constants/planSlots";
 import { useStoreSettings } from "../../hooks/useStoreSettings";
 import { FALLBACK_IMAGE } from "../CachedImage";
 
@@ -43,16 +44,11 @@ interface ShoppingBagSidebarProps {
   onCheckout?: () => void;
 }
 
-const PLAN_EMOJIS: Record<MealPlanType, string> = {
-  "Double The Protein": "\u{1F356}\u{1F356} \u{1F957} \u{1F35A}",
-  "Balanced Diet": "\u{1F356} \u{1F957} \u{1F35A}",
-};
-
-const CATEGORY_META: { type: string; label: string; emoji: string }[] = [
-  { type: "main", label: "Main Dish", emoji: "\u{1F356}" },
-  { type: "side", label: "Side Dish", emoji: "\u{1F957}" },
-  { type: "starch", label: "Starch", emoji: "\u{1F35A}" },
-];
+const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label, emoji }) => ({
+  type: slot,
+  label,
+  emoji,
+}));
 
 const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   visible,
@@ -451,7 +447,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                       className="text-base select-none shrink-0"
                       aria-hidden="true"
                     >
-                      {PLAN_EMOJIS[instance.type]}
+                      {compositionEmoji(limits)}
                     </span>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-arvo font-bold text-brand-text text-sm leading-tight">

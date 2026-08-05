@@ -18,6 +18,7 @@ import {
   SelectedItemWithQuantity,
 } from "../../types";
 import { isPlanInstanceComplete } from "../../utils/mealPlanUtils";
+import { PLAN_SLOT_META, PLAN_SLOTS } from "../../constants/planSlots";
 import type { MealPlan } from "../../services/menuService";
 import { preloadImages, FALLBACK_IMAGE } from "../CachedImage";
 import MealPlanSelector from "./components/MealPlanSelector";
@@ -57,47 +58,27 @@ interface CheckALunchProps {
   ) => void;
 }
 
-const CATEGORY_CONFIG: {
-  type: CategoryType;
-  label: string;
-  icon: React.ElementType;
-  description: string;
-}[] = [
-  {
-    type: "main",
-    label: "Main Dish",
-    icon: UtensilsCrossed,
-    description: "Choose your protein",
-  },
-  {
-    type: "side",
-    label: "Side Dish",
-    icon: Leaf,
-    description: "Pick your greens & veggies",
-  },
-  {
-    type: "rice",
-    label: "Rice",
-    icon: Wheat,
-    description: "Select your rice",
-  },
-  {
-    type: "dessert",
-    label: "Dessert",
-    icon: Cake,
-    description: "Finish with something sweet",
-  },
-];
+/** Only the icons are local — label, emoji and order come from the shared meta. */
+const SLOT_ICON: Record<CategoryType, React.ElementType> = {
+  main: UtensilsCrossed,
+  side: Leaf,
+  rice: Wheat,
+  dessert: Cake,
+};
+
+const CATEGORY_CONFIG = PLAN_SLOT_META.map(({ slot, label, description }) => ({
+  type: slot,
+  label,
+  description,
+  icon: SLOT_ICON[slot],
+}));
 
 /** Every slot, in menu order. Which ones apply depends on the chosen plan. */
-const CATEGORIES: CategoryType[] = CATEGORY_CONFIG.map((c) => c.type);
+const CATEGORIES: CategoryType[] = PLAN_SLOTS;
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  main: "\u{1F356}",
-  side: "\u{1F957}",
-  rice: "\u{1F35A}",
-  dessert: "\u{1F370}",
-};
+const CATEGORY_EMOJI: Record<string, string> = Object.fromEntries(
+  PLAN_SLOT_META.map(({ slot, emoji }) => [slot, emoji]),
+);
 
 const CheckALunch: React.FC<CheckALunchProps> = ({
   mealPlanOrders,

@@ -15,6 +15,7 @@ import {
 } from "../../../types";
 import { FALLBACK_IMAGE } from "../../CachedImage";
 import { isPlanInstanceComplete } from "../../../utils/mealPlanUtils";
+import { PLAN_SLOT_META } from "../../../constants/planSlots";
 
 interface TrayPreviewProps {
   planInstances: PlanInstance[];
@@ -30,16 +31,8 @@ interface TrayPreviewProps {
   ) => void;
 }
 
-const CATEGORY_META: {
-  type: CategoryType;
-  label: string;
-  emoji: string;
-}[] = [
-  { type: "main", label: "Main Dish", emoji: "\u{1F356}" },
-  { type: "side", label: "Side Dish", emoji: "\u{1F957}" },
-  { type: "rice", label: "Rice", emoji: "\u{1F35A}" },
-  { type: "dessert", label: "Dessert", emoji: "\u{1F370}" },
-];
+const CATEGORY_META: { type: CategoryType; label: string; emoji: string }[] =
+  PLAN_SLOT_META.map(({ slot, label, emoji }) => ({ type: slot, label, emoji }));
 
 const TrayPreview: React.FC<TrayPreviewProps> = ({
   planInstances,
