@@ -41,36 +41,6 @@ export type Database = {
         }
         Relationships: []
       }
-      company_profile: {
-        Row: {
-          id: boolean
-          business_name: string
-          order_notification_email: string
-          contact_email: string | null
-          contact_phone: string | null
-          address: string | null
-          updated_at: string
-        }
-        Insert: {
-          id?: boolean
-          business_name?: string
-          order_notification_email?: string
-          contact_email?: string | null
-          contact_phone?: string | null
-          address?: string | null
-          updated_at?: string
-        }
-        Update: {
-          id?: boolean
-          business_name?: string
-          order_notification_email?: string
-          contact_email?: string | null
-          contact_phone?: string | null
-          address?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       categories: {
         Row: {
           created_at: string
@@ -97,6 +67,36 @@ export type Database = {
           name?: string
           slug?: string
           sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      company_profile: {
+        Row: {
+          address: string | null
+          business_name: string
+          contact_email: string | null
+          contact_phone: string | null
+          id: boolean
+          order_notification_email: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          business_name?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          id?: boolean
+          order_notification_email?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          business_name?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          id?: boolean
+          order_notification_email?: string
           updated_at?: string
         }
         Relationships: []
@@ -131,6 +131,51 @@ export type Database = {
         }
         Relationships: []
       }
+      meal_plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          dessert_count: number
+          id: number
+          is_active: boolean
+          main_count: number
+          name: string
+          price_cents: number
+          rice_count: number
+          side_count: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          dessert_count?: number
+          id?: number
+          is_active?: boolean
+          main_count?: number
+          name: string
+          price_cents: number
+          rice_count?: number
+          side_count?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          dessert_count?: number
+          id?: number
+          is_active?: boolean
+          main_count?: number
+          name?: string
+          price_cents?: number
+          rice_count?: number
+          side_count?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       menu_items: {
         Row: {
           category_id: number | null
@@ -144,6 +189,7 @@ export type Database = {
           name: string
           price_cents: number | null
           sort_order: number
+          sub_category_id: number | null
           updated_at: string
         }
         Insert: {
@@ -158,6 +204,7 @@ export type Database = {
           name: string
           price_cents?: number | null
           sort_order?: number
+          sub_category_id?: number | null
           updated_at?: string
         }
         Update: {
@@ -172,6 +219,7 @@ export type Database = {
           name?: string
           price_cents?: number | null
           sort_order?: number
+          sub_category_id?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -180,6 +228,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_items_sub_category_id_fkey"
+            columns: ["sub_category_id"]
+            isOneToOne: false
+            referencedRelation: "sub_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -254,6 +309,7 @@ export type Database = {
           delivery_fee_cents: number
           delivery_time: string | null
           id: string
+          notified_at: string | null
           order_ref: string
           order_type: Database["public"]["Enums"]["order_type"]
           payment_proof_url: string | null
@@ -275,6 +331,7 @@ export type Database = {
           delivery_fee_cents?: number
           delivery_time?: string | null
           id?: string
+          notified_at?: string | null
           order_ref: string
           order_type?: Database["public"]["Enums"]["order_type"]
           payment_proof_url?: string | null
@@ -296,6 +353,7 @@ export type Database = {
           delivery_fee_cents?: number
           delivery_time?: string | null
           id?: string
+          notified_at?: string | null
           order_ref?: string
           order_type?: Database["public"]["Enums"]["order_type"]
           payment_proof_url?: string | null
@@ -337,20 +395,130 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_requests: {
+        Row: {
+          conversation: Json
+          created_at: string
+          email: string
+          event_date: string | null
+          event_type: string | null
+          id: string
+          intents: string[]
+          lead_level: string | null
+          lead_priority: string | null
+          lead_score: number
+          name: string | null
+          order_request: string | null
+          pax: string | null
+        }
+        Insert: {
+          conversation?: Json
+          created_at?: string
+          email: string
+          event_date?: string | null
+          event_type?: string | null
+          id?: string
+          intents?: string[]
+          lead_level?: string | null
+          lead_priority?: string | null
+          lead_score?: number
+          name?: string | null
+          order_request?: string | null
+          pax?: string | null
+        }
+        Update: {
+          conversation?: Json
+          created_at?: string
+          email?: string
+          event_date?: string | null
+          event_type?: string | null
+          id?: string
+          intents?: string[]
+          lead_level?: string | null
+          lead_priority?: string | null
+          lead_score?: number
+          name?: string | null
+          order_request?: string | null
+          pax?: string | null
+        }
+        Relationships: []
+      }
+      sub_categories: {
+        Row: {
+          created_at: string
+          id: number
+          is_active: boolean
+          name: string
+          slot: string | null
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name: string
+          slot?: string | null
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name?: string
+          slot?: string | null
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      is_admin: { Args: never; Returns: boolean }
+      _contact_notify_post: {
+        Args: {
+          p_contact: Database["public"]["Tables"]["contact_submissions"]["Row"]
+        }
+        Returns: undefined
+      }
+      _order_notify_post: {
+        Args: {
+          p_kind: string
+          p_order: Database["public"]["Tables"]["orders"]["Row"]
+          p_to: string
+        }
+        Returns: undefined
+      }
+      _quote_notify_post: {
+        Args: { p_quote: Database["public"]["Tables"]["quote_requests"]["Row"] }
+        Returns: undefined
+      }
       create_order: {
         Args: {
-          p_items: Json
           p_customer: Json
+          p_items: Json
           p_order_ref: string
-          p_payment_proof_url?: string | null
+          p_payment_proof_url?: string
         }
         Returns: Json
+      }
+      is_admin: { Args: never; Returns: boolean }
+      submit_contact_message: {
+        Args: {
+          p_email: string
+          p_first_name: string
+          p_hp?: string
+          p_last_name: string
+          p_message: string
+          p_topic: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
