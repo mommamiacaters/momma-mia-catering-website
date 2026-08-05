@@ -21,6 +21,7 @@ import AccountPage from "./pages/AccountPage/AccountPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
+import AdminMealPlans from "./pages/admin/AdminMealPlans";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminCompanyProfile from "./pages/admin/AdminCompanyProfile";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -110,6 +111,7 @@ function AppContent() {
             }
           >
             <Route index element={<AdminOrders />} />
+            <Route path="plans" element={<AdminMealPlans />} />
             <Route path="menu" element={<AdminProducts />} />
             <Route path="company" element={<AdminCompanyProfile />} />
             <Route path="settings" element={<AdminSettings />} />

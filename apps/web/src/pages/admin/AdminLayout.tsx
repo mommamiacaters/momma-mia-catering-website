@@ -8,6 +8,7 @@ import { logo } from "../../images";
 // order changes by the hour.
 const navItems = [
   { to: "/admin", label: "Orders", icon: "pi-receipt", end: true },
+  { to: "/admin/plans", label: "Meal Plans", icon: "pi-th-large", end: false },
   { to: "/admin/menu", label: "Products & Menu", icon: "pi-box", end: false },
   { to: "/admin/company", label: "Company Profile", icon: "pi-building", end: false },
   { to: "/admin/settings", label: "Settings", icon: "pi-cog", end: false },
