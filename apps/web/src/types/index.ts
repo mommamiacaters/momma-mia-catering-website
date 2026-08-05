@@ -13,11 +13,18 @@ export interface PaymentProof {
   fileSize: number;
 }
 
-export type MealPlanType = "Double The Protein" | "Balanced Diet";
+/** A slot in a meal plan. Mirrors sub_categories.slot in the database. */
+export type PlanSlot = "main" | "side" | "rice" | "dessert";
 
-export type CategoryType = "main" | "side" | "starch";
+/** Item categories are plan slots now. Alias kept so callers need no rename. */
+export type CategoryType = PlanSlot;
+
+/** Plan display name. Identity is the numeric mealPlanId, not this string. */
+export type MealPlanType = string;
 
 export interface MealPlanOrder {
+  /** meal_plans.id — what create_order prices against. */
+  mealPlanId: number;
   type: MealPlanType;
   quantity: number;
 }
@@ -38,12 +45,14 @@ export interface AssignedItem {
 // Stable plan instance with its own items
 export interface PlanInstance {
   id: string;               // stable unique ID (e.g., "plan-1709481234567-abc")
-  type: MealPlanType;
+  mealPlanId: number;       // meal_plans.id — server identity, drives pricing
+  type: MealPlanType;       // plan name, for display and grouping
   displayOrder: number;     // user-controlled via drag reorder
   items: AssignedItem[];    // items explicitly assigned to this instance
 }
 
 export interface SelectedItemWithQuantity {
+  menuItemId: string;       // menu_items.id — what create_order prices against
   name: string;
   description: string;
   price: number;
@@ -64,13 +73,6 @@ export interface MealPost {
   size: "small" | "medium" | "large";
 }
 
-// Legacy type — kept for backward compat with old distribution logic
-export interface MealPlanInstance {
-  type: MealPlanType;
-  instanceIndex: number;
-  globalIndex: number;
-  orderIndex: number;
-}
 
 export interface CheckoutFormData {
   firstName: string;

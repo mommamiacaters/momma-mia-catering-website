@@ -76,7 +76,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   const meetsMinimum = totalMealPlans >= minimumMealPlans;
   const allBoxesFilled =
     planInstances.length > 0 &&
-    planInstances.every((pi) => isPlanInstanceComplete(pi));
+    planInstances.every((pi) => isPlanInstanceComplete(pi, getMealPlanLimits(pi.type)));
   const canCheckout = meetsMinimum && allBoxesFilled;
 
   // Plan reorder drag state
@@ -216,15 +216,6 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
     e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
     setItemDropTarget({ planId, category, itemInstanceId });
-  };
-
-  const handleItemDragLeave = (e: React.DragEvent) => {
-    if (
-      e.currentTarget instanceof HTMLElement &&
-      !e.currentTarget.contains(e.relatedTarget as Node)
-    ) {
-      setItemDropTarget(null);
-    }
   };
 
   const handleItemDrop = (
@@ -399,7 +390,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
               const limits = getMealPlanLimits(instance.type);
               const instanceItems = instance.items;
               const isActive = activePlanInstanceId === instance.id;
-              const isComplete = isPlanInstanceComplete(instance);
+              const isComplete = isPlanInstanceComplete(instance, limits);
               const instanceNum = instanceNumbers.get(instance.id) || 1;
 
               return (

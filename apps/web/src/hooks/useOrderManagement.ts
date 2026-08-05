@@ -7,9 +7,9 @@ import type {
   MenuTypeData,
   PlanInstance,
   AssignedItem,
+  PlanSlot,
 } from "../types";
-import { menuService } from "../services/menuService";
-import { MEAL_PLAN_LIMITS } from "../constants";
+import { menuService, type MealPlan } from "../services/menuService";
 
 function generatePlanId(): string {
   return `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -23,6 +23,13 @@ function generateItemId(name: string): string {
 
 const CART_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+/**
+ * Bumped when the cart shape changes. v1 stored plan NAMES from the two
+ * hardcoded plans; those plans no longer exist, so restoring one would yield a
+ * box with no price and no limits. Mismatched snapshots are discarded.
+ */
+const CART_VERSION = 2;
+
 function getCartKey(slug: string): string {
   return `cart:${slug}`;
 }
@@ -32,7 +39,7 @@ function readCart(slug: string) {
     const raw = sessionStorage.getItem(getCartKey(slug));
     if (!raw) return null;
     const snap = JSON.parse(raw);
-    if (Date.now() - snap.savedAt > CART_TTL_MS) {
+    if (snap.version !== CART_VERSION || Date.now() - snap.savedAt > CART_TTL_MS) {
       sessionStorage.removeItem(getCartKey(slug));
       return null;
     }
@@ -55,7 +62,13 @@ function writeCart(
   try {
     sessionStorage.setItem(
       getCartKey(slug),
-      JSON.stringify({ planInstances, activePlanInstanceId, subtotal, savedAt: Date.now() })
+      JSON.stringify({
+        version: CART_VERSION,
+        planInstances,
+        activePlanInstanceId,
+        subtotal,
+        savedAt: Date.now(),
+      })
     );
   } catch {
     /* storage full or unavailable */
@@ -65,7 +78,9 @@ function writeCart(
 function clearCart(slug: string) {
   try {
     sessionStorage.removeItem(getCartKey(slug));
-  } catch {}
+  } catch {
+    /* storage unavailable — nothing to clear */
+  }
 }
 
 export function useOrderManagement(
@@ -73,6 +88,7 @@ export function useOrderManagement(
   hasMenu: boolean
 ) {
   const [menuData, setMenuData] = useState<MenuTypeData | null>(null);
+  const [plans, setPlans] = useState<MealPlan[]>([]);
   const [planInstances, setPlanInstances] = useState<PlanInstance[]>(() => {
     if (!slug) return [];
     return readCart(slug)?.planInstances ?? [];
@@ -105,19 +121,30 @@ export function useOrderManagement(
     setLoading(true);
     setError(null);
 
-    menuService
-      .getCategoryMenuData(slug as "check-a-lunch" | "fun-boxes")
-      .then((data) => {
-        if (!cancelled) setMenuData(data);
-      })
-      .catch((err) => {
+    (async () => {
+      try {
+        if (slug === "check-a-lunch") {
+          // Plans and their selectable dishes both come from the database now.
+          const loaded = await menuService.getMealPlans();
+          if (cancelled) return;
+          setPlans(loaded);
+          const data = loaded.length
+            ? await menuService.getPlanMenuData(loaded[0].id)
+            : null;
+          if (!cancelled) setMenuData(data);
+        } else {
+          const data = await menuService.getCategoryMenuData(
+            slug as "check-a-lunch" | "fun-boxes",
+          );
+          if (!cancelled) setMenuData(data);
+        }
+      } catch (err) {
         console.error("Error fetching menu data:", err);
-        if (!cancelled)
-          setError("Failed to load menu items. Please try again later.");
-      })
-      .finally(() => {
+        if (!cancelled) setError("Failed to load menu items. Please try again later.");
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -131,15 +158,34 @@ export function useOrderManagement(
   // ─── Derived state (backward compat) ───
 
   const mealPlanOrders = useMemo<MealPlanOrder[]>(() => {
-    const counts = new Map<MealPlanType, number>();
+    const counts = new Map<MealPlanType, { mealPlanId: number; quantity: number }>();
     for (const pi of planInstances) {
-      counts.set(pi.type, (counts.get(pi.type) || 0) + 1);
+      const seen = counts.get(pi.type);
+      counts.set(pi.type, {
+        mealPlanId: pi.mealPlanId,
+        quantity: (seen?.quantity ?? 0) + 1,
+      });
     }
-    return Array.from(counts.entries()).map(([type, quantity]) => ({
+    return Array.from(counts.entries()).map(([type, v]) => ({
+      mealPlanId: v.mealPlanId,
       type,
-      quantity,
+      quantity: v.quantity,
     }));
   }, [planInstances]);
+
+  /** Plan lookup by display name — the callbacks below are keyed on the name. */
+  const planByName = useMemo(
+    () => new Map(plans.map((p) => [p.name, p])),
+    [plans],
+  );
+
+  // Read through a ref inside setState updaters so those callbacks stay
+  // reference-stable (FoodCard's memo comparator skips onAdd/onDecrease).
+  const planByNameRef = useRef(planByName);
+  planByNameRef.current = planByName;
+
+  const limitsFor = (type: string): Record<string, number> =>
+    planByNameRef.current.get(type)?.slots ?? { main: 0, side: 0, rice: 0, dessert: 0 };
 
   const selectedItems = useMemo<SelectedItemWithQuantity[]>(() => {
     return planInstances
@@ -147,6 +193,7 @@ export function useOrderManagement(
       .sort((a, b) => a.displayOrder - b.displayOrder)
       .flatMap((pi) =>
         pi.items.map((item) => ({
+          menuItemId: item.menuItemId,
           name: item.name,
           description: item.description,
           price: item.price,
@@ -164,18 +211,22 @@ export function useOrderManagement(
 
   const getMealPlanLimits = useCallback(
     (type: MealPlanType): Record<string, number> => {
-      return MEAL_PLAN_LIMITS[type];
+      const plan = planByName.get(type);
+      // An unknown plan grants nothing rather than throwing — a stale cart or a
+      // plan hidden mid-session must not take the page down.
+      if (!plan) return { main: 0, side: 0, rice: 0, dessert: 0 };
+      return { ...plan.slots };
     },
-    []
+    [planByName]
   );
 
   const getMaxAllowedItemsByType = useCallback((): Record<string, number> => {
-    const limits = { main: 0, side: 0, starch: 0 };
+    const limits: Record<string, number> = { main: 0, side: 0, rice: 0, dessert: 0 };
     for (const pi of planInstances) {
       const planLimits = getMealPlanLimits(pi.type);
-      limits.main += planLimits.main;
-      limits.side += planLimits.side;
-      limits.starch += planLimits.starch;
+      for (const slot of Object.keys(limits)) {
+        limits[slot] += planLimits[slot] ?? 0;
+      }
     }
     return limits;
   }, [planInstances, getMealPlanLimits]);
@@ -238,6 +289,7 @@ export function useOrderManagement(
   // ─── Meal Plan Management ───
 
   const handleMealPlanSelect = useCallback((type: MealPlanType) => {
+    const mealPlanId = planByName.get(type)?.id ?? 0;
     setPlanInstances((prev) => {
       const instancesOfType = prev.filter((pi) => pi.type === type);
       if (instancesOfType.length > 0) {
@@ -257,6 +309,7 @@ export function useOrderManagement(
           ...prev,
           {
             id: generatePlanId(),
+            mealPlanId,
             type,
             displayOrder: maxOrder + 1,
             items: [],
@@ -264,10 +317,11 @@ export function useOrderManagement(
         ];
       }
     });
-  }, []);
+  }, [planByName]);
 
   const handleMealPlanQuantityChange = useCallback(
     (type: MealPlanType, newQuantity: number) => {
+      const mealPlanId = planByName.get(type)?.id ?? 0;
       setPlanInstances((prev) => {
         const instancesOfType = prev.filter((pi) => pi.type === type);
         const currentCount = instancesOfType.length;
@@ -289,6 +343,7 @@ export function useOrderManagement(
           for (let i = 0; i < toAdd; i++) {
             newInstances.push({
               id: generatePlanId(),
+              mealPlanId,
               type,
               displayOrder: maxOrder + 1 + i,
               items: [],
@@ -311,7 +366,7 @@ export function useOrderManagement(
         return prev;
       });
     },
-    []
+    [planByName]
   );
 
   // ─── Item Management ───
@@ -329,7 +384,7 @@ export function useOrderManagement(
           const pi = prev.find((p) => p.id === targetId);
           if (!pi) targetId = null;
           else {
-            const limits = MEAL_PLAN_LIMITS[pi.type];
+            const limits = limitsFor(pi.type);
             const used = pi.items.filter((ai) => ai.type === item.type).length;
             if (used >= (limits[item.type] || 0)) {
               // Active plan is full for this category — don't add
@@ -344,7 +399,7 @@ export function useOrderManagement(
             (a, b) => a.displayOrder - b.displayOrder
           );
           for (const pi of sorted) {
-            const limits = MEAL_PLAN_LIMITS[pi.type];
+            const limits = limitsFor(pi.type);
             const used = pi.items.filter(
               (ai) => ai.type === item.type
             ).length;
@@ -523,7 +578,7 @@ export function useOrderManagement(
           });
         } else {
           // Move: check target has capacity
-          const limits = MEAL_PLAN_LIMITS[targetPlan.type] || {};
+          const limits = limitsFor(targetPlan.type);
           const targetCatCount = targetPlan.items.filter(
             (i) => i.type === sourceItem.type
           ).length;
@@ -574,32 +629,37 @@ export function useOrderManagement(
   );
 
   const getItemsByCategory = useCallback(
-    (category: "main" | "side" | "starch"): MenuItem[] => {
+    (category: PlanSlot): MenuItem[] => {
       if (!menuData) return [];
       return menuData[category] || [];
     },
     [menuData]
   );
 
+  /**
+   * Price of one box. On a "fixed" plan that is simply the plan's price. On a
+   * "range" plan the dishes carry the money, so it depends on what is in THIS
+   * box — hence the optional instance argument. create_order recomputes both
+   * server-side; this is display only.
+   */
   const getMealPlanPrice = useCallback(
-    (type: MealPlanType): number => {
-      if (!menuData) return 0;
-      const mainPrice = menuData.main?.[0]?.price ?? 0;
-      const sidePrice = menuData.side?.[0]?.price ?? 0;
-      const starchPrice = menuData.starch?.[0]?.price ?? 0;
-      const limits = getMealPlanLimits(type);
-      return (
-        mainPrice * limits.main +
-        sidePrice * limits.side +
-        starchPrice * limits.starch
-      );
+    (type: MealPlanType, planInstanceId?: string): number => {
+      const plan = planByName.get(type);
+      if (!plan) return 0;
+      if (plan.pricingMode !== "range") return plan.price;
+
+      const pi = planInstanceId
+        ? planInstances.find((p) => p.id === planInstanceId)
+        : undefined;
+      if (!pi) return plan.minPrice;
+      return pi.items.reduce((sum, item) => sum + (item.price ?? 0), 0);
     },
-    [menuData, getMealPlanLimits]
+    [planByName, planInstances]
   );
 
   const calculateTotalPrice = useCallback((): number => {
     return planInstances.reduce(
-      (total, pi) => total + getMealPlanPrice(pi.type),
+      (total, pi) => total + getMealPlanPrice(pi.type, pi.id),
       0
     );
   }, [planInstances, getMealPlanPrice]);
@@ -633,6 +693,7 @@ export function useOrderManagement(
 
   return {
     menuData,
+    plans,
     planInstances,
     activePlanInstanceId,
     mealPlanOrders,

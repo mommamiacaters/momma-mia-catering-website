@@ -1,80 +1,76 @@
 import React from "react";
-import { Minus, Plus, Check, Sparkles } from "lucide-react";
-import { MealPlanType, MealPlanOrder } from "../../../types";
-import { MEAL_PLAN_DESCRIPTIONS } from "../../../constants";
+import { Minus, Plus, Check } from "lucide-react";
+import { MealPlanType, MealPlanOrder, PlanSlot } from "../../../types";
+import type { MealPlan } from "../../../services/menuService";
 
 interface MealPlanSelectorProps {
-  mealPlanTypes: MealPlanType[];
+  plans: MealPlan[];
   mealPlanOrders: MealPlanOrder[];
   onSelect: (type: MealPlanType) => void;
   onQuantityChange: (type: MealPlanType, quantity: number) => void;
   getPrice: (type: MealPlanType) => number;
 }
 
-const PLAN_VISUALS: Record<
-  MealPlanType,
-  { emoji: string; tagline: string; badge?: string }
-> = {
-  "Double The Protein": {
-    emoji: "\u{1F356}\u{1F356} \u{1F957} \u{1F35A}",
-    tagline: "Extra protein for the hungry crew",
-    badge: "Popular",
-  },
-  "Balanced Diet": {
-    emoji: "\u{1F356} \u{1F957} \u{1F35A}",
-    tagline: "A well-rounded classic lunch",
-  },
+const SLOT_EMOJI: Record<PlanSlot, string> = {
+  main: "\u{1F356}",
+  side: "\u{1F957}",
+  rice: "\u{1F35A}",
+  dessert: "\u{1F370}",
 };
 
+const SLOT_ORDER: PlanSlot[] = ["main", "side", "rice", "dessert"];
+
+/** One emoji per included dish, so the picture matches the composition exactly. */
+function compositionEmoji(plan: MealPlan): string {
+  return SLOT_ORDER.flatMap((slot) =>
+    Array.from({ length: plan.slots[slot] ?? 0 }, () => SLOT_EMOJI[slot]),
+  ).join(" ");
+}
+
+const peso = (n: number) => `₱${n.toFixed(0)}`;
+
 const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
-  mealPlanTypes,
+  plans,
   mealPlanOrders,
   onSelect,
   onQuantityChange,
   getPrice,
 }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl mx-auto">
-      {mealPlanTypes.map((type) => {
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto">
+      {plans.map((plan) => {
+        const type = plan.name;
         const order = mealPlanOrders.find((o) => o.type === type);
         const isSelected = !!order;
-        const visual = PLAN_VISUALS[type];
+        // A range plan can't quote one number, so it shows the span the dishes
+        // span. Both figures come from the database view.
+        const priceLabel =
+          plan.pricingMode === "range"
+            ? plan.minPrice === plan.maxPrice
+              ? peso(plan.minPrice)
+              : `${peso(plan.minPrice)} – ${peso(plan.maxPrice)}`
+            : peso(getPrice(type));
 
         return (
           <div
-            key={type}
+            key={plan.id}
             className={`relative bg-white rounded-2xl overflow-hidden transition-all duration-300 ${
               isSelected
                 ? "ring-2 ring-brand-primary shadow-xl shadow-brand-primary/15"
                 : "shadow-md hover:shadow-xl hover:-translate-y-1"
             }`}
           >
-            {/* Popular badge */}
-            {visual.badge && (
-              <div className="absolute top-0 left-0 right-0">
-                <div className="bg-gradient-to-r from-brand-accent to-brand-primary text-white text-xs font-poppins font-semibold tracking-wide uppercase text-center py-1.5 flex items-center justify-center gap-1">
-                  <Sparkles size={12} />
-                  {visual.badge}
-                </div>
-              </div>
-            )}
-
-            {/* Selected checkmark */}
             {isSelected && (
-              <div
-                className={`absolute ${
-                  visual.badge ? "top-10" : "top-3"
-                } right-3 z-10 bg-brand-primary text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg`}
-              >
+              <div className="absolute top-3 right-3 z-10 bg-brand-primary text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg">
                 <Check size={14} strokeWidth={3} />
               </div>
             )}
 
             <div
-              className={`p-6 text-center ${visual.badge ? "pt-10" : ""}`}
+              className="p-6 text-center"
               role="button"
               tabIndex={0}
-              aria-label={`${type} meal plan - ${MEAL_PLAN_DESCRIPTIONS[type]} - ${getPrice(type)} pesos per box`}
+              aria-label={`${type} meal plan - ${plan.description ?? ""} - ${priceLabel} per box`}
               onClick={() => !isSelected && onSelect(type)}
               onKeyDown={(e) => {
                 if ((e.key === "Enter" || e.key === " ") && !isSelected) {
@@ -83,49 +79,36 @@ const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
                 }
               }}
             >
-              {/* Meal composition visual */}
-              <div
-                className="text-3xl mb-3 select-none"
-                aria-hidden="true"
-              >
-                {visual.emoji}
+              <div className="text-3xl mb-3 select-none" aria-hidden="true">
+                {compositionEmoji(plan)}
               </div>
 
-              {/* Plan name */}
               <h3 className="font-arvo font-bold text-brand-text text-xl mb-1">
                 {type}
               </h3>
 
-              {/* Description */}
-              <p className="font-poppins text-sm text-brand-text/50 mb-1">
-                {MEAL_PLAN_DESCRIPTIONS[type]}
-              </p>
-              <p className="font-poppins text-xs text-brand-text/40 italic mb-4">
-                {visual.tagline}
+              <p className="font-poppins text-sm text-brand-text/50 mb-4 min-h-[2.5rem]">
+                {plan.description}
               </p>
 
-              {/* Price */}
               <div className="mb-5">
                 <span className="font-arvo font-bold text-brand-primary text-2xl">
-                  &#8369;{getPrice(type)}
+                  {priceLabel}
                 </span>
                 <span className="font-poppins text-sm text-brand-text/40 ml-1">
                   / box
                 </span>
               </div>
 
-              {/* Action */}
               {isSelected ? (
                 <div
                   className="flex items-center gap-3 justify-center"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
-                    onClick={() =>
-                      onQuantityChange(type, order!.quantity - 1)
-                    }
+                    onClick={() => onQuantityChange(type, order!.quantity - 1)}
                     className="w-10 h-10 rounded-full bg-brand-divider hover:bg-brand-text/20 flex items-center justify-center transition-colors"
-                    aria-label="Decrease quantity"
+                    aria-label={`Decrease ${type} quantity`}
                   >
                     <Minus size={16} className="text-brand-text" />
                   </button>
@@ -133,11 +116,9 @@ const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
                     {order!.quantity}
                   </span>
                   <button
-                    onClick={() =>
-                      onQuantityChange(type, order!.quantity + 1)
-                    }
+                    onClick={() => onQuantityChange(type, order!.quantity + 1)}
                     className="w-10 h-10 rounded-full bg-brand-primary hover:bg-brand-primary/80 text-white flex items-center justify-center transition-colors shadow-md shadow-brand-primary/20"
-                    aria-label="Increase quantity"
+                    aria-label={`Increase ${type} quantity`}
                   >
                     <Plus size={16} />
                   </button>

@@ -112,6 +112,7 @@ const ServicePage: React.FC = () => {
                 activePlanInstanceId={order.activePlanInstanceId}
                 onSetActivePlan={order.setActivePlanInstanceId}
                 menuData={order.menuData}
+                plans={order.plans}
                 loading={order.loading}
                 error={order.error}
                 onMealPlanSelect={order.handleMealPlanSelect}
@@ -120,6 +121,7 @@ const ServicePage: React.FC = () => {
                 onItemRemove={order.handleItemRemove}
                 onItemQuantityDecrease={order.handleItemQuantityDecrease}
                 getMealPlanPrice={order.getMealPlanPrice}
+                getMealPlanLimits={order.getMealPlanLimits}
                 getItemsByCategory={order.getItemsByCategory}
                 getCategoryDisplayName={getCategoryDisplayName}
                 isItemSelected={order.isItemSelected}

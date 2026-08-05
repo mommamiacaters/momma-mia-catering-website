@@ -55,19 +55,23 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
   //    prices/totals/client_id or generates the PK. Each meal-plan dish becomes
   //    one line (qty 1) carrying its plan grouping; the à-la-carte fallback maps
   //    order.items by id (vestigial today, but kept loud rather than silent).
+  // Each box sends a PLAN line (which carries the price) followed by its chosen
+  // dishes as components. create_order prices the components from the plan's
+  // own pricing_mode, so the client never sends money.
   const items = order.planInstances?.length
-    ? order.planInstances.flatMap((plan) =>
-        plan.items.map((it) => ({
+    ? order.planInstances.flatMap((plan) => [
+        { meal_plan_id: plan.mealPlanId, qty: 1, plan_instance_id: plan.id },
+        ...plan.items.map((it) => ({
           menu_item_id: it.menuItemId,
           qty: 1,
           plan_instance_id: plan.id,
           plan_type: plan.type,
         })),
-      )
+      ])
     : order.items.map((it) => ({ menu_item_id: it.menuItemId, qty: 1 }));
 
   const { error } = await supabase.rpc("create_order", {
-    p_items: items,
+    p_items: items as unknown as never,
     p_customer: {
       first_name: customer.firstName,
       last_name: customer.lastName,
@@ -80,7 +84,7 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
       order_type: "delivery",
     },
     p_order_ref: orderRef,
-    p_payment_proof_url: paymentProofUrl,
+    p_payment_proof_url: paymentProofUrl ?? undefined,
   });
   if (error) throw new Error(`Failed to submit order: ${error.message}`);
   // No client-side notify call. See the docstring above — emails are sent

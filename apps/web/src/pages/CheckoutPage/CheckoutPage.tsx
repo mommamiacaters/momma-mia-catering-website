@@ -34,16 +34,24 @@ function findCartInSession(): CheckoutState | null {
       const raw = sessionStorage.getItem(key);
       if (!raw) continue;
       const snap = JSON.parse(raw);
+      // Must match CART_VERSION in useOrderManagement: v1 snapshots name the two
+      // retired plans, so restoring one yields a box with no price or limits.
+      if (snap.version !== 2) continue;
       if (Date.now() - snap.savedAt > 86_400_000) continue;
       if (!snap.planInstances?.length) continue;
 
-      const counts = new Map<string, number>();
-      for (const pi of snap.planInstances)
-        counts.set(pi.type, (counts.get(pi.type) || 0) + 1);
+      const counts = new Map<string, { mealPlanId: number; quantity: number }>();
+      for (const pi of snap.planInstances) {
+        const seen = counts.get(pi.type);
+        counts.set(pi.type, {
+          mealPlanId: pi.mealPlanId,
+          quantity: (seen?.quantity ?? 0) + 1,
+        });
+      }
 
       const mealPlanOrders: MealPlanOrder[] = [];
-      counts.forEach((qty, type) =>
-        mealPlanOrders.push({ type: type as MealPlanOrder["type"], quantity: qty })
+      counts.forEach((v, type) =>
+        mealPlanOrders.push({ mealPlanId: v.mealPlanId, type, quantity: v.quantity })
       );
 
       const selectedItems = snap.planInstances.flatMap(
@@ -61,7 +69,9 @@ function findCartInSession(): CheckoutState | null {
         subtotal: snap.subtotal ?? 0,
       };
     }
-  } catch {}
+  } catch {
+    /* unreadable snapshot — fall through to no cart */
+  }
   return null;
 }
 

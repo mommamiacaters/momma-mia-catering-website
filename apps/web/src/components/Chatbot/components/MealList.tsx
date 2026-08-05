@@ -16,13 +16,18 @@ const MealList: React.FC<MealListProps> = ({
   addMessage,
   mealData,
 }) => {
-  // Flatten main/side/starch arrays from the service into one list
+  // Flatten every slot from the service into one list
   const serviceData = mealData?.[service];
   const meals: MenuItem[] = serviceData
-    ? [...(serviceData.main || []), ...(serviceData.side || []), ...(serviceData.starch || [])]
+    ? [
+        ...(serviceData.main || []),
+        ...(serviceData.side || []),
+        ...(serviceData.rice || []),
+        ...(serviceData.dessert || []),
+      ]
     : [];
 
-  const handleMealClick = (meal: MenuItem, index: number) => {
+  const handleMealClick = (meal: MenuItem) => {
     // Add interaction when clicking on a meal item
     addMessage(
       `I'm interested in: ${meal.name} (₱${meal.price.toFixed(2)})${
@@ -82,7 +87,7 @@ const MealList: React.FC<MealListProps> = ({
           <div
             key={`${service}-${index}`}
             className="bg-white rounded-lg py-2 px-3 mb-2 text-xs text-brand-text border border-brand-divider flex justify-between items-center last:mb-0 cursor-pointer transition-all duration-200 hover:border-brand-primary hover:shadow-sm group"
-            onClick={() => handleMealClick(meal, index)}
+            onClick={() => handleMealClick(meal)}
             title={meal.description ? `${meal.name} - ${meal.description}` : meal.name}
           >
             <div className="flex-1 min-w-0">

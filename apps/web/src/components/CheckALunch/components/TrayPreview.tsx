@@ -14,12 +14,13 @@ import {
   AssignedItem,
 } from "../../../types";
 import { FALLBACK_IMAGE } from "../../CachedImage";
-import { MEAL_PLAN_LIMITS } from "../../../constants";
 import { isPlanInstanceComplete } from "../../../utils/mealPlanUtils";
 
 interface TrayPreviewProps {
   planInstances: PlanInstance[];
   activePlanInstanceId: string | null;
+  /** Per-slot counts for a plan, from the database. */
+  getMealPlanLimits: (type: string) => Record<string, number>;
   onSetActivePlan: (id: string | null) => void;
   onMoveItem: (
     sourcePlanId: string,
@@ -36,12 +37,14 @@ const CATEGORY_META: {
 }[] = [
   { type: "main", label: "Main Dish", emoji: "\u{1F356}" },
   { type: "side", label: "Side Dish", emoji: "\u{1F957}" },
-  { type: "starch", label: "Starch", emoji: "\u{1F35A}" },
+  { type: "rice", label: "Rice", emoji: "\u{1F35A}" },
+  { type: "dessert", label: "Dessert", emoji: "\u{1F370}" },
 ];
 
 const TrayPreview: React.FC<TrayPreviewProps> = ({
   planInstances,
   activePlanInstanceId,
+  getMealPlanLimits,
   onSetActivePlan,
   onMoveItem,
 }) => {
@@ -60,7 +63,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
 
   const allComplete =
     planInstances.length > 0 &&
-    planInstances.every((pi) => isPlanInstanceComplete(pi));
+    planInstances.every((pi) => isPlanInstanceComplete(pi, getMealPlanLimits(pi.type)));
 
   // Sort by displayOrder
   const sortedInstances = [...planInstances].sort(
@@ -207,8 +210,9 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
           }`}
         >
           {
-            sortedInstances.filter((pi) => isPlanInstanceComplete(pi))
-              .length
+            sortedInstances.filter((pi) =>
+              isPlanInstanceComplete(pi, getMealPlanLimits(pi.type))
+            ).length
           }
           /{sortedInstances.length} done
         </span>
@@ -217,13 +221,13 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
       {/* Plan instance cards — clickable to select */}
       <div className="space-y-4">
         {sortedInstances.map((pi) => {
-          const limits = MEAL_PLAN_LIMITS[pi.type] || {};
+          const limits = getMealPlanLimits(pi.type);
           const totalSlots = Object.values(limits).reduce(
             (a: number, b) => a + (b as number),
             0
           );
           const filledSlots = pi.items.length;
-          const isComplete = isPlanInstanceComplete(pi);
+          const isComplete = isPlanInstanceComplete(pi, limits);
           const instanceNum = instanceNumbers.get(pi.id) || 1;
           const isActive = activePlanInstanceId === pi.id;
 

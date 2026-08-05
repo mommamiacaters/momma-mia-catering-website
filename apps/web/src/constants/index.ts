@@ -12,19 +12,11 @@ export const SOCIAL_LINKS = {
   messenger: "https://www.facebook.com/profile.php?id=61559809667297",
 } as const;
 
-export const MEAL_PLAN_LIMITS: Record<string, Record<string, number>> = {
-  "Double The Protein": { main: 2, side: 1, starch: 1 },
-  "Balanced Diet": { main: 1, side: 1, starch: 1 },
-};
+// MEAL_PLAN_LIMITS / MEAL_PLAN_DESCRIPTIONS / CATEGORIES are gone: plans and
+// their slot counts now come from public.meal_plans.
 
-export const MEAL_PLAN_DESCRIPTIONS: Record<string, string> = {
-  "Double The Protein": "2 Main Dishes, 1 Side Dish, 1 Starch",
-  "Balanced Diet": "1 Main Dish, 1 Side Dish, 1 Starch",
-};
-
+/** Fallback only — the live value is app_settings.minimum_meal_plans. */
 export const MINIMUM_MEAL_PLANS = 15;
-
-export const CATEGORIES: readonly ["main", "side", "starch"] = ["main", "side", "starch"] as const;
 
 export function getCategoryDisplayName(category: string): string {
   switch (category) {
@@ -32,8 +24,10 @@ export function getCategoryDisplayName(category: string): string {
       return "Main Dish";
     case "side":
       return "Side Dish";
-    case "starch":
-      return "Starch";
+    case "rice":
+      return "Rice";
+    case "dessert":
+      return "Dessert";
     default:
       return category.charAt(0).toUpperCase() + category.slice(1);
   }

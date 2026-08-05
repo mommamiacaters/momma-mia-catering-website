@@ -15,10 +15,12 @@ export interface MenuItem {
   image: string;
 }
 
+/** Dishes grouped by plan slot. "starch" became "rice"; "dessert" is new. */
 export interface MenuTypeData {
   main: MenuItem[];
   side: MenuItem[];
-  starch: MenuItem[];
+  rice: MenuItem[];
+  dessert: MenuItem[];
 }
 
 export interface MenuData {
@@ -91,7 +93,7 @@ export interface MenuResponse {
 }
 
 const centsToPesos = (c: number | null): number => (c == null ? 0 : c / 100);
-const emptyTypeData = (): MenuTypeData => ({ main: [], side: [], starch: [] });
+const emptyTypeData = (): MenuTypeData => ({ main: [], side: [], rice: [], dessert: [] });
 
 class MenuService {
   private cache: { items: CatalogItem[] | null; timestamp: number } = {
@@ -156,8 +158,10 @@ class MenuService {
     for (const item of items) {
       const bucket = result[item.category as keyof MenuData];
       if (!bucket) continue; // skip categories the legacy UI doesn't render
-      const type = item.type as keyof MenuTypeData;
-      if (type !== 'main' && type !== 'side' && type !== 'starch') continue;
+      // Legacy rows still say "starch"; the slot vocabulary calls it rice.
+      const raw = item.type === 'starch' ? 'rice' : item.type;
+      const type = raw as keyof MenuTypeData;
+      if (type !== 'main' && type !== 'side' && type !== 'rice' && type !== 'dessert') continue;
       bucket[type].push({
         id: item.id,
         name: item.name,
@@ -177,7 +181,7 @@ class MenuService {
   }
 
   async getTypeMenuData(
-    type: "main" | "side" | "starch",
+    type: PlanSlot,
   ): Promise<{ "check-a-lunch": MenuItem[]; "fun-boxes": MenuItem[] }> {
     const allData = await this.getAllMenuData();
     return {
@@ -188,20 +192,20 @@ class MenuService {
 
   async getCategoryTypeMenuData(
     category: "check-a-lunch" | "fun-boxes",
-    type: "main" | "side" | "starch",
+    type: PlanSlot,
   ): Promise<MenuItem[]> {
     const allData = await this.getAllMenuData();
     return allData[category]?.[type] || [];
   }
 
-  async getAllItemsByType(type: "main" | "side" | "starch"): Promise<MenuItem[]> {
+  async getAllItemsByType(type: PlanSlot): Promise<MenuItem[]> {
     const allData = await this.getAllMenuData();
     return [...allData["check-a-lunch"][type], ...allData["fun-boxes"][type]];
   }
 
   async getAllItemsByCategory(category: "check-a-lunch" | "fun-boxes"): Promise<MenuItem[]> {
     const c = await this.getCategoryMenuData(category);
-    return [...c.main, ...c.side, ...c.starch];
+    return [...c.main, ...c.side, ...c.rice, ...c.dessert];
   }
 
   async getAllItems(): Promise<MenuItem[]> {
@@ -322,6 +326,26 @@ class MenuService {
       );
     }
     return grouped;
+  }
+
+  /** A plan's selectable dishes in the MenuTypeData shape the builder consumes. */
+  async getPlanMenuData(mealPlanId: number): Promise<MenuTypeData> {
+    const opts = await this.getPlanOptions(mealPlanId);
+    const toMenuItem = (o: PlanOption): MenuItem => ({
+      id: o.id,
+      name: o.name,
+      description: o.description ?? "",
+      price: o.price,
+      category: "check-a-lunch",
+      type: o.slot,
+      image: o.image ?? "",
+    });
+    return {
+      main: opts.main.map(toMenuItem),
+      side: opts.side.map(toMenuItem),
+      rice: opts.rice.map(toMenuItem),
+      dessert: opts.dessert.map(toMenuItem),
+    };
   }
 
   async refreshMenuData(): Promise<void> {

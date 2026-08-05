@@ -3,6 +3,7 @@ import {
   UtensilsCrossed,
   Leaf,
   Wheat,
+  Cake,
   Check,
   ChevronRight,
   Zap,
@@ -14,9 +15,10 @@ import {
   MenuTypeData,
   CategoryType,
   PlanInstance,
+  SelectedItemWithQuantity,
 } from "../../types";
-import { CATEGORIES, MEAL_PLAN_LIMITS } from "../../constants";
 import { isPlanInstanceComplete } from "../../utils/mealPlanUtils";
+import type { MealPlan } from "../../services/menuService";
 import { preloadImages, FALLBACK_IMAGE } from "../CachedImage";
 import MealPlanSelector from "./components/MealPlanSelector";
 import FoodCard from "./components/FoodCard";
@@ -35,9 +37,11 @@ interface CheckALunchProps {
   onMealPlanSelect: (type: MealPlanType) => void;
   onMealPlanQuantityChange: (type: MealPlanType, quantity: number) => void;
   onItemAdd: (item: MenuItem) => void;
-  onItemRemove: (item: unknown) => void;
+  onItemRemove: (item: SelectedItemWithQuantity) => void;
   onItemQuantityDecrease: (item: MenuItem) => void;
-  getMealPlanPrice: (type: MealPlanType) => number;
+  plans: MealPlan[];
+  getMealPlanPrice: (type: MealPlanType, planInstanceId?: string) => number;
+  getMealPlanLimits: (type: MealPlanType) => Record<string, number>;
   getItemsByCategory: (category: CategoryType) => MenuItem[];
   getCategoryDisplayName: (category: string) => string;
   isItemSelected: (item: MenuItem) => boolean;
@@ -72,17 +76,27 @@ const CATEGORY_CONFIG: {
     description: "Pick your greens & veggies",
   },
   {
-    type: "starch",
-    label: "Starch",
+    type: "rice",
+    label: "Rice",
     icon: Wheat,
-    description: "Select your carbs",
+    description: "Select your rice",
+  },
+  {
+    type: "dessert",
+    label: "Dessert",
+    icon: Cake,
+    description: "Finish with something sweet",
   },
 ];
+
+/** Every slot, in menu order. Which ones apply depends on the chosen plan. */
+const CATEGORIES: CategoryType[] = CATEGORY_CONFIG.map((c) => c.type);
 
 const CATEGORY_EMOJI: Record<string, string> = {
   main: "\u{1F356}",
   side: "\u{1F957}",
-  starch: "\u{1F35A}",
+  rice: "\u{1F35A}",
+  dessert: "\u{1F370}",
 };
 
 const CheckALunch: React.FC<CheckALunchProps> = ({
@@ -97,7 +111,9 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   onMealPlanQuantityChange,
   onItemAdd,
   onItemQuantityDecrease,
+  plans,
   getMealPlanPrice,
+  getMealPlanLimits,
   getItemsByCategory,
   getCategoryDisplayName,
   isItemSelected,
@@ -124,34 +140,31 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   // ─── Memoized derived state ───
 
   const hasMealPlan = mealPlanOrders.length > 0;
-  const mealPlanTypes: MealPlanType[] = useMemo(
-    () => ["Double The Protein", "Balanced Diet"],
-    []
-  );
 
   const maxAllowed = useMemo(
     () => getActivePlanMaxAllowed(),
     [getActivePlanMaxAllowed]
   );
 
-  // Per-category selection counts (stable across tab switches)
+  // Per-slot selection counts, built over every slot so adding one to a plan
+  // needs no change here.
   const categoryCounts = useMemo(
-    () => ({
-      main: getActivePlanSelectedCount("main"),
-      side: getActivePlanSelectedCount("side"),
-      starch: getActivePlanSelectedCount("starch"),
-    }),
+    () =>
+      Object.fromEntries(
+        CATEGORIES.map((slot) => [slot, getActivePlanSelectedCount(slot)])
+      ) as Record<CategoryType, number>,
     [getActivePlanSelectedCount]
   );
 
-  // Per-category "is full" flags (don't depend on activeCategory!)
+  // Per-slot "is full" flags (must not depend on activeCategory)
   const categoryFull = useMemo(
-    () => ({
-      main: hasMealPlan && categoryCounts.main >= (maxAllowed.main || 0),
-      side: hasMealPlan && categoryCounts.side >= (maxAllowed.side || 0),
-      starch:
-        hasMealPlan && categoryCounts.starch >= (maxAllowed.starch || 0),
-    }),
+    () =>
+      Object.fromEntries(
+        CATEGORIES.map((slot) => [
+          slot,
+          hasMealPlan && categoryCounts[slot] >= (maxAllowed[slot] || 0),
+        ])
+      ) as Record<CategoryType, boolean>,
     [hasMealPlan, categoryCounts, maxAllowed]
   );
 
@@ -189,9 +202,9 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     return {
       activePlan: plan || null,
       activePlanNum: plan ? instanceNumbers.get(plan.id) || 1 : 0,
-      activePlanLimits: plan ? MEAL_PLAN_LIMITS[plan.type] || {} : {},
+      activePlanLimits: plan ? getMealPlanLimits(plan.type) : {},
     };
-  }, [activePlanInstanceId, sortedInstances, instanceNumbers]);
+  }, [activePlanInstanceId, sortedInstances, instanceNumbers, getMealPlanLimits]);
 
   if (loading || error || !menuData) return null;
 
@@ -236,7 +249,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
         </div>
 
         <MealPlanSelector
-          mealPlanTypes={mealPlanTypes}
+          plans={plans}
           mealPlanOrders={mealPlanOrders}
           onSelect={onMealPlanSelect}
           onQuantityChange={onMealPlanQuantityChange}
@@ -278,8 +291,8 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
 
               {sortedInstances.map((pi) => {
                 const isActive = activePlanInstanceId === pi.id;
-                const isComplete = isPlanInstanceComplete(pi);
-                const limits = MEAL_PLAN_LIMITS[pi.type] || {};
+                const limits = getMealPlanLimits(pi.type);
+                const isComplete = isPlanInstanceComplete(pi, limits);
                 const totalSlots = Object.values(limits).reduce(
                   (a: number, b) => a + (b as number),
                   0
@@ -555,6 +568,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           <TrayPreview
             planInstances={planInstances}
             activePlanInstanceId={activePlanInstanceId}
+            getMealPlanLimits={getMealPlanLimits}
             onSetActivePlan={onSetActivePlan}
             onMoveItem={onMoveItem}
           />
