@@ -80,6 +80,10 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
     }
   }, [open, initial, defaultCategoryId, categories]);
 
+  const selectedSub = subCategories.find((s) => s.id === form.sub_category_id);
+  /** Slot-bearing groups are the ones a meal plan draws from. */
+  const isPlanComponent = Boolean(selectedSub?.slot);
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -91,13 +95,13 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
       image_url: form.image_url.trim() || null,
       price_cents: form.price.trim() === "" ? null : Math.round(Number(form.price) * 100),
       sub_category_id: form.sub_category_id || null,
-      item_type: (() => {
-        const sub = subCategories.find((s) => s.id === form.sub_category_id);
-        if (!sub) return null;
-        // Slot-bearing groups map to the legacy vocabulary; the rest (Pasta,
-        // Beef …) were never part of the builder, so their slug is fine.
-        return sub.slot ? LEGACY_TYPE_BY_SLOT[sub.slot] : sub.slug;
-      })(),
+      // Slot-bearing groups map to the legacy vocabulary; the rest (Pasta,
+      // Beef …) were never part of the builder, so their slug is fine.
+      item_type: selectedSub
+        ? selectedSub.slot
+          ? LEGACY_TYPE_BY_SLOT[selectedSub.slot]
+          : selectedSub.slug
+        : null,
       is_available: form.is_available,
       is_catering: form.is_catering,
     };
@@ -205,9 +209,46 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
           </div>
         </div>
 
+        {/*
+          A dish that fills a meal-plan slot has no price of its own — the plan
+          is the priced line and the dish is what goes in the box. Anything typed
+          here is an UPCHARGE on top of the plan (the printed menu's Garlic Rice
+          +₱15 / Yangchow +₱20), so the field relabels itself rather than
+          disappearing.
+        */}
         <div>
-          <label className="block text-sm font-poppins font-medium text-brand-text mb-1.5">Price (₱)</label>
-          <input type="number" min="0" step="0.01" className={inputClass} value={form.price} placeholder="Leave blank for “price on request”" onChange={(e) => setForm({ ...form, price: e.target.value })} />
+          <label htmlFor="item-price" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
+            {isPlanComponent ? (
+              <>
+                Upcharge (₱) <span className="text-brand-text/40 font-normal">(optional)</span>
+              </>
+            ) : (
+              "Price (₱)"
+            )}
+          </label>
+          <input
+            id="item-price"
+            type="number"
+            min="0"
+            step="0.01"
+            className={inputClass}
+            value={form.price}
+            placeholder={
+              isPlanComponent
+                ? "Leave blank — included in the plan price"
+                : "Leave blank for “price on request”"
+            }
+            onChange={(e) => setForm({ ...form, price: e.target.value })}
+          />
+          {isPlanComponent && (
+            <span className="mt-1 flex items-start gap-1.5 font-poppins text-xs text-brand-text/55">
+              <i className="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+              <span>
+                Counts as a <strong>{selectedSub?.slot}</strong> inside a meal plan, so the
+                plan's price already covers it. Only fill this in to charge extra.
+              </span>
+            </span>
+          )}
         </div>
 
         <div>
