@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   open: boolean;
@@ -55,7 +56,18 @@ const Modal: React.FC<ModalProps> = ({
 
   if (!open) return null;
 
-  return (
+  /*
+   * Rendered through a PORTAL to document.body, not in place.
+   *
+   * `position: fixed` resolves against the nearest ancestor with a transform,
+   * filter or will-change — not the viewport. The page-transition wrapper
+   * animates with fill-mode `both`, so it permanently retains
+   * `transform: translateY(0)` and was capturing this dialog: the backdrop
+   * covered only the admin content pane and the panel centred itself inside a
+   * very tall column, landing far down the page. Portalling to <body> puts the
+   * dialog outside every such ancestor for good.
+   */
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
       role="dialog"
@@ -89,7 +101,8 @@ const Modal: React.FC<ModalProps> = ({
           </footer>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
