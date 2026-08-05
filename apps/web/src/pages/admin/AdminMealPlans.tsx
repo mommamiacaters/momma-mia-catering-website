@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { PLAN_SLOTS, type MealPlan } from "../../types/menu";
+import { PLAN_SLOTS, type MealPlan, type MealPlanPriceRange } from "../../types/menu";
 import MealPlanFormModal from "../../components/admin/MealPlanFormModal";
 import { peso } from "../../constants/orders";
 
 const SELECT =
-  "id, name, description, price_cents, main_count, side_count, dessert_count, rice_count, sort_order, is_active";
+  "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, sort_order, is_active";
 
 const AdminMealPlans: React.FC = () => {
   const [plans, setPlans] = useState<MealPlan[]>([]);
+  const [ranges, setRanges] = useState<Map<number, MealPlanPriceRange>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<{ open: boolean; initial: MealPlan | null }>({
@@ -17,9 +18,15 @@ const AdminMealPlans: React.FC = () => {
   });
 
   const load = async () => {
-    const { data, error } = await supabase.from("meal_plans").select(SELECT).order("sort_order");
+    const [{ data, error }, { data: rangeRows }] = await Promise.all([
+      supabase.from("meal_plans").select(SELECT).order("sort_order"),
+      supabase.from("meal_plan_price_ranges").select("*"),
+    ]);
     if (error) setError(error.message);
     setPlans((data as MealPlan[]) ?? []);
+    setRanges(
+      new Map(((rangeRows as MealPlanPriceRange[]) ?? []).map((r) => [r.meal_plan_id, r])),
+    );
     setLoading(false);
   };
 
@@ -101,8 +108,23 @@ const AdminMealPlans: React.FC = () => {
             >
               <div className="flex items-start justify-between gap-3">
                 <h2 className="font-arvo-bold text-lg text-brand-text">{plan.name}</h2>
-                <span className="shrink-0 font-arvo-bold text-xl text-brand-primary tabular-nums">
-                  {peso(plan.price_cents)}
+                <span className="shrink-0 text-right">
+                  <span className="block font-arvo-bold text-xl text-brand-primary tabular-nums">
+                    {plan.pricing_mode === "range"
+                      ? (() => {
+                          const r = ranges.get(plan.id);
+                          if (!r) return "—";
+                          return r.min_cents === r.max_cents
+                            ? peso(r.min_cents)
+                            : `${peso(r.min_cents)}–${peso(r.max_cents)}`;
+                        })()
+                      : peso(plan.price_cents)}
+                  </span>
+                  {plan.pricing_mode === "range" && (
+                    <span className="font-poppins text-[11px] text-brand-text/50">
+                      by dish choice
+                    </span>
+                  )}
                 </span>
               </div>
 
@@ -158,6 +180,7 @@ const AdminMealPlans: React.FC = () => {
         open={modal.open}
         onClose={() => setModal({ open: false, initial: null })}
         initial={modal.initial}
+        priceRange={modal.initial ? ranges.get(modal.initial.id) : undefined}
         nextSortOrder={(plans.at(-1)?.sort_order ?? 0) + 1}
         onSaved={load}
       />

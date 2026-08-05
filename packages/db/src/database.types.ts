@@ -133,6 +133,7 @@ export type Database = {
       }
       meal_plans: {
         Row: {
+          category_id: number | null
           created_at: string
           description: string | null
           dessert_count: number
@@ -141,12 +142,14 @@ export type Database = {
           main_count: number
           name: string
           price_cents: number
+          pricing_mode: string
           rice_count: number
           side_count: number
           sort_order: number
           updated_at: string
         }
         Insert: {
+          category_id?: number | null
           created_at?: string
           description?: string | null
           dessert_count?: number
@@ -155,12 +158,14 @@ export type Database = {
           main_count?: number
           name: string
           price_cents: number
+          pricing_mode?: string
           rice_count?: number
           side_count?: number
           sort_order?: number
           updated_at?: string
         }
         Update: {
+          category_id?: number | null
           created_at?: string
           description?: string | null
           dessert_count?: number
@@ -169,12 +174,21 @@ export type Database = {
           main_count?: number
           name?: string
           price_cents?: number
+          pricing_mode?: string
           rice_count?: number
           side_count?: number
           sort_order?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "meal_plans_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       menu_items: {
         Row: {
@@ -234,6 +248,13 @@ export type Database = {
             foreignKeyName: "menu_items_sub_category_id_fkey"
             columns: ["sub_category_id"]
             isOneToOne: false
+            referencedRelation: "meal_plan_options"
+            referencedColumns: ["sub_category_id"]
+          },
+          {
+            foreignKeyName: "menu_items_sub_category_id_fkey"
+            columns: ["sub_category_id"]
+            isOneToOne: false
             referencedRelation: "sub_categories"
             referencedColumns: ["id"]
           },
@@ -245,6 +266,7 @@ export type Database = {
           id: string
           item_name: string
           item_type: string | null
+          meal_plan_id: number | null
           menu_item_id: string | null
           notes: string | null
           order_id: string
@@ -258,6 +280,7 @@ export type Database = {
           id?: string
           item_name: string
           item_type?: string | null
+          meal_plan_id?: number | null
           menu_item_id?: string | null
           notes?: string | null
           order_id: string
@@ -271,6 +294,7 @@ export type Database = {
           id?: string
           item_name?: string
           item_type?: string | null
+          meal_plan_id?: number | null
           menu_item_id?: string | null
           notes?: string | null
           order_id?: string
@@ -280,6 +304,34 @@ export type Database = {
           unit_price_cents?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "order_items_meal_plan_id_fkey"
+            columns: ["meal_plan_id"]
+            isOneToOne: false
+            referencedRelation: "meal_plan_options"
+            referencedColumns: ["meal_plan_id"]
+          },
+          {
+            foreignKeyName: "order_items_meal_plan_id_fkey"
+            columns: ["meal_plan_id"]
+            isOneToOne: false
+            referencedRelation: "meal_plan_price_ranges"
+            referencedColumns: ["meal_plan_id"]
+          },
+          {
+            foreignKeyName: "order_items_meal_plan_id_fkey"
+            columns: ["meal_plan_id"]
+            isOneToOne: false
+            referencedRelation: "meal_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "meal_plan_options"
+            referencedColumns: ["menu_item_id"]
+          },
           {
             foreignKeyName: "order_items_menu_item_id_fkey"
             columns: ["menu_item_id"]
@@ -478,7 +530,31 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      meal_plan_options: {
+        Row: {
+          description: string | null
+          image_url: string | null
+          meal_plan_id: number | null
+          menu_item_id: string | null
+          name: string | null
+          price_cents: number | null
+          slot: string | null
+          sub_category_id: number | null
+          sub_category_name: string | null
+          sub_category_sort: number | null
+        }
+        Relationships: []
+      }
+      meal_plan_price_ranges: {
+        Row: {
+          max_cents: number | null
+          meal_plan_id: number | null
+          min_cents: number | null
+          price_cents: number | null
+          pricing_mode: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _contact_notify_post: {

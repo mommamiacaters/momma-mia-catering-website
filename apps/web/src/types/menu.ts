@@ -34,17 +34,35 @@ export interface SubCategory {
   is_active: boolean;
 }
 
+/**
+ * How a plan charges.
+ *  fixed — the customer pays price_cents; the dishes they pick cost nothing.
+ *  range — the dishes carry their own prices, so the total depends on the
+ *          combination and the plan advertises a min–max instead.
+ */
+export type PricingMode = "fixed" | "range";
+
 export interface MealPlan {
   id: number;
   name: string;
   description: string | null;
   price_cents: number;
+  pricing_mode: PricingMode;
   main_count: number;
   side_count: number;
   dessert_count: number;
   rice_count: number;
   sort_order: number;
   is_active: boolean;
+}
+
+/** Row of the meal_plan_price_ranges view — what a plan would cost in range mode. */
+export interface MealPlanPriceRange {
+  meal_plan_id: number;
+  pricing_mode: PricingMode;
+  price_cents: number;
+  min_cents: number;
+  max_cents: number;
 }
 
 /** The slot columns, in the order they read on the printed menu. */

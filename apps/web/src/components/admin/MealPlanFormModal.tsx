@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { PLAN_SLOTS, type MealPlan } from "../../types/menu";
+import { PLAN_SLOTS, type MealPlan, type MealPlanPriceRange, type PricingMode } from "../../types/menu";
 import Modal from "../ui/Modal";
+import { peso } from "../../constants/orders";
 
 interface MealPlanFormModalProps {
   open: boolean;
   onClose: () => void;
   /** Plan being edited, or null when adding. */
   initial: MealPlan | null;
+  /** Live min–max for this plan, used to preview what "range" mode would charge. */
+  priceRange?: MealPlanPriceRange;
   nextSortOrder: number;
   onSaved: () => void;
 }
@@ -30,12 +33,14 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
   open,
   onClose,
   initial,
+  priceRange,
   nextSortOrder,
   onSaved,
 }) => {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [counts, setCounts] = useState<Counts>(blankCounts);
+  const [pricingMode, setPricingMode] = useState<PricingMode>("fixed");
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +57,13 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
         dessert_count: initial.dessert_count,
         rice_count: initial.rice_count,
       });
+      setPricingMode(initial.pricing_mode);
       setIsActive(initial.is_active);
     } else {
       setName("");
       setPrice("");
       setCounts(blankCounts);
+      setPricingMode("fixed");
       setIsActive(true);
     }
   }, [open, initial]);
@@ -90,11 +97,14 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
     const payload = {
       name: trimmed,
       description: composition,
+      // Kept even in range mode: it is what the plan falls back to if the mode is
+      // switched back, so flipping to range and back doesn't lose the figure.
       price_cents: Math.round(Number(price || 0) * 100),
       main_count: counts.main_count,
       side_count: counts.side_count,
       dessert_count: counts.dessert_count,
       rice_count: counts.rice_count,
+      pricing_mode: pricingMode,
       is_active: isActive,
       ...(initial ? {} : { sort_order: nextSortOrder }),
     };
@@ -159,22 +169,92 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
           />
         </div>
 
-        <div>
-          <label htmlFor="plan-price" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
-            Price per box (₱)
-          </label>
-          <input
-            id="plan-price"
-            type="number"
-            min="0"
-            step="1"
-            required
-            className={inputClass}
-            value={price}
-            placeholder="210"
-            onChange={(e) => setPrice(e.target.value)}
-          />
-        </div>
+        {/* ── How this plan charges ─────────────────────────────────────── */}
+        <fieldset>
+          <legend className="block text-sm font-poppins font-medium text-brand-text mb-2">
+            How this plan is priced
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                {
+                  mode: "fixed" as const,
+                  title: "One fixed price",
+                  blurb: "Every box costs the same. The dishes picked don't change the total.",
+                },
+                {
+                  mode: "range" as const,
+                  title: "Price range",
+                  blurb: "The customer pays for the dishes they choose, shown as a range.",
+                },
+              ]
+            ).map(({ mode, title, blurb }) => (
+              <label
+                key={mode}
+                className={`flex cursor-pointer gap-2.5 rounded-lg border p-3 transition-colors ${
+                  pricingMode === mode
+                    ? "border-brand-primary bg-brand-primary/5"
+                    : "border-brand-divider hover:border-brand-primary/40"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="pricing-mode"
+                  value={mode}
+                  checked={pricingMode === mode}
+                  onChange={() => setPricingMode(mode)}
+                  className="mt-0.5 accent-brand-primary"
+                />
+                <span className="min-w-0">
+                  <span className="block font-arvo-bold text-sm text-brand-text">{title}</span>
+                  <span className="block font-poppins text-xs text-brand-text/60 leading-snug">
+                    {blurb}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {pricingMode === "fixed" ? (
+          <div>
+            <label htmlFor="plan-price" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
+              Price per box (₱)
+            </label>
+            <input
+              id="plan-price"
+              type="number"
+              min="0"
+              step="1"
+              required
+              className={inputClass}
+              value={price}
+              placeholder="210"
+              onChange={(e) => setPrice(e.target.value)}
+            />
+          </div>
+        ) : (
+          /*
+            In range mode the total is the sum of whatever the customer picks, so
+            there is no figure to type. The range is READ from the database view
+            rather than computed here — the same number the storefront and the
+            order maths will use, so they cannot disagree.
+          */
+          <div className="rounded-lg border border-brand-divider bg-brand-secondary/40 px-4 py-3">
+            <p className="font-poppins text-xs text-brand-text/55">Customers will be quoted</p>
+            <p className="font-arvo-bold text-lg text-brand-primary">
+              {priceRange
+                ? priceRange.min_cents === priceRange.max_cents
+                  ? peso(priceRange.min_cents)
+                  : `${peso(priceRange.min_cents)} – ${peso(priceRange.max_cents)}`
+                : "—"}
+            </p>
+            <p className="mt-1 font-poppins text-xs text-brand-text/55">
+              Worked out from the cheapest and dearest dishes currently on sale in each
+              slot. Change a dish's price and this moves with it.
+            </p>
+          </div>
+        )}
 
         <fieldset>
           <legend className="block text-sm font-poppins font-medium text-brand-text mb-1">
@@ -237,7 +317,12 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
         <div className="rounded-lg bg-brand-secondary/50 px-4 py-3">
           <p className="font-poppins text-xs text-brand-text/55 mb-0.5">Customers will see</p>
           <p className="font-arvo-bold text-sm text-brand-text">
-            {name.trim() || "Plan name"} — ₱{Number(price || 0).toFixed(0)}
+            {name.trim() || "Plan name"} —{" "}
+            {pricingMode === "range"
+              ? priceRange
+                ? `${peso(priceRange.min_cents)} – ${peso(priceRange.max_cents)}`
+                : "price range"
+              : `₱${Number(price || 0).toFixed(0)}`}
           </p>
           <p className="font-poppins text-xs text-brand-text/70">
             {composition || "No dishes selected yet"}

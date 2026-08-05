@@ -210,21 +210,15 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
         </div>
 
         {/*
-          A dish that fills a meal-plan slot has no price of its own — the plan
-          is the priced line and the dish is what goes in the box. Anything typed
-          here is an UPCHARGE on top of the plan (the printed menu's Garlic Rice
-          +₱15 / Yangchow +₱20), so the field relabels itself rather than
-          disappearing.
+          A dish keeps its own price — it's still the à-la-carte figure, and it's
+          what a "price range" plan charges. It is simply NOT what the customer
+          pays inside a fixed-price plan, where the plan line carries the money.
+          Say that here rather than leaving the admin to wonder why ₱70 never
+          shows up on a ₱210 order.
         */}
         <div>
           <label htmlFor="item-price" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
-            {isPlanComponent ? (
-              <>
-                Upcharge (₱) <span className="text-brand-text/40 font-normal">(optional)</span>
-              </>
-            ) : (
-              "Price (₱)"
-            )}
+            Price (₱)
           </label>
           <input
             id="item-price"
@@ -233,19 +227,16 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
             step="0.01"
             className={inputClass}
             value={form.price}
-            placeholder={
-              isPlanComponent
-                ? "Leave blank — included in the plan price"
-                : "Leave blank for “price on request”"
-            }
+            placeholder="Leave blank for “price on request”"
             onChange={(e) => setForm({ ...form, price: e.target.value })}
           />
           {isPlanComponent && (
-            <span className="mt-1 flex items-start gap-1.5 font-poppins text-xs text-brand-text/55">
+            <span className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-brand-secondary/50 px-3 py-2 font-poppins text-xs text-brand-text/65">
               <i className="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
               <span>
-                Counts as a <strong>{selectedSub?.slot}</strong> inside a meal plan, so the
-                plan's price already covers it. Only fill this in to charge extra.
+                Counts as a <strong>{selectedSub?.slot}</strong> in a meal plan. On a
+                fixed-price plan this amount is <strong>not charged</strong> — the plan's
+                price applies. It is only charged on a plan set to “price range”.
               </span>
             </span>
           )}
