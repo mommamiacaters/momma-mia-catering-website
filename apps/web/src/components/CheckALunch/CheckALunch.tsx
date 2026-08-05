@@ -196,11 +196,15 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
         <span className="inline-block font-poppins text-xs font-semibold tracking-[0.2em] uppercase text-brand-primary mb-3">
           Step by Step
         </span>
-        <div className="mb-3">
-          <h2 className="glitter-text font-arvo text-3xl md:text-4xl font-bold px-2">
-            Build Your Lunch Box
-          </h2>
-        </div>
+        <h2 className="font-arvo text-3xl md:text-4xl font-bold text-brand-text px-2">
+          Build Your Lunch Box
+        </h2>
+        {/* Short rule instead of a gradient fill — the emphasis sits beside the
+            words rather than fighting them for contrast. */}
+        <span
+          className="mx-auto mt-4 mb-5 block h-1 w-16 rounded-full bg-brand-primary"
+          aria-hidden="true"
+        />
         <p className="font-poppins text-brand-text/50 max-w-md mx-auto leading-relaxed">
           Choose a plan, pick your favorites, and we&rsquo;ll pack it fresh
           for you.
