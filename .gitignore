@@ -29,3 +29,6 @@ n8n
 # Commit .mcp.json.example (redacted) instead.
 .mcp.json
 supabase/.temp
+
+# tsc -b incremental build artifacts
+*.tsbuildinfo

@@ -20,13 +20,6 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 }) => {
   const percentage = total > 0 ? Math.min((current / total) * 100, 100) : 0;
   
-  // Size configurations
-  const sizeConfig = {
-    small: 'h-1',
-    medium: 'h-1.5', 
-    large: 'h-2'
-  };
-
   const textSizeConfig = {
     small: 'text-xs',
     medium: 'text-sm',

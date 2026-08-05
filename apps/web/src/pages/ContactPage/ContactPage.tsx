@@ -47,7 +47,8 @@ const ContactPage: React.FC = () => {
         p_first_name: formData.firstName,
         p_last_name: formData.lastName,
         p_email: formData.email,
-        p_topic: formData.topic || null,
+        // The RPC nullifs an empty string, so "" is the right "no topic" value.
+        p_topic: formData.topic || "",
         p_message: formData.message,
         p_hp: honeypot,
       });

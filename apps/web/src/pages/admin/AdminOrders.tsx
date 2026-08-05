@@ -4,6 +4,7 @@ import MapPlaceholder from "../../components/maps/MapPlaceholder";
 import PaginationBar from "../../components/ui/PaginationBar";
 import {
   ORDER_STATUSES,
+  type OrderStatus,
   itemCountLabel,
   orderDate,
   orderStatusClass,
@@ -74,7 +75,8 @@ const AdminOrders: React.FC = () => {
       setError(error.message);
     } else {
       setError(null);
-      setOrders((data as Order[]) ?? []);
+      // Embedded order_items widen the row type past a direct cast.
+      setOrders((data as unknown as Order[]) ?? []);
       setTotal(count ?? 0);
     }
   };
@@ -108,7 +110,7 @@ const AdminOrders: React.FC = () => {
   const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, total);
 
-  const setStatus = async (order: Order, status: string) => {
+  const setStatus = async (order: Order, status: OrderStatus) => {
     const previous = order.status;
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status } : o)));
     const { error } = await supabase.from("orders").update({ status }).eq("id", order.id);
@@ -214,7 +216,7 @@ const AdminOrders: React.FC = () => {
                       */}
                       <select
                         value={order.status}
-                        onChange={(e) => setStatus(order, e.target.value)}
+                        onChange={(e) => setStatus(order, e.target.value as OrderStatus)}
                         aria-label={`Status for order ${order.order_ref}`}
                         className={`rounded-full border-0 px-3 py-1.5 font-poppins text-xs font-medium capitalize cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 ${orderStatusClass(
                           order.status,
