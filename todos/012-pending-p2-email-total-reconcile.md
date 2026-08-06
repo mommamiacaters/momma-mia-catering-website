@@ -63,3 +63,8 @@ producer/consumer in sync) — coordinate with simplicity todo 015.
   `total_cents = v_subtotal` and ignores `delivery_fee_cents` entirely. It is 0 everywhere today,
   so the arithmetic holds — but the first time anyone sets a delivery fee, the receipt will render
   Subtotal + Delivery fee + a Total that excludes the fee. Worth a constraint or a recompute.
+
+- 2026-08-06 (later): the double-render fix is now DEPLOYED — `order-notify` **v11**, ACTIVE,
+  `verify_jwt` still false, smoke-tested (no token → 401, wrong token → 401, GET → 405).
+  Acceptance criterion 1 (rendered lines reconcile with the stated Total) is therefore MET.
+  This ticket now stays open ONLY for the delivery-fee half below.
