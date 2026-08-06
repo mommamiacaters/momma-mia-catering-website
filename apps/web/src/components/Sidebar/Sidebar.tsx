@@ -19,7 +19,8 @@ import type {
   PlanInstance,
 } from "../../types";
 import { isPlanInstanceComplete } from "../../utils/mealPlanUtils";
-import { PLAN_SLOT_META, compositionEmoji } from "../../constants/planSlots";
+import { PLAN_SLOT_META } from "../../constants/planSlots";
+import { CompositionIcons, SlotIcon } from "../ui/SlotIcons";
 import {
   deriveMinimumState,
   useStoreSettings,
@@ -48,10 +49,9 @@ interface ShoppingBagSidebarProps {
   onCheckout?: () => void;
 }
 
-const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label, emoji }) => ({
+const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label }) => ({
   type: slot,
   label,
-  emoji,
 }));
 
 const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
@@ -455,12 +455,11 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                       </div>
                     )}
 
-                    <span
-                      className="text-base select-none shrink-0"
-                      aria-hidden="true"
-                    >
-                      {compositionEmoji(limits)}
-                    </span>
+                    <CompositionIcons
+                      slots={limits}
+                      size={15}
+                      className="shrink-0"
+                    />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-arvo font-bold text-brand-text text-sm leading-tight">
                         #{instanceNum} {instance.type}
@@ -492,7 +491,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                   {/* Category Sections */}
                   <div className="border-t border-brand-divider">
                     {CATEGORY_META.map(
-                      ({ type: catType, label, emoji }) => {
+                      ({ type: catType, label }) => {
                         const categoryItems = instanceItems.filter(
                           (item) => item.type === catType
                         );
@@ -509,12 +508,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                             {/* Category Header */}
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-1.5">
-                                <span
-                                  className="text-xs"
-                                  aria-hidden="true"
-                                >
-                                  {emoji}
-                                </span>
+                                <SlotIcon slot={catType} size={13} />
                                 <span className="font-poppins text-[0.65rem] font-semibold text-brand-text/50 uppercase tracking-wider">
                                   {label}
                                 </span>

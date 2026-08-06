@@ -16,6 +16,7 @@ import {
 import { FALLBACK_IMAGE } from "../../CachedImage";
 import { isPlanInstanceComplete } from "../../../utils/mealPlanUtils";
 import { PLAN_SLOT_META } from "../../../constants/planSlots";
+import { SlotIcon } from "../../ui/SlotIcons";
 
 interface TrayPreviewProps {
   planInstances: PlanInstance[];
@@ -37,8 +38,10 @@ interface TrayPreviewProps {
   compact?: boolean;
 }
 
-const CATEGORY_META: { type: CategoryType; label: string; emoji: string }[] =
-  PLAN_SLOT_META.map(({ slot, label, emoji }) => ({ type: slot, label, emoji }));
+const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label }) => ({
+  type: slot as CategoryType,
+  label,
+}));
 
 const TrayPreview: React.FC<TrayPreviewProps> = ({
   planInstances,
@@ -314,7 +317,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
               <div
                 className={compact ? "space-y-2.5" : "grid grid-cols-3 gap-3"}
               >
-                {CATEGORY_META.map(({ type, label, emoji }) => {
+                {CATEGORY_META.map(({ type, label }) => {
                   const catItems = pi.items.filter(
                     (item) => item.type === type
                   );
@@ -345,9 +348,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                       {/* Category label — the count rides along on the right
                           in compact mode, where there's horizontal room. */}
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className="text-sm" aria-hidden="true">
-                          {emoji}
-                        </span>
+                        <SlotIcon slot={type} size={14} />
                         <span className="font-poppins text-[0.65rem] font-semibold text-brand-text/70 uppercase tracking-wide">
                           {label}
                         </span>

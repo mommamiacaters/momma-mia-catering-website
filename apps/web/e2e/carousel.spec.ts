@@ -83,8 +83,10 @@ test.describe("Service Page Carousel", () => {
   });
 
   test("image preview modal opens on keyboard Enter and closes on ESC", async ({ page }) => {
-    // Focus the first slide and press Enter (avoids drag detection issues)
-    const firstSlide = page.locator("div[role='button'][aria-label^='Preview']").first();
+    // Focus the first slide and press Enter (avoids drag detection issues).
+    // The slide's aria-label is "View <title> image N fullscreen" — it used to
+    // start with "Preview", which is why this selector had gone stale.
+    const firstSlide = page.locator("div[role='button'][aria-label^='View']").first();
     await firstSlide.focus();
     await page.keyboard.press("Enter");
 
@@ -97,12 +99,15 @@ test.describe("Service Page Carousel", () => {
     await expect(modal).not.toBeVisible();
   });
 
-  test("active dot has larger size than inactive dots", async ({ page }) => {
+  test("active dot is visually distinct from inactive dots", async ({ page }) => {
     const dots = page.locator("button[aria-label^='Go to image']");
 
-    // Active dot (first) should have w-3 h-3 class
-    await expect(dots.nth(0)).toHaveClass(/w-3/);
-    // Inactive dot should have w-2 h-2 class
+    // The active indicator is a WIDE PILL (w-6 h-2) in brand colour; inactive
+    // ones are small round dots (w-2 h-2). This assertion used to look for
+    // w-3 vs w-2, from when the active dot was a bigger circle.
+    await expect(dots.nth(0)).toHaveClass(/w-6/);
+    await expect(dots.nth(0)).toHaveClass(/bg-brand-primary/);
     await expect(dots.nth(1)).toHaveClass(/w-2/);
+    await expect(dots.nth(1)).not.toHaveClass(/w-6/);
   });
 });

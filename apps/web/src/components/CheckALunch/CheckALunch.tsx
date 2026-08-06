@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  UtensilsCrossed,
-  Leaf,
-  Wheat,
-  Cake,
-  Check,
-  ChevronRight,
-  Zap,
-  Info,
-} from "lucide-react";
+import { Check, ChevronRight, Zap, Info } from "lucide-react";
 import {
   deriveMinimumState,
   useStoreSettings,
@@ -62,19 +53,12 @@ interface CheckALunchProps {
   ) => void;
 }
 
-/** Only the icons are local — label, emoji and order come from the shared meta. */
-const SLOT_ICON: Record<CategoryType, React.ElementType> = {
-  main: UtensilsCrossed,
-  side: Leaf,
-  rice: Wheat,
-  dessert: Cake,
-};
-
-const CATEGORY_CONFIG = PLAN_SLOT_META.map(({ slot, label, description }) => ({
+/** Icons now live in the shared meta too — see planSlots.ts. */
+const CATEGORY_CONFIG = PLAN_SLOT_META.map(({ slot, label, description, Icon }) => ({
   type: slot,
   label,
   description,
-  icon: SLOT_ICON[slot],
+  icon: Icon,
 }));
 
 /** Every slot, in menu order. Which ones apply depends on the chosen plan. */

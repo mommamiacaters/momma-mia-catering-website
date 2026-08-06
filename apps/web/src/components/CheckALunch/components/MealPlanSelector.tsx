@@ -2,7 +2,7 @@ import React from "react";
 import { Minus, Plus, Check } from "lucide-react";
 import { MealPlanType, MealPlanOrder } from "../../../types";
 import type { MealPlan } from "../../../services/menuService";
-import { compositionEmoji } from "../../../constants/planSlots";
+import { CompositionIcons } from "../../ui/SlotIcons";
 
 interface MealPlanSelectorProps {
   plans: MealPlan[];
@@ -64,8 +64,8 @@ const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
                 }
               }}
             >
-              <div className="text-3xl mb-3 select-none" aria-hidden="true">
-                {compositionEmoji(plan.slots)}
+              <div className="mb-3 flex justify-center">
+                <CompositionIcons slots={plan.slots} size={26} />
               </div>
 
               <h3 className="font-arvo font-bold text-brand-text text-xl mb-1">

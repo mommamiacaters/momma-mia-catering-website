@@ -12,6 +12,8 @@
     "start:android": "node scripts/run-android.mjs",
     "web:build": "pnpm --filter @momma-mia/web build",
     "web:lint": "pnpm --filter @momma-mia/web lint",
+    "web:test": "pnpm --filter @momma-mia/web test",
+    "test": "pnpm --filter @momma-mia/web test",
     "typecheck": "pnpm -r exec tsc -b --force",
     "db:types": "supabase gen types typescript --project-id fbzwicfvhrtyfqjounvo > packages/db/src/database.types.ts"
   },

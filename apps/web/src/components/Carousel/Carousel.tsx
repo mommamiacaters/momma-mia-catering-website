@@ -281,6 +281,11 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, autoPlay = 5000 }) =
                 ? "opacity-0 pointer-events-none"
                 : "opacity-0 group-hover/carousel:opacity-100"
             }`}
+            // opacity-0 + pointer-events-none hides it from sight and from the
+            // mouse, but a plain button stays in the tab order and is still
+            // announced as an available action. goTo() clamps, so activating it
+            // on the first slide silently does nothing.
+            disabled={index === 0}
             aria-label="Previous image"
             onClick={goPrev}
           >
@@ -293,6 +298,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, autoPlay = 5000 }) =
                 ? "opacity-0 pointer-events-none"
                 : "opacity-0 group-hover/carousel:opacity-100"
             }`}
+            disabled={index === total - 1}
             aria-label="Next image"
             onClick={goNext}
           >
