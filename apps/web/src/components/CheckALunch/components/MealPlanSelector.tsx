@@ -87,25 +87,46 @@ const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
 
               {isSelected ? (
                 <div
-                  className="flex items-center gap-3 justify-center"
+                  className="flex items-center gap-1.5 justify-center"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {/* Bulk steps floor at 1 rather than 0: dropping to 0 deletes
+                      every box of this plan along with the dishes assigned to
+                      them, which is too destructive for a one-tap control.
+                      Removal stays on the single − button. */}
+                  <button
+                    onClick={() =>
+                      onQuantityChange(type, Math.max(1, order!.quantity - 10))
+                    }
+                    disabled={order!.quantity <= 1}
+                    className="h-10 px-2 rounded-lg bg-brand-secondary text-brand-text/70 font-poppins text-xs font-bold tabular-nums hover:bg-brand-divider disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer transition-colors"
+                    aria-label={`Remove 10 ${type} boxes`}
+                  >
+                    −10
+                  </button>
                   <button
                     onClick={() => onQuantityChange(type, order!.quantity - 1)}
-                    className="w-10 h-10 rounded-full bg-brand-divider hover:bg-brand-text/20 flex items-center justify-center transition-colors"
+                    className="w-10 h-10 rounded-full bg-brand-divider hover:bg-brand-text/20 flex items-center justify-center transition-colors cursor-pointer shrink-0"
                     aria-label={`Decrease ${type} quantity`}
                   >
                     <Minus size={16} className="text-brand-text" />
                   </button>
-                  <span className="font-poppins text-xl font-bold text-brand-text min-w-[2.5rem] text-center tabular-nums">
+                  <span className="font-poppins text-xl font-bold text-brand-text min-w-[2.25rem] text-center tabular-nums">
                     {order!.quantity}
                   </span>
                   <button
                     onClick={() => onQuantityChange(type, order!.quantity + 1)}
-                    className="w-10 h-10 rounded-full bg-brand-primary hover:bg-brand-primary/80 text-white flex items-center justify-center transition-colors shadow-md shadow-brand-primary/20"
+                    className="w-10 h-10 rounded-full bg-brand-primary hover:bg-brand-primary/80 text-white flex items-center justify-center transition-colors shadow-md shadow-brand-primary/20 cursor-pointer shrink-0"
                     aria-label={`Increase ${type} quantity`}
                   >
                     <Plus size={16} />
+                  </button>
+                  <button
+                    onClick={() => onQuantityChange(type, order!.quantity + 10)}
+                    className="h-10 px-2 rounded-lg bg-brand-primary/10 text-brand-primary font-poppins text-xs font-bold tabular-nums hover:bg-brand-primary/20 transition-colors cursor-pointer"
+                    aria-label={`Add 10 more ${type} boxes`}
+                  >
+                    +10
                   </button>
                 </div>
               ) : (

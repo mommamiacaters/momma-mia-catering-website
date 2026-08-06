@@ -7,8 +7,12 @@ import {
   Check,
   ChevronRight,
   Zap,
-  Plus,
+  Info,
 } from "lucide-react";
+import {
+  deriveMinimumState,
+  useStoreSettings,
+} from "../../hooks/useStoreSettings";
 import {
   MealPlanType,
   MenuItem,
@@ -20,7 +24,7 @@ import {
 import { isPlanInstanceComplete } from "../../utils/mealPlanUtils";
 import { PLAN_SLOT_META, PLAN_SLOTS } from "../../constants/planSlots";
 import type { MealPlan } from "../../services/menuService";
-import { preloadImages, FALLBACK_IMAGE } from "../CachedImage";
+import { preloadImages } from "../CachedImage";
 import MealPlanSelector from "./components/MealPlanSelector";
 import FoodCard from "./components/FoodCard";
 import TrayPreview from "./components/TrayPreview";
@@ -76,10 +80,6 @@ const CATEGORY_CONFIG = PLAN_SLOT_META.map(({ slot, label, description }) => ({
 /** Every slot, in menu order. Which ones apply depends on the chosen plan. */
 const CATEGORIES: CategoryType[] = PLAN_SLOTS;
 
-const CATEGORY_EMOJI: Record<string, string> = Object.fromEntries(
-  PLAN_SLOT_META.map(({ slot, emoji }) => [slot, emoji]),
-);
-
 const CheckALunch: React.FC<CheckALunchProps> = ({
   mealPlanOrders,
   planInstances,
@@ -104,6 +104,18 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   onMoveItem,
 }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryType>("main");
+
+  // Order minimum, set by the admin in app_settings. planInstances.length is the
+  // same figure getTotalMealPlanCount() gives the cart, and deriveMinimumState is
+  // the same derivation the cart uses, so this notice and the checkout gate can
+  // never disagree.
+  const {
+    minimumMealPlans,
+    error: settingsError,
+    retry: retrySettings,
+  } = useStoreSettings();
+  const totalBoxes = planInstances.length;
+  const min = deriveMinimumState(minimumMealPlans, totalBoxes);
 
   // Preload ALL category images when menu data arrives
   useEffect(() => {
@@ -176,21 +188,20 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   }, [planInstances]);
 
   // Active plan for mini preview
-  const { activePlan, activePlanNum, activePlanLimits } = useMemo(() => {
+  const { activePlan, activePlanNum } = useMemo(() => {
     const plan = activePlanInstanceId
       ? sortedInstances.find((p) => p.id === activePlanInstanceId)
       : null;
     return {
       activePlan: plan || null,
       activePlanNum: plan ? instanceNumbers.get(plan.id) || 1 : 0,
-      activePlanLimits: plan ? getMealPlanLimits(plan.type) : {},
     };
-  }, [activePlanInstanceId, sortedInstances, instanceNumbers, getMealPlanLimits]);
+  }, [activePlanInstanceId, sortedInstances, instanceNumbers]);
 
   if (loading || error || !menuData) return null;
 
   return (
-    <div className="max-w-6xl mx-auto overflow-x-clip">
+    <div className="max-w-7xl mx-auto overflow-x-clip">
       {/* ─── Section Header ─── */}
       <div className="text-center mb-10">
         <span className="inline-block font-poppins text-xs font-semibold tracking-[0.2em] uppercase text-brand-primary mb-3">
@@ -233,6 +244,91 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           </div>
         </div>
 
+        {/* ── Order minimum ──
+            A persistent banner rather than a hover tooltip: this rule blocks
+            checkout, and hover doesn't exist on touch. Hidden when the minimum
+            is 1, where it would be pure noise. */}
+        {min.active && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={`mb-6 rounded-xl border px-4 py-3 transition-colors ${
+              min.met
+                ? "bg-green-50 border-green-200"
+                : "bg-brand-primary/5 border-brand-primary/25"
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              {min.met ? (
+                <Check
+                  size={18}
+                  strokeWidth={3}
+                  className="text-green-600 shrink-0"
+                />
+              ) : (
+                <Info size={18} className="text-brand-primary shrink-0" />
+              )}
+              <p className="font-poppins text-sm text-brand-text">
+                <strong className="font-semibold">
+                  Minimum {min.minimum} lunch boxes per order.
+                </strong>{" "}
+                {min.met ? (
+                  <span className="text-green-700">
+                    You have {totalBoxes} — you&rsquo;re good to go.
+                  </span>
+                ) : (
+                  <span className="text-brand-text/60">
+                    You have {totalBoxes}; add {min.remaining} more to check
+                    out.
+                  </span>
+                )}
+              </p>
+              <span
+                className={`ml-auto shrink-0 font-poppins text-sm font-bold tabular-nums px-2.5 py-1 rounded-full ${
+                  min.met
+                    ? "bg-green-200/60 text-green-700"
+                    : "bg-brand-primary/10 text-brand-primary"
+                }`}
+              >
+                {totalBoxes}/{min.minimum}
+              </span>
+            </div>
+
+            <div className="mt-2.5 h-1.5 bg-white/70 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-[width] duration-500 ease-out ${
+                  min.met ? "bg-green-500" : "bg-brand-primary"
+                }`}
+                style={{
+                  width: `${Math.min(100, (totalBoxes / min.minimum) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* A settings outage must be visible here, not silently hide the notice
+            while the cart quietly blocks checkout with no explanation. */}
+        {settingsError && (
+          <div
+            role="alert"
+            className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-center gap-2.5"
+          >
+            <Info size={18} className="text-amber-600 shrink-0" />
+            <p className="font-poppins text-sm text-brand-text">
+              We couldn&rsquo;t load this store&rsquo;s order rules, so checkout
+              is paused. Check your connection and try again.
+            </p>
+            <button
+              type="button"
+              onClick={retrySettings}
+              className="ml-auto shrink-0 font-poppins text-sm font-semibold text-amber-700 underline cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         <MealPlanSelector
           plans={plans}
           mealPlanOrders={mealPlanOrders}
@@ -242,9 +338,29 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
         />
       </section>
 
-      {/* ─── Step 2: Pick Dishes ─── */}
+      {/* ─── Step 2: Lunch Box (sticky) + Dish Picker ───
+          items-start is load-bearing: grid children stretch by default, and a
+          full-height column can't scroll-stick. min-w-0 on the picker lets the
+          card grid shrink instead of forcing the page wider. */}
       {hasMealPlan && (
-        <section id="dish-picker-section" className="mb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 lg:items-start">
+          {/* ── Lunch Box summary — sticky beside the dishes on desktop, below
+                them on mobile (where the floating bag button covers checkout) ── */}
+          <aside className="order-2 lg:order-1 mt-12 lg:mt-0 lg:sticky lg:top-24">
+            <TrayPreview
+              compact
+              planInstances={planInstances}
+              activePlanInstanceId={activePlanInstanceId}
+              getMealPlanLimits={getMealPlanLimits}
+              onSetActivePlan={onSetActivePlan}
+              onMoveItem={onMoveItem}
+            />
+          </aside>
+
+          <section
+            id="dish-picker-section"
+            className="order-1 lg:order-2 lg:col-span-2 min-w-0 mb-10"
+          >
           <div className="flex items-center gap-3 mb-8">
             <span className="flex items-center justify-center w-9 h-9 rounded-full bg-brand-primary/10 text-brand-primary ring-2 ring-brand-primary/30 font-poppins text-sm font-bold shrink-0">
               2
@@ -336,65 +452,6 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                 </button>
               </div>
 
-              <div className="px-4 pb-3 flex gap-4">
-                {CATEGORIES.map((catType) => {
-                  const limit =
-                    (activePlanLimits[catType] as number) || 0;
-                  if (limit === 0) return null;
-                  const catItems = activePlan.items.filter(
-                    (i) => i.type === catType
-                  );
-                  const catComplete = catItems.length >= limit;
-                  return (
-                    <div
-                      key={catType}
-                      className="flex items-center gap-1.5"
-                    >
-                      <span className="text-xs" aria-hidden="true">
-                        {CATEGORY_EMOJI[catType]}
-                      </span>
-                      <div className="flex gap-1">
-                        {catItems.map((item) => (
-                          <div
-                            key={item.instanceId}
-                            className="w-7 h-7 rounded-md overflow-hidden border border-brand-primary/30 shadow-sm"
-                            title={item.name}
-                          >
-                            <img
-                              src={item.image || FALLBACK_IMAGE}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ))}
-                        {Array.from({
-                          length: Math.max(0, limit - catItems.length),
-                        }).map((_, i) => (
-                          <div
-                            key={`e-${catType}-${i}`}
-                            className="w-7 h-7 rounded-md border border-dashed border-brand-divider/60 flex items-center justify-center bg-white/50"
-                          >
-                            <Plus
-                              size={10}
-                              className="text-brand-divider"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <span
-                        className={`font-poppins text-[0.6rem] font-semibold ${
-                          catComplete
-                            ? "text-green-600"
-                            : "text-brand-text/30"
-                        }`}
-                      >
-                        {catItems.length}/{limit}
-                        {catComplete && " \u2713"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           )}
 
@@ -504,7 +561,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   aria-hidden={!isActiveTab}
                 >
                   {items.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {items.map((item, index) => (
                         <FoodCard
                           key={`${item.name}-${index}`}
@@ -544,20 +601,8 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
               </button>
             </div>
           )}
-        </section>
-      )}
-
-      {/* ─── Tray Preview ─── */}
-      {hasMealPlan && (
-        <section className="mt-12">
-          <TrayPreview
-            planInstances={planInstances}
-            activePlanInstanceId={activePlanInstanceId}
-            getMealPlanLimits={getMealPlanLimits}
-            onSetActivePlan={onSetActivePlan}
-            onMoveItem={onMoveItem}
-          />
-        </section>
+          </section>
+        </div>
       )}
     </div>
   );

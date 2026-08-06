@@ -29,6 +29,12 @@ interface TrayPreviewProps {
     targetPlanId: string,
     targetItemInstanceId?: string
   ) => void;
+  /**
+   * Narrow-column layout for the sticky sidebar: slots stack vertically and
+   * dishes are listed by name. Tailwind breakpoints measure the viewport, not
+   * this column, so the variant has to be passed in explicitly.
+   */
+  compact?: boolean;
 }
 
 const CATEGORY_META: { type: CategoryType; label: string; emoji: string }[] =
@@ -40,6 +46,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
   getMealPlanLimits,
   onSetActivePlan,
   onMoveItem,
+  compact = false,
 }) => {
   // ─── Drag state ───
   const [dragState, setDragState] = useState<{
@@ -57,6 +64,16 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
   const allComplete =
     planInstances.length > 0 &&
     planInstances.every((pi) => isPlanInstanceComplete(pi, getMealPlanLimits(pi.type)));
+
+  // Unfilled slots across every box — drives the disabled CTA's label.
+  const remainingSlots = planInstances.reduce((sum, pi) => {
+    const limits = getMealPlanLimits(pi.type);
+    const total = Object.values(limits).reduce(
+      (a: number, b) => a + (b as number),
+      0
+    );
+    return sum + Math.max(0, total - pi.items.length);
+  }, 0);
 
   // Sort by displayOrder
   const sortedInstances = [...planInstances].sort(
@@ -173,14 +190,19 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
 
   return (
     <div
-      className={`rounded-2xl p-5 transition-colors duration-500 ${
+      className={`rounded-2xl p-5 transition-colors duration-500 flex flex-col ${
+        // Cap the panel to the viewport so a long list scrolls inside it rather
+        // than pushing the pinned CTA off-screen. dvh (not vh) so mobile
+        // browser chrome doesn't cut it off.
+        compact ? "lg:max-h-[calc(100dvh-7rem)]" : ""
+      } ${
         allComplete
           ? "bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 shadow-lg shadow-green-100/50"
           : "bg-white border border-brand-divider shadow-md"
       }`}
     >
       {/* Header */}
-      <div className="flex items-center gap-2.5 mb-5">
+      <div className="flex items-center gap-2.5 mb-5 shrink-0">
         {allComplete ? (
           <CheckCircle2 size={22} className="text-green-600" />
         ) : (
@@ -211,8 +233,13 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
         </span>
       </div>
 
-      {/* Plan instance cards — clickable to select */}
-      <div className="space-y-4">
+      {/* Plan instance cards — clickable to select. min-h-0 lets this flex
+          child shrink below its content so it can actually scroll. */}
+      <div
+        className={`space-y-4 ${
+          compact ? "overflow-y-auto min-h-0 -mx-1 px-1" : ""
+        }`}
+      >
         {sortedInstances.map((pi) => {
           const limits = getMealPlanLimits(pi.type);
           const totalSlots = Object.values(limits).reduce(
@@ -282,8 +309,11 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                 </span>
               </div>
 
-              {/* Category slots */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Category slots — stacked named rows in the narrow sidebar,
+                  side-by-side thumbnails in the full-width layout. */}
+              <div
+                className={compact ? "space-y-2.5" : "grid grid-cols-3 gap-3"}
+              >
                 {CATEGORY_META.map(({ type, label, emoji }) => {
                   const catItems = pi.items.filter(
                     (item) => item.type === type
@@ -312,7 +342,8 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                           : undefined
                       }
                     >
-                      {/* Category label */}
+                      {/* Category label — the count rides along on the right
+                          in compact mode, where there's horizontal room. */}
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <span className="text-sm" aria-hidden="true">
                           {emoji}
@@ -320,10 +351,25 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                         <span className="font-poppins text-[0.65rem] font-semibold text-brand-text/70 uppercase tracking-wide">
                           {label}
                         </span>
+                        {compact && (
+                          <span
+                            className={`ml-auto font-poppins text-[0.65rem] font-semibold ${
+                              categoryComplete
+                                ? "text-green-600"
+                                : "text-brand-text/40"
+                            }`}
+                          >
+                            {filled}/{max} {categoryComplete && "✓"}
+                          </span>
+                        )}
                       </div>
 
                       {/* Item thumbnails — draggable */}
-                      <div className="flex flex-wrap gap-1.5">
+                      <div
+                        className={
+                          compact ? "space-y-1" : "flex flex-wrap gap-1.5"
+                        }
+                      >
                         {catItems.map((item) => {
                           const isDragging =
                             dragState?.itemInstanceId ===
@@ -361,11 +407,22 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                                   item.instanceId
                                 );
                               }}
-                              className={`w-10 h-10 rounded-lg overflow-hidden bg-brand-secondary cursor-grab active:cursor-grabbing transition-[border-color,opacity,transform] duration-150 ${
+                              className={`cursor-grab active:cursor-grabbing transition-[border-color,opacity,transform] duration-150 ${
+                                compact
+                                  ? // White, full-contrast rows — on the muted
+                                    // secondary these read as disabled next to
+                                    // the live dish cards.
+                                    "flex items-center gap-2 w-full rounded-lg p-1 pr-2 text-left bg-white"
+                                  : "w-10 h-10 rounded-lg overflow-hidden bg-brand-secondary"
+                              } ${
                                 isDragging
-                                  ? "opacity-40 scale-90 border-2 border-brand-primary/50"
+                                  ? `opacity-40 border-2 border-brand-primary/50 ${
+                                      compact ? "" : "scale-90"
+                                    }`
                                   : isSwapTarget
-                                    ? "ring-2 ring-brand-accent border-2 border-brand-accent shadow-md scale-110"
+                                    ? `ring-2 ring-brand-accent border-2 border-brand-accent shadow-md ${
+                                        compact ? "" : "scale-110"
+                                      }`
                                     : "border-2 border-brand-primary/30 shadow-sm hover:border-brand-primary/50 hover:shadow-md"
                               }`}
                               title={`${item.name} — drag to swap`}
@@ -373,8 +430,17 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                               <img
                                 src={item.image || FALLBACK_IMAGE}
                                 alt={item.name}
-                                className="w-full h-full object-cover pointer-events-none"
+                                className={`object-cover pointer-events-none ${
+                                  compact
+                                    ? "w-9 h-9 rounded-md shrink-0"
+                                    : "w-full h-full"
+                                }`}
                               />
+                              {compact && (
+                                <span className="font-poppins text-[0.78rem] font-medium leading-snug text-brand-text line-clamp-2 pointer-events-none">
+                                  {item.name}
+                                </span>
+                              )}
                             </div>
                           );
                         })}
@@ -407,37 +473,64 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                                     }
                                   : undefined
                               }
-                              className={`w-10 h-10 rounded-lg border-2 border-dashed flex items-center justify-center transition-[border-color,opacity,transform] duration-150 ${
+                              className={`border-2 border-dashed transition-[border-color,opacity,transform] duration-150 ${
+                                compact
+                                  ? // min-h keeps the empty row a 44px touch target
+                                    "flex items-center gap-2 w-full rounded-lg p-1 pr-2 min-h-[2.75rem]"
+                                  : "w-10 h-10 rounded-lg flex items-center justify-center"
+                              } ${
                                 isSlotDropTarget
-                                  ? "border-brand-accent bg-brand-accent/10 scale-110 shadow-md"
+                                  ? `border-brand-accent bg-brand-accent/10 shadow-md ${
+                                      compact ? "" : "scale-110"
+                                    }`
                                   : isValidDrop
                                     ? "border-brand-primary/30 bg-brand-primary/5"
                                     : "border-brand-divider bg-brand-secondary/30"
                               }`}
                             >
-                              <Plus
-                                size={14}
-                                className={
-                                  isSlotDropTarget
-                                    ? "text-brand-accent"
-                                    : "text-brand-divider"
-                                }
-                              />
+                              {compact ? (
+                                <>
+                                  <span className="w-9 h-9 flex items-center justify-center shrink-0">
+                                    <Plus
+                                      size={14}
+                                      className={
+                                        isSlotDropTarget
+                                          ? "text-brand-accent"
+                                          : "text-brand-divider"
+                                      }
+                                    />
+                                  </span>
+                                  <span className="font-poppins text-[0.7rem] italic text-brand-text/40">
+                                    Add a {label.toLowerCase()}
+                                  </span>
+                                </>
+                              ) : (
+                                <Plus
+                                  size={14}
+                                  className={
+                                    isSlotDropTarget
+                                      ? "text-brand-accent"
+                                      : "text-brand-divider"
+                                  }
+                                />
+                              )}
                             </div>
                           );
                         })}
                       </div>
 
-                      {/* Count */}
-                      <p
-                        className={`font-poppins text-xs mt-1.5 ${
-                          categoryComplete
-                            ? "text-green-600 font-semibold"
-                            : "text-brand-text/40"
-                        }`}
-                      >
-                        {filled}/{max} {categoryComplete && "\u2713"}
-                      </p>
+                      {/* Count \u2014 compact mode already shows this in the label row */}
+                      {!compact && (
+                        <p
+                          className={`font-poppins text-xs mt-1.5 ${
+                            categoryComplete
+                              ? "text-green-600 font-semibold"
+                              : "text-brand-text/40"
+                          }`}
+                        >
+                          {filled}/{max} {categoryComplete && "\u2713"}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -450,30 +543,52 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
       {/* Drag hint — shown when multiple plans exist */}
       {sortedInstances.length > 1 &&
         sortedInstances.some((pi) => pi.items.length > 0) && (
-          <p className="font-poppins text-[0.6rem] text-brand-text/30 text-center mt-3 italic">
+          <p className="font-poppins text-[0.6rem] text-brand-text/30 text-center mt-3 italic shrink-0">
             Drag items between boxes to rearrange
           </p>
         )}
 
-      {/* "Let's dig in!" CTA when all complete */}
-      {allComplete && (
-        <div className="mt-5 pt-5 border-t border-green-200">
-          <button
-            onClick={() =>
-              document.getElementById("bag-button")?.click()
-            }
-            className="w-full group flex items-center justify-center gap-3 py-4 rounded-xl bg-gradient-to-r from-brand-primary to-brand-accent text-white font-arvo font-bold text-lg shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:shadow-brand-primary/30 transition-[box-shadow,transform] active:scale-[0.98] hover:-translate-y-0.5"
-            aria-label="View your order in the shopping bag"
-          >
-            <ShoppingBag size={22} />
-            Let&apos;s Dig In!
-            <ArrowRight
-              size={18}
-              className="transition-transform group-hover:translate-x-1"
-            />
-          </button>
-        </div>
-      )}
+      {/* Footer CTA — always rendered so it stays pinned below the scrolling
+          list and the panel height doesn't jump on completion. Disabled until
+          every box is filled, and says what's still missing. */}
+      <div
+        className={`mt-5 pt-5 border-t shrink-0 ${
+          allComplete ? "border-green-200" : "border-brand-divider/60"
+        }`}
+      >
+        <button
+          onClick={() => document.getElementById("bag-button")?.click()}
+          disabled={!allComplete}
+          className={`w-full group flex items-center justify-center gap-3 py-4 rounded-xl font-arvo font-bold text-lg transition-[box-shadow,transform,background-color] ${
+            allComplete
+              ? "bg-gradient-to-r from-brand-primary to-brand-accent text-white shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:shadow-brand-primary/30 active:scale-[0.98] hover:-translate-y-0.5 cursor-pointer"
+              : "bg-brand-secondary text-brand-text/40 cursor-not-allowed"
+          }`}
+          aria-label={
+            allComplete
+              ? "View your order in the shopping bag"
+              : `${remainingSlots} more ${
+                  remainingSlots === 1 ? "dish" : "dishes"
+                } needed before you can check out`
+          }
+        >
+          <ShoppingBag size={22} />
+          {allComplete ? (
+            <>
+              Let&apos;s Dig In!
+              <ArrowRight
+                size={18}
+                className="transition-transform group-hover:translate-x-1"
+              />
+            </>
+          ) : (
+            <span className="font-poppins text-sm font-semibold">
+              {remainingSlots} more {remainingSlots === 1 ? "dish" : "dishes"}{" "}
+              to go
+            </span>
+          )}
+        </button>
+      </div>
     </div>
   );
 };
