@@ -34,6 +34,10 @@ export function mapOrderError(msg: string): string {
   if (/has no online price/i.test(msg)) {
     return "One of your items can't be ordered online. Please remove it or contact us.";
   }
+  // Constraint violations reach us as raw Postgres text — never render that.
+  if (/orders_order_ref_format/i.test(msg)) {
+    return "We couldn't generate a valid order reference. Please refresh and try again — nothing was charged.";
+  }
   return "Something went wrong and your order was not placed. Nothing was charged — please try again or contact us.";
 }
 

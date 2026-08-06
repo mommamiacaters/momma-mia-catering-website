@@ -14,7 +14,17 @@
 -- ============================================================================
 
 -- ---------- company_profile (singleton) -------------------------------------
-create table public.company_profile (
+-- NOTE (2026-08-06, todo 013): the DDL below was originally non-idempotent, so a
+-- `db reset` partial replay / SQL-editor re-paste / preview DB would hard-fail
+-- part-way through and leave the migration half-applied. Guards added so the
+-- whole file is re-runnable. Nothing else about it changed.
+--
+-- ⚠️ Do NOT re-run this file ALONE against an existing database: the
+-- trg_notify_order_created at the bottom is the ORIGINAL total_cents-based
+-- version, superseded by 20260528130000 (which re-keys it on notified_at).
+-- A full ordered replay is fine — the later migration corrects it.
+
+create table if not exists public.company_profile (
   id                       boolean primary key default true check (id),  -- one row only
   business_name            text not null default 'Momma Mia Caters',
   order_notification_email text not null default 'mommamiacaters@gmail.com',
@@ -26,16 +36,19 @@ create table public.company_profile (
 
 insert into public.company_profile (id) values (true) on conflict (id) do nothing;
 
+drop trigger if exists trg_company_profile_updated_at on public.company_profile;
 create trigger trg_company_profile_updated_at
   before update on public.company_profile
   for each row execute function public.set_updated_at();
 
 alter table public.company_profile enable row level security;
 
+drop policy if exists "admins read company profile" on public.company_profile;
 create policy "admins read company profile"
   on public.company_profile for select
   using (public.is_admin());
 
+drop policy if exists "admins update company profile" on public.company_profile;
 create policy "admins update company profile"
   on public.company_profile for update
   using (public.is_admin()) with check (public.is_admin());
@@ -117,6 +130,7 @@ $$;
 
 -- Hook the create_order finalize step (total 0 → >0): items are inserted and the
 -- total is set by then, and admin status edits (total unchanged) won't match.
+drop trigger if exists trg_notify_order_created on public.orders;
 create trigger trg_notify_order_created
   after update on public.orders
   for each row

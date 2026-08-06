@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p3
 issue_id: "016"
 tags: [security, supabase, defense-in-depth]
@@ -52,3 +52,23 @@ would reject any legacy row that doesn't match — audit existing data first.
 
 ## Work Log
 - 2026-08-06: Split out of todo 011 when that ticket was verified and closed.
+
+## Work Log (cont.)
+- 2026-08-06: **DONE**, using the STRONGER Solution B rather than A, because live data allowed it.
+  Checked first: all 8 existing orders are 13..24 chars and 0 fail `^[A-Za-z0-9-]{6,40}$` —
+  including the older `MM-TEST-…` and `MM-PW-…` shapes — so a table constraint could be added
+  without rejecting any legacy row. Solution A (a raise inside create_order) would have meant
+  restating the whole ~200-line function for one check, and would only cover that one write path.
+
+  `alter table public.orders add constraint orders_order_ref_format check (order_ref ~
+  '^[A-Za-z0-9-]{6,40}$')` — migration `20260806170000`, applied to prod.
+
+  Verified against prod in a rolled-back transaction: a ref containing a newline
+  (`MM-BAD\nSubject: injected`) → rejected; `MM BAD <b>ref</b>` → rejected; `MM-1` (too short) →
+  rejected; the real web format `MM-20260806-1620-a3f9` → accepted, order total 315000. Legacy
+  shapes re-checked directly against the pattern: `MM-TEST-zzzz9`, `MM-PW-20260528-0729-c7x0` and
+  `MM-TEST-mvp9j` all pass.
+
+  Both `mapOrderError()`s (web + mobile) gained an `orders_order_ref_format` branch so a violation
+  renders customer copy instead of raw Postgres constraint text. Unreachable for real clients —
+  both generators emit `MM-YYYYMMDD-HHMM-xxxx` — so this is purely defence for the direct-RPC path.

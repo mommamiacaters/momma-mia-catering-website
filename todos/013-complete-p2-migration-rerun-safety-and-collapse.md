@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "013"
 tags: [code-review, data-integrity, simplicity, supabase, migration]
@@ -58,3 +58,26 @@ exists` before create), delete `…092100`. (Safe because nothing is deployed ye
 
   Deliberately NOT auto-fixed: editing already-applied migrations unattended is the kind of change
   that wants a human watching a `db reset` afterwards.
+
+- 2026-08-06: **CLOSED.** Criterion 1 done for both named files, criterion 2 formally dropped.
+
+  `20260525083606_company_profile_order_notify.sql` — guards added (Solution B, since A's
+  "nothing is deployed yet" premise is dead): `create table if not exists`, and
+  `drop trigger/policy if exists` before each of `trg_company_profile_updated_at`,
+  `"admins read company profile"`, `"admins update company profile"` and
+  `trg_notify_order_created`. The `insert … on conflict do nothing`,
+  `create extension if not exists` and `create or replace function` were already idempotent.
+  Added a header warning that the file must not be re-run ALONE against an existing DB — its
+  `trg_notify_order_created` is the original `total_cents`-based version, superseded by
+  `20260528130000`; a full ordered replay is fine because the later migration corrects it.
+
+  `20260525092100_order_notify_via_edge_function.sql` — needed nothing. It contains exactly one
+  statement, `create or replace function`, which is already re-runnable. (The todo's premise that
+  this file needed deleting was the "collapse" half, now obsolete.)
+
+  Criterion 2 ("one source of truth for the trigger function body") is dropped as obsolete: the
+  function has been `create or replace`d three more times since (20260528120000, 20260806103000,
+  20260806150000). Last definition wins; the duplication is inert text in already-applied files.
+
+  **Wider finding, filed separately as todo 019:** the same non-idempotency exists in 5 OTHER
+  migrations, including the foundational schema ones. Not fixed here — see 019 for why.

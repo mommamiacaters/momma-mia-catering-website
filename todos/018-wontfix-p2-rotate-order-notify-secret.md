@@ -1,5 +1,5 @@
 ---
-status: pending
+status: wontfix
 priority: p2
 issue_id: "018"
 tags: [security, supabase, vault, secrets]
@@ -61,3 +61,8 @@ missing emails or by reading `net._http_response`.
 - 2026-08-06: Filed when the exposure itself was fixed by the Vault move. Deliberately NOT done
   unattended: the two-system atomicity plus the silent-failure mode make this a watch-it-happen
   change, and verifying it requires actually sending mail.
+
+- 2026-08-06: **CLOSED AS WON'T-DO — explicit maintainer decision.** Not to be re-raised.
+  The *exposure* is fixed regardless (the secret is out of `app_settings` and in Vault); this
+  ticket only covered rotating the value itself. Recorded rather than deleted so the context
+  isn't lost if the decision is ever revisited.

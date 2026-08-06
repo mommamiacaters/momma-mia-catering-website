@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "012"
 tags: [code-review, quality, correctness, edge-function]
@@ -68,3 +68,22 @@ producer/consumer in sync) — coordinate with simplicity todo 015.
   `verify_jwt` still false, smoke-tested (no token → 401, wrong token → 401, GET → 405).
   Acceptance criterion 1 (rendered lines reconcile with the stated Total) is therefore MET.
   This ticket now stays open ONLY for the delivery-fee half below.
+
+- 2026-08-06 (final): **CLOSED.** Both halves are now done.
+
+  Half 1 — line/Total reconciliation: the double-render in `itemRows()` was fixed and deployed
+  (`order-notify` v11). 13/13 assertions pass, including "two plan lines sharing one
+  plan_instance_id render each dish once" and "priced lines sum to ₱350, not ₱700".
+
+  Half 2 — the delivery-fee trap: `create_order` set `total_cents = v_subtotal` and ignored
+  `delivery_fee_cents` entirely, so the first fee anyone set would have produced a receipt showing
+  Subtotal + Delivery fee + a Total that excluded the fee. Fixed as an INVARIANT rather than a
+  one-site patch — migration `20260806170000` adds a BEFORE INSERT/UPDATE trigger
+  `trg_orders_sync_total` that computes `total_cents = subtotal_cents + delivery_fee_cents` on
+  every write, so it holds no matter which path sets the fee (create_order, a future admin edit,
+  a manual UPDATE). create_order's own assignment is now a harmless no-op writing the same value.
+
+  Verified against prod in a rolled-back transaction: a 15-box order totals 315000; adding a
+  ₱50 delivery fee via a plain UPDATE moves it to 320000 and
+  `total_cents = subtotal_cents + delivery_fee_cents` reports true. Checked before applying that
+  0 of 8 existing rows violated the invariant, so no historical data changed.
