@@ -133,7 +133,9 @@ export async function submitOrder(opts: {
       order_type: 'delivery',
     },
     p_order_ref: orderRef,
-    p_payment_proof_url: paymentProofUrl,
+    // The generated arg type is `string | undefined` (it has a SQL default);
+    // `null` isn't assignable. Same coercion the web client uses.
+    p_payment_proof_url: paymentProofUrl ?? undefined,
   });
   // Wrap raw plpgsql exceptions in friendly copy — UI never sees DB strings.
   if (error) throw new Error(mapOrderError(error.message));
