@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p1
 issue_id: "007"
 tags: [code-review, data-integrity, security, supabase, trigger]
@@ -50,9 +50,17 @@ Both migrations share the same un-guarded body; apply the `exception` wrapper in
 (`20260525092100…`). Depends on `create_order` finalize (`20260524132145_create_order_fn.sql:97-100`).
 
 ## Acceptance Criteria
-- [ ] A malformed `order_notify_url` in `app_settings` does NOT fail `create_order` (order still commits).
-- [ ] `pg_net` unavailable does not break order creation.
-- [ ] Notification failures are swallowed (verified: bad URL → order ok, no email, no exception to client).
+- [x] A malformed `order_notify_url` in `app_settings` does NOT fail `create_order` (order still commits).
+- [x] `pg_net` unavailable does not break order creation.
+- [x] Notification failures are swallowed (verified: bad URL → order ok, no email, no exception to client).
 
 ## Work Log
 - 2026-05-25: Filed from /workflows:review (data-integrity-guardian HIGH #2).
+- 2026-05-28: Fixed by migration `20260528120000_order_notify_safe_wrapper.sql` — solution A.
+  `_order_notify_post` wraps its whole body in `begin ... exception when others then raise
+  warning ...; return; end`, plus an `^https?://` pre-check that short-circuits a known-bad
+  URL with a clearer warning.
+- 2026-08-06: Verified against the LIVE prod function (`pg_get_functiondef`): the exception
+  guard is present and survived the v5 rewrite in
+  `20260806130000_create_order_v5_min_boxes_and_orphan_guard.sql`. Closing — the file was
+  still marked pending long after the fix shipped.

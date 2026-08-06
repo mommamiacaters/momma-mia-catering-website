@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "011"
 tags: [code-review, security, edge-function]
@@ -32,8 +32,17 @@ Three hardening gaps on the send path (all in `order-notify/index.ts`):
 (blank — triage)
 
 ## Acceptance Criteria
-- [ ] Secret comparison is constant-time.
-- [ ] CR/LF stripped from subject; malformed recipient rejected.
+- [x] Secret comparison is constant-time.
+- [x] CR/LF stripped from subject; malformed recipient rejected.
 
 ## Work Log
 - 2026-05-25: Filed from /workflows:review (security-sentinel P2-2/P2-3). Depends on 008 (fail-closed auth).
+- 2026-08-06: Verified all three in `order-notify/index.ts` (deployed v10):
+  1. `timingSafeEqual()` XOR-accumulator compare, used at the auth gate.
+  2. `subject = subject.replace(/[\r\n]/g, " ").trim()` before send.
+  3. `if (!EMAIL_RE.test(to))` rejects a malformed recipient; `replyTo` is likewise gated.
+  Both acceptance criteria met → closing.
+  NOT done (was listed as "optional, defense-in-depth", outside the ACs): constraining
+  `order_ref` to `^[A-Za-z0-9-]+$` inside `create_order`. It remains client-supplied and
+  unvalidated there. Low risk now that the subject is CRLF-stripped and the only consumer
+  is Resend's JSON API (no raw MIME), but see follow-up todo 016.

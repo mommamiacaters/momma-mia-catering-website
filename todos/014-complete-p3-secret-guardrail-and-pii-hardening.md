@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p3
 issue_id: "014"
 tags: [code-review, security, data-integrity, defense-in-depth]
@@ -44,3 +44,8 @@ A bundle of defense-in-depth items (RLS is already correct; these prevent operat
 
 ## Work Log
 - 2026-05-25: Filed from /workflows:review (security-sentinel P2-4/P3-1/P3-2 + data-integrity LOW#5).
+
+- 2026-08-06: Verified STALE and closed during an audit of every pending todo. Each acceptance
+  criterion was re-checked against deployed code/prod (not against this file's own description of
+  the code, which predated several rewrites), then a second reviewer was asked to REFUTE the
+  "already fixed" verdict and could not. See the run report for the per-criterion evidence.

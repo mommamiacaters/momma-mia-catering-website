@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "010"
 tags: [code-review, reliability, edge-function]
@@ -32,3 +32,8 @@ errors → at-most-once; accept the rare dropped email (monitor logs). Document 
 
 ## Work Log
 - 2026-05-25: Filed from /workflows:review (kieran-typescript-reviewer #1).
+
+- 2026-08-06: Verified STALE and closed during an audit of every pending todo. Each acceptance
+  criterion was re-checked against deployed code/prod (not against this file's own description of
+  the code, which predated several rewrites), then a second reviewer was asked to REFUTE the
+  "already fixed" verdict and could not. See the run report for the per-criterion evidence.

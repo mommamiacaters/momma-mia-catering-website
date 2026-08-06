@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p1
 issue_id: "008"
 tags: [code-review, security, edge-function, email]
@@ -36,8 +36,14 @@ Pros: no open-relay window; loud misconfig. Cons: none.
 `[functions.order-notify] verify_jwt = false` (config.toml), so this header check is the ONLY auth.
 
 ## Acceptance Criteria
-- [ ] With `ORDER_NOTIFY_SECRET` unset, the function rejects all requests (503/401), never sends.
-- [ ] With it set, only requests carrying the matching `X-MM-Auth-Token` are accepted.
+- [x] With `ORDER_NOTIFY_SECRET` unset, the function rejects all requests (503/401), never sends.
+- [x] With it set, only requests carrying the matching `X-MM-Auth-Token` are accepted.
 
 ## Work Log
 - 2026-05-25: Filed from /workflows:review (security-sentinel P2-1; escalated — deploy-blocker, sends from verified domain).
+- Fixed by solution A in `order-notify/index.ts`: `if (!NOTIFY_SECRET) return 503` then a
+  `timingSafeEqual` header check returning 401 — the `NOTIFY_SECRET &&` fail-open pattern is gone.
+- 2026-08-06: Verified against the DEPLOYED function (v10) with live probes:
+  no token → **401**, wrong token → **401**, `GET` → **405**. A 401 (rather than a 5xx boot
+  error) also proves the module loads cleanly. Closing — the file was still marked pending
+  long after the fix shipped.

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "009"
 tags: [code-review, data-integrity, supabase, trigger]
@@ -37,3 +37,8 @@ as a "creation" flag. Two defects:
 
 ## Work Log
 - 2026-05-25: Filed from /workflows:review (data-integrity-guardian HIGH#1 + MEDIUM#3).
+
+- 2026-08-06: Verified STALE and closed during an audit of every pending todo. Each acceptance
+  criterion was re-checked against deployed code/prod (not against this file's own description of
+  the code, which predated several rewrites), then a second reviewer was asked to REFUTE the
+  "already fixed" verdict and could not. See the run report for the per-criterion evidence.

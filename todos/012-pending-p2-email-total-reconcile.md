@@ -35,3 +35,31 @@ producer/consumer in sync) — coordinate with simplicity todo 015.
 
 ## Work Log
 - 2026-05-25: Filed from /workflows:review (kieran-typescript-reviewer #3).
+
+- 2026-08-06: Audited. **PARTIAL — stays open.** A first reviewer called this FIXED; an
+  adversarial second pass refuted that and was right.
+
+  **Done:** the Subtotal / Delivery fee / Total block exists and is used by all three order
+  templates (`order-notify/index.ts` `totalsBlock()`), and the `Payload` interface matches the
+  trigger JSON field-for-field.
+
+  **Was NOT done — a real double-render bug, found and FIXED the same day:** `itemRows()`
+  computed a plan line's components by re-filtering the whole item array by `plan_instance_id`.
+  That is a query, not a consume, so two plan lines sharing one `plan_instance_id` each emitted
+  the same dishes — the rendered lines summed to DOUBLE the stated Total, which is verbatim the
+  artifact this ticket exists to prevent. Reproduced with a fixture (Full Feast ×2 on one box id,
+  ₱150 + ₱200 → rendered ₱700 vs Total ₱350), then fixed by grouping components into a Map once
+  and DELETING each group as it is emitted. 13/13 assertions now pass, including "both plan lines
+  still shown" and "priced lines sum to ₱350, not ₱700".
+
+  create_order v5 rejects duplicate `plan_instance_id`s, so new orders can't produce this — but
+  pre-v5 rows aren't covered by a constraint added afterwards, and rendering shouldn't depend on
+  an invariant enforced elsewhere.
+
+  **REMAINING (why this is still pending):** the fix is in source but the edge function has NOT
+  been redeployed, so the live v10 bundle still has the bug. Redeploy `order-notify`, then close.
+
+  **Also still open (the ticket's forward-looking half):** `create_order` sets
+  `total_cents = v_subtotal` and ignores `delivery_fee_cents` entirely. It is 0 everywhere today,
+  so the arithmetic holds — but the first time anyone sets a delivery fee, the receipt will render
+  Subtotal + Delivery fee + a Total that excludes the fee. Worth a constraint or a recompute.
