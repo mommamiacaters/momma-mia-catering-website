@@ -52,7 +52,16 @@ type Kind =
   | "contact_message"   // contact-form submission → owner inbox
   | "quote_lead";       // chatbot quote lead → owner inbox
 
-interface Item { item_name: string; qty: number; unit_price_cents: number; plan_type: string | null }
+interface Item {
+  item_name: string;
+  qty: number;
+  unit_price_cents: number;
+  plan_type: string | null;
+  /** Set only on the priced plan line; null on the dishes filling it. */
+  meal_plan_id?: number | null;
+  /** Groups a plan line with the dishes in that box. */
+  plan_instance_id?: string | null;
+}
 interface ContactInfo {
   firstName?: string; lastName?: string; email?: string;
   topic?: string | null; message?: string; createdAt?: string;
@@ -97,10 +106,56 @@ function shell(inner: string): string {
   return `<div style="font-family:Arial,Helvetica,sans-serif;color:${INK};max-width:560px;margin:0 auto;padding:8px">${inner}</div>`;
 }
 
+// A lunch-box order is a priced PLAN line plus the dishes that fill it. Under
+// fixed pricing those dishes cost ₱0, so a price column for them is noise —
+// they render indented beneath their plan instead. Grouping is by id
+// (meal_plan_id / plan_instance_id), never by name: under `range` pricing the
+// plan line is ₱0 and the dishes carry the money, so price can't identify a row.
 function itemRows(items: Item[]): string {
-  return items
-    .map((i) => `<tr><td style="padding:4px 0">${i.qty}× ${esc(i.item_name)}${i.plan_type ? ` <span style="color:${MUTE}">(${esc(i.plan_type)})</span>` : ""}</td><td style="text-align:right;white-space:nowrap">${peso((i.unit_price_cents ?? 0) * (i.qty ?? 0))}</td></tr>`)
-    .join("");
+  const line = (label: string, price: string, sub = false) =>
+    `<tr><td style="padding:${sub ? "2px 0 2px 20px" : "6px 0 2px"}${sub ? `;color:${MUTE};font-size:13px` : ""}">${label}</td>` +
+    `<td style="text-align:right;white-space:nowrap${sub ? `;color:${MUTE};font-size:13px` : ""}">${price}</td></tr>`;
+
+  // Boxes that actually have a plan line. Older orders stored the dishes with a
+  // plan_instance_id but no plan row — those must still render on their own,
+  // or the email would silently drop every item.
+  const planned = new Set(
+    items.filter((i) => i.meal_plan_id != null && i.plan_instance_id).map((i) => i.plan_instance_id),
+  );
+
+  const isComponent = (i: Item) =>
+    i.meal_plan_id == null && !!i.plan_instance_id && planned.has(i.plan_instance_id);
+
+  const componentsOf = (planInstanceId: string | null | undefined) =>
+    planInstanceId ? items.filter((i) => isComponent(i) && i.plan_instance_id === planInstanceId) : [];
+
+  const out: string[] = [];
+  for (const i of items) {
+    if (isComponent(i)) continue; // emitted under its plan line below
+
+    const total = (i.unit_price_cents ?? 0) * (i.qty ?? 0);
+    const isPlan = i.meal_plan_id != null;
+    // The plan line's own name IS the plan name, so the "(Standard Bento)"
+    // suffix would just repeat itself.
+    const suffix =
+      !isPlan && i.plan_type ? ` <span style="color:${MUTE}">(${esc(i.plan_type)})</span>` : "";
+
+    out.push(
+      line(`${i.qty}× ${esc(i.item_name)}${suffix}`, total > 0 ? peso(total) : ""),
+    );
+
+    for (const c of componentsOf(i.plan_instance_id)) {
+      const cTotal = (c.unit_price_cents ?? 0) * (c.qty ?? 0);
+      out.push(
+        line(
+          `${(c.qty ?? 1) > 1 ? `${c.qty}× ` : ""}${esc(c.item_name)}`,
+          cTotal > 0 ? peso(cTotal) : "",
+          true,
+        ),
+      );
+    }
+  }
+  return out.join("");
 }
 
 // Subtotal / delivery / total block. Falls back to total-only if subtotal absent.
