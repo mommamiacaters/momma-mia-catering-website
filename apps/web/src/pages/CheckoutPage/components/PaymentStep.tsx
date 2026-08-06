@@ -12,7 +12,9 @@ interface Props {
   onBack: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
-  error: string | null;
+  // A node, not a string: the post-payment rejection message has to carry a
+  // link to /contact and apps/web has no toast system.
+  error: React.ReactNode;
 }
 
 const PaymentStep: React.FC<Props> = ({

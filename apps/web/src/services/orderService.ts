@@ -1,6 +1,42 @@
 import type { OrderSubmission } from "../types";
 import { supabase } from "../lib/supabase";
 
+/**
+ * Map a raw create_order error to customer copy. The patterns are taken
+ * verbatim from that function's `raise` statements — don't copy them from
+ * another mapper without re-checking against the SQL. (`/qty/i` does NOT match
+ * "Invalid quantity", which is how the mobile mapper shipped two dead branches.)
+ *
+ * The minimum message is worded for the moment it can actually appear: after
+ * the customer has already seen the payment QR. It must say plainly that no
+ * order exists and nothing was charged here.
+ */
+export function mapOrderError(msg: string): string {
+  const min = msg.match(/minimum (\d+) lunch boxes/i);
+  if (min) {
+    return `Orders need at least ${min[1]} lunch boxes. Your order was NOT placed and nothing was charged by this site. If you already sent a payment it has not been applied — please contact us and we'll sort it out.`;
+  }
+  if (/not part of any lunch box/i.test(msg) || /duplicate lunch box/i.test(msg)) {
+    return "Something's off with your cart. Please rebuild your order and try again.";
+  }
+  if (/invalid quantity/i.test(msg)) {
+    return "One of the quantities in your order is invalid. Please review your cart and try again.";
+  }
+  if (/must contain at least one item/i.test(msg)) {
+    return "Your cart is empty.";
+  }
+  if (/(item|meal plan) not available/i.test(msg)) {
+    return "One of your items just sold out or was removed. Please refresh and try again.";
+  }
+  if (/unknown (menu item|meal plan)/i.test(msg)) {
+    return "An item in your cart is no longer on the menu. Please refresh.";
+  }
+  if (/has no online price/i.test(msg)) {
+    return "One of your items can't be ordered online. Please remove it or contact us.";
+  }
+  return "Something went wrong and your order was not placed. Nothing was charged — please try again or contact us.";
+}
+
 /** Convert a `data:` URI (payment proof screenshot) into a Blob for upload. */
 function dataUriToBlob(dataUri: string): { blob: Blob; mime: string } {
   const [meta, b64] = dataUri.split(",");
@@ -86,7 +122,11 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
     p_order_ref: orderRef,
     p_payment_proof_url: paymentProofUrl ?? undefined,
   });
-  if (error) throw new Error(`Failed to submit order: ${error.message}`);
+  if (error) {
+    // Keep the raw Postgres text for the console; never render it.
+    console.error("create_order failed:", error.message);
+    throw new Error(mapOrderError(error.message));
+  }
   // No client-side notify call. See the docstring above — emails are sent
   // server-side via the order-notify trigger.
 }

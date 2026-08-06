@@ -17,6 +17,7 @@ const ServicePage: React.FC = () => {
   const handleCheckout = () => {
     navigate("/checkout", {
       state: {
+        slug,
         mealPlanOrders: order.mealPlanOrders,
         selectedItems: order.selectedItems,
         planInstances: order.planInstances,

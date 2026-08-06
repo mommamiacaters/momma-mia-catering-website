@@ -15,9 +15,6 @@ export const SOCIAL_LINKS = {
 // MEAL_PLAN_LIMITS / MEAL_PLAN_DESCRIPTIONS / CATEGORIES are gone: plans and
 // their slot counts now come from public.meal_plans.
 
-/** Fallback only — the live value is app_settings.minimum_meal_plans. */
-export const MINIMUM_MEAL_PLANS = 15;
-
 export function getCategoryDisplayName(category: string): string {
   switch (category) {
     case "main":

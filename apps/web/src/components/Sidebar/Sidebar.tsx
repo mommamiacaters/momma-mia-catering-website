@@ -12,6 +12,7 @@ import {
   ChevronUp,
   ChevronDown,
   Crosshair,
+  Loader2,
 } from "lucide-react";
 import type {
   MealPlanType,
@@ -19,7 +20,10 @@ import type {
 } from "../../types";
 import { isPlanInstanceComplete } from "../../utils/mealPlanUtils";
 import { PLAN_SLOT_META, compositionEmoji } from "../../constants/planSlots";
-import { useStoreSettings } from "../../hooks/useStoreSettings";
+import {
+  deriveMinimumState,
+  useStoreSettings,
+} from "../../hooks/useStoreSettings";
 import { FALLBACK_IMAGE } from "../CachedImage";
 
 interface ShoppingBagSidebarProps {
@@ -66,14 +70,20 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   onMoveItem,
   onCheckout,
 }) => {
-  const { minimumMealPlans } = useStoreSettings();
+  const {
+    minimumMealPlans,
+    error: settingsError,
+    retry: retrySettings,
+  } = useStoreSettings();
   const isCartEmpty = planInstances.length === 0;
   const totalMealPlans = getTotalMealPlanCount();
-  const meetsMinimum = totalMealPlans >= minimumMealPlans;
+  // blocked is true while the minimum is still unknown, so there is neither a
+  // load-window flash nor a load-window bypass.
+  const min = deriveMinimumState(minimumMealPlans, totalMealPlans);
   const allBoxesFilled =
     planInstances.length > 0 &&
     planInstances.every((pi) => isPlanInstanceComplete(pi, getMealPlanLimits(pi.type)));
-  const canCheckout = meetsMinimum && allBoxesFilled;
+  const canCheckout = !min.blocked && allBoxesFilled;
 
   // Plan reorder drag state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -325,32 +335,34 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
         </div>
 
         {/* ─── Progress Bar ─── */}
-        {!isCartEmpty && (
+        {/* min.active also guards the width calc below against a divide-by-zero
+            the moment an admin switches the minimum off (0). */}
+        {!isCartEmpty && min.active && (
           <div className="px-5 py-3.5 bg-white border-b border-brand-divider">
             <div className="flex items-center justify-between mb-2">
               <span className="font-poppins text-xs text-brand-text/50">
-                Minimum {minimumMealPlans} meal plans
+                Minimum {min.minimum} lunch boxes
               </span>
               <span
                 className={`font-poppins text-xs font-semibold px-2 py-0.5 rounded-full ${
-                  meetsMinimum
+                  min.met
                     ? "bg-green-100 text-green-700"
                     : "bg-brand-secondary text-brand-text/50"
                 }`}
               >
-                {totalMealPlans} / {minimumMealPlans}
-                {meetsMinimum && " \u2713"}
+                {totalMealPlans} / {min.minimum}
+                {min.met && " \u2713"}
               </span>
             </div>
             <div className="h-1.5 bg-brand-divider/40 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ease-out ${
-                  meetsMinimum ? "bg-green-500" : "bg-brand-primary"
+                  min.met ? "bg-green-500" : "bg-brand-primary"
                 }`}
                 style={{
                   width: `${Math.min(
                     100,
-                    (totalMealPlans / minimumMealPlans) * 100
+                    (totalMealPlans / min.minimum) * 100
                   )}%`,
                 }}
               />
@@ -732,8 +744,13 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
             </div>
 
             <button
-              disabled={!canCheckout}
+              // Stays clickable in the error case so it can double as retry.
+              disabled={!canCheckout && !settingsError}
               onClick={() => {
+                if (settingsError) {
+                  retrySettings();
+                  return;
+                }
                 if (canCheckout && onCheckout) {
                   onHide();
                   onCheckout();
@@ -742,17 +759,26 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
               className={`w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-poppins font-semibold text-sm transition-colors ${
                 canCheckout
                   ? "bg-gradient-to-r from-brand-primary to-brand-accent text-white shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]"
-                  : "bg-brand-divider text-brand-text/40 cursor-not-allowed"
+                  : settingsError
+                    ? "bg-amber-100 text-amber-800 cursor-pointer hover:bg-amber-200"
+                    : "bg-brand-divider text-brand-text/40 cursor-not-allowed"
               }`}
             >
-              {!meetsMinimum ? (
+              {settingsError ? (
                 <>
                   <AlertCircle size={16} />
-                  Add{" "}
-                  {minimumMealPlans - totalMealPlans} more{" "}
-                  {minimumMealPlans - totalMealPlans === 1
-                    ? "box"
-                    : "boxes"}
+                  Couldn&rsquo;t check order rules — retry
+                </>
+              ) : !min.known ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Checking order rules&hellip;
+                </>
+              ) : !min.met ? (
+                <>
+                  <AlertCircle size={16} />
+                  Add {min.remaining} more{" "}
+                  {min.remaining === 1 ? "box" : "boxes"}
                 </>
               ) : !allBoxesFilled ? (
                 <>

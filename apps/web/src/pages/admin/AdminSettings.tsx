@@ -2,9 +2,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   fetchAllSettings,
   updateSetting,
+  MINIMUM_MEAL_PLANS_BOUNDS,
   type AppSettingRow,
 } from "../../services/settingsService";
 import type { Json } from "@momma-mia/db";
+
+/** Per-key limits, mirroring the DB CHECK constraints. */
+const NUMBER_BOUNDS: Record<string, { min: number; max: number }> = {
+  minimum_meal_plans: MINIMUM_MEAL_PLANS_BOUNDS,
+};
+const DEFAULT_BOUNDS = { min: 0, max: 999 };
 
 /**
  * Store Settings — admin-tunable configuration backed by public.app_settings.
@@ -51,6 +58,26 @@ const AdminSettings: React.FC = () => {
     return map;
   }, [settings, drafts]);
 
+  // Validate rather than clamp. Clamping silently rewrites the admin's number
+  // and then reports "Saved ✓" for a value they never typed.
+  const invalidByKey = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const s of settings) {
+      const d = drafts[s.key];
+      if (typeof s.value !== "number") {
+        map[s.key] = false;
+        continue;
+      }
+      const b = NUMBER_BOUNDS[s.key] ?? DEFAULT_BOUNDS;
+      map[s.key] =
+        typeof d !== "number" ||
+        !Number.isInteger(d) ||
+        d < b.min ||
+        d > b.max;
+    }
+    return map;
+  }, [settings, drafts]);
+
   const handleSave = async (row: AppSettingRow) => {
     setSavingKey(row.key);
     setSavedKey(null);
@@ -73,8 +100,9 @@ const AdminSettings: React.FC = () => {
     <div className="max-w-3xl">
       <h1 className="font-arvo-bold text-2xl text-brand-text mb-1">Store Settings</h1>
       <p className="font-poppins text-sm text-brand-text/60 mb-6">
-        Tune how the storefront behaves — no code deploy needed. Changes apply to
-        new visitors immediately.
+        Tune how the storefront behaves — no code deploy needed. Changes reach a
+        customer the next time they load the site; an already-open tab picks
+        them up within about 5 minutes.
       </p>
 
       {error && (
@@ -113,10 +141,13 @@ const AdminSettings: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <div className="flex items-center gap-2">
                   <SettingInput
                     id={`setting-${row.key}`}
                     value={drafts[row.key]}
+                    bounds={NUMBER_BOUNDS[row.key] ?? DEFAULT_BOUNDS}
+                    invalid={invalidByKey[row.key]}
                     onChange={(v) =>
                       setDrafts((prev) => ({ ...prev, [row.key]: v }))
                     }
@@ -124,7 +155,11 @@ const AdminSettings: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleSave(row)}
-                    disabled={!dirty[row.key] || savingKey === row.key}
+                    disabled={
+                      !dirty[row.key] ||
+                      invalidByKey[row.key] ||
+                      savingKey === row.key
+                    }
                     className="rounded-lg bg-brand-primary px-4 py-2 font-arvo-bold text-sm text-white transition-colors hover:bg-brand-primary/90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {savingKey === row.key
@@ -133,6 +168,14 @@ const AdminSettings: React.FC = () => {
                         ? "Saved ✓"
                         : "Save"}
                   </button>
+                  </div>
+                  {invalidByKey[row.key] && (
+                    <p className="font-poppins text-xs text-red-600">
+                      Must be a whole number between{" "}
+                      {(NUMBER_BOUNDS[row.key] ?? DEFAULT_BOUNDS).min} and{" "}
+                      {(NUMBER_BOUNDS[row.key] ?? DEFAULT_BOUNDS).max}.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -147,10 +190,15 @@ const AdminSettings: React.FC = () => {
 const SettingInput: React.FC<{
   id: string;
   value: Json;
+  bounds: { min: number; max: number };
+  invalid: boolean;
   onChange: (v: Json) => void;
-}> = ({ id, value, onChange }) => {
-  const inputClass =
-    "w-28 rounded-lg border border-brand-divider bg-brand-secondary/40 px-3 py-2 font-poppins text-sm text-brand-text text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent";
+}> = ({ id, value, bounds, invalid, onChange }) => {
+  const inputClass = `w-28 rounded-lg border bg-brand-secondary/40 px-3 py-2 font-poppins text-sm text-brand-text text-right tabular-nums focus:outline-none focus:ring-2 focus:border-transparent ${
+    invalid
+      ? "border-red-400 focus:ring-red-400"
+      : "border-brand-divider focus:ring-brand-primary"
+  }`;
 
   if (typeof value === "boolean") {
     return (
@@ -178,13 +226,20 @@ const SettingInput: React.FC<{
       <input
         id={id}
         type="number"
-        min={1}
+        min={bounds.min}
+        max={bounds.max}
         step={1}
+        aria-invalid={invalid}
         value={value}
-        onChange={(e) => {
-          const n = Math.max(1, Math.floor(Number(e.target.value) || 0));
-          onChange(n);
-        }}
+        // Commit on every keystroke (deferring to blur would deadlock: Save is
+        // disabled until `drafts` changes, and a disabled button never blurs
+        // the input). Parsed but NOT clamped — out-of-range is surfaced, not
+        // silently rewritten.
+        onChange={(e) =>
+          onChange(
+            e.target.value === "" ? 0 : Math.floor(Number(e.target.value)),
+          )
+        }
         className={inputClass}
       />
     );

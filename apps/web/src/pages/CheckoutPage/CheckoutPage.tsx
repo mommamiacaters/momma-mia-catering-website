@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import { CheckCircle, ArrowLeft, Package } from "lucide-react";
+import { CheckCircle, ArrowLeft, Package, AlertCircle } from "lucide-react";
 import type {
   MealPlanOrder,
   SelectedItemWithQuantity,
@@ -10,6 +10,14 @@ import type {
   PaymentProof,
 } from "../../types";
 import { submitOrder } from "../../services/orderService";
+import {
+  deriveMinimumState,
+  useStoreSettings,
+} from "../../hooks/useStoreSettings";
+import {
+  fetchPublicSettings,
+  SETTING_KEYS,
+} from "../../services/settingsService";
 import { getCategoryDisplayName } from "../../constants";
 import { FALLBACK_IMAGE } from "../../components/CachedImage";
 import { generateSecureOrderRef } from "../../utils/validation";
@@ -24,6 +32,8 @@ interface CheckoutState {
   selectedItems: SelectedItemWithQuantity[];
   planInstances?: PlanInstance[];
   subtotal: number;
+  /** Which service the cart belongs to, so we can link the customer back to it. */
+  slug?: string;
 }
 
 /** Recover cart from sessionStorage when location.state is null (page refresh, direct URL). */
@@ -68,6 +78,9 @@ function findCartInSession(): CheckoutState | null {
         selectedItems,
         planInstances: snap.planInstances,
         subtotal: snap.subtotal ?? 0,
+        // Keys are `cart:<slug>` (useOrderManagement) — record the slug we
+        // actually restored so we can send the customer back to it.
+        slug: key.slice("cart:".length),
       };
     }
   } catch {
@@ -104,6 +117,48 @@ const CheckoutPage: React.FC = () => {
   // Honeypot field
   const [honeypot, setHoneypot] = useState("");
 
+  // Order-minimum gate. Hooks must stay above the `!effectiveState` early return.
+  const {
+    minimumMealPlans,
+    error: settingsError,
+    retry: retrySettings,
+  } = useStoreSettings();
+  const [checking, setChecking] = useState(false);
+  const [gateError, setGateError] = useState<string | null>(null);
+  const boxes = effectiveState?.planInstances?.length ?? 0;
+  const min = deriveMinimumState(minimumMealPlans, boxes);
+
+  /**
+   * Fresh read straight from the DB, bypassing the module cache, so an admin
+   * raising the minimum mid-session can't strand a customer who has already
+   * paid. Runs before the payment QR is shown and again before the receipt is
+   * uploaded.
+   */
+  const verifyMinimum = async (): Promise<boolean> => {
+    setChecking(true);
+    setGateError(null);
+    try {
+      const s = await fetchPublicSettings();
+      const raw = s[SETTING_KEYS.minimumMealPlans];
+      const live =
+        typeof raw === "number" && Number.isInteger(raw) && raw >= 0 ? raw : 0;
+      if (boxes > 0 && boxes < live) {
+        setGateError(
+          `The minimum order size is ${live} lunch boxes. Your order has ${boxes}. Please go back and add ${live - boxes} more — nothing has been charged.`,
+        );
+        return false;
+      }
+      return true;
+    } catch {
+      setGateError(
+        "We couldn't confirm this store's order rules just now. Please check your connection and try again — nothing has been charged.",
+      );
+      return false;
+    } finally {
+      setChecking(false);
+    }
+  };
+
   // Redirect if no order state
   useEffect(() => {
     if (!effectiveState) {
@@ -139,7 +194,11 @@ const CheckoutPage: React.FC = () => {
   }
 
   // ─── Step handlers ───
-  const handleContinueToPayment = () => {
+  // Gate the transition BEFORE the payment QR is rendered. This is what stops
+  // the rule from being enforced only after the customer has already paid.
+  const handleContinueToPayment = async () => {
+    if (checking) return;
+    if (!(await verifyMinimum())) return;
     setCurrentStep("payment");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -166,6 +225,13 @@ const CheckoutPage: React.FC = () => {
 
     if (!paymentProof) {
       setSubmitError("Please upload your payment receipt before submitting.");
+      return;
+    }
+
+    // Re-check before the proof upload so a doomed order never orphans a blob
+    // in the payment-proofs bucket.
+    if (!(await verifyMinimum())) {
+      setSubmitError(gateError);
       return;
     }
 
@@ -206,9 +272,17 @@ const CheckoutPage: React.FC = () => {
         const key = sessionStorage.key(i);
         if (key?.startsWith("cart:")) sessionStorage.removeItem(key);
       }
-    } catch {
+    } catch (e) {
+      // Bind the error — a bare catch made a correctly-firing server rejection
+      // indistinguishable from a network failure, so the customer was told
+      // nothing useful after having already paid. submitOrder has already
+      // mapped this to customer-safe copy via mapOrderError.
       setStatus("error");
-      setSubmitError("Something went wrong. Please try again.");
+      setSubmitError(
+        e instanceof Error
+          ? e.message
+          : "Something went wrong and your order was not placed. Nothing was charged — please try again or contact us.",
+      );
     }
   };
 
@@ -421,11 +495,52 @@ const CheckoutPage: React.FC = () => {
           {/* ─── RIGHT: Step Content (3 cols) ─── */}
           <div className="lg:col-span-3 order-1 lg:order-2">
             <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
+              {/* A below-minimum (or unverifiable) cart gets an explanation and
+                  a way out — NOT a silent navigate() that would teleport the
+                  customer and destroy half-typed delivery details. */}
+              {boxes > 0 && min.blocked ? (
+                <div className="text-center py-6">
+                  <AlertCircle
+                    size={40}
+                    className="mx-auto mb-4 text-brand-primary"
+                  />
+                  <h2 className="font-arvo font-bold text-brand-text text-lg mb-2">
+                    {settingsError
+                      ? "Couldn't load the order rules"
+                      : "A few more lunch boxes needed"}
+                  </h2>
+                  <p className="font-poppins text-sm text-brand-text/60 mb-6 max-w-sm mx-auto leading-relaxed">
+                    {settingsError
+                      ? "We couldn't confirm this store's order rules just now. Please check your connection and try again — nothing has been charged."
+                      : `Your order has ${boxes} lunch ${boxes === 1 ? "box" : "boxes"}. Orders need at least ${min.minimum} before we can take it. Nothing has been charged.`}
+                  </p>
+                  <button
+                    onClick={() =>
+                      settingsError
+                        ? retrySettings()
+                        : navigate(
+                            effectiveState.slug
+                              ? `/services/${effectiveState.slug}`
+                              : "/meals",
+                          )
+                    }
+                    className="px-6 py-3 rounded-xl bg-brand-primary text-white font-poppins font-semibold hover:bg-brand-primary/90 transition-colors cursor-pointer"
+                  >
+                    {settingsError ? "Retry" : "Back to your order"}
+                  </button>
+                </div>
+              ) : (
+                <>
               {currentStep === "delivery" && (
                 <>
                   <h2 className="font-arvo font-bold text-brand-text text-lg mb-5">
                     Delivery Details
                   </h2>
+                  {gateError && (
+                    <p className="mb-4 font-poppins text-sm text-red-600">
+                      {gateError}
+                    </p>
+                  )}
                   <DeliveryStep
                     formData={formData}
                     onChange={setFormData}
@@ -445,9 +560,23 @@ const CheckoutPage: React.FC = () => {
                     onProofChange={setPaymentProof}
                     onBack={handleBackToDelivery}
                     onSubmit={handleSubmit}
-                    isSubmitting={status === "submitting"}
-                    error={submitError}
+                    isSubmitting={status === "submitting" || checking}
+                    error={
+                      submitError ? (
+                        <span>
+                          {submitError}{" "}
+                          <Link
+                            to="/contact"
+                            className="underline font-semibold"
+                          >
+                            Contact us
+                          </Link>
+                        </span>
+                      ) : null
+                    }
                   />
+                </>
+              )}
                 </>
               )}
             </div>

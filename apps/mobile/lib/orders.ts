@@ -41,17 +41,30 @@ export interface ProofImage {
  * leak internals (e.g. column names, plpgsql line numbers).
  */
 export function mapOrderError(msg: string): string {
-  if (/item not available/i.test(msg)) {
+  console.error('create_order failed:', msg);
+  const min = msg.match(/minimum (\d+) lunch boxes/i);
+  if (min) {
+    return `Orders need at least ${min[1]} lunch boxes. Your order was NOT placed and nothing was charged.`;
+  }
+  if (/not part of any lunch box|duplicate lunch box/i.test(msg)) {
+    return "Something's off with your cart. Please rebuild your order and try again.";
+  }
+  if (/item not available|meal plan not available/i.test(msg)) {
     return 'One of your items just sold out or was removed. Please refresh and try again.';
   }
-  if (/unknown menu item/i.test(msg)) {
+  if (/unknown (menu item|meal plan)/i.test(msg)) {
     return 'An item in your cart is no longer on the menu. Please refresh.';
   }
-  if (/qty/i.test(msg)) {
+  // Was /qty/i, which never matched: the raise says "Invalid quantity".
+  if (/invalid quantity/i.test(msg)) {
     return 'Quantity is invalid. Please review your cart.';
   }
-  if (/empty/i.test(msg)) {
+  // Was /empty/i, which never matched: the raise says "must contain at least one item".
+  if (/must contain at least one item/i.test(msg)) {
     return 'Your cart is empty.';
+  }
+  if (/has no online price/i.test(msg)) {
+    return "One of your items can't be ordered online. Please remove it or contact us.";
   }
   return "Couldn't place your order. Please try again.";
 }

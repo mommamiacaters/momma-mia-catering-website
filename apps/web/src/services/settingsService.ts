@@ -9,8 +9,8 @@ export const SETTING_KEYS = {
   minimumMealPlans: "minimum_meal_plans",
 } as const;
 
-/** Fallback used if the setting hasn't loaded yet or the row is missing. */
-export const DEFAULT_MINIMUM_MEAL_PLANS = 15;
+/** Mirrors the app_settings_minimum_meal_plans_bounds CHECK constraint. */
+export const MINIMUM_MEAL_PLANS_BOUNDS = { min: 0, max: 500 } as const;
 
 export interface AppSettingRow {
   key: string;
@@ -43,11 +43,35 @@ export async function fetchAllSettings(): Promise<AppSettingRow[]> {
   return (data ?? []) as AppSettingRow[];
 }
 
-/** Admin write: update a single setting's value. */
+/**
+ * Admin write: update a single setting's value.
+ *
+ * Selects back the row it wrote. Without that, an RLS-denied PATCH returns 204
+ * with no error and the console reports "Saved ✓" for a write that never
+ * landed — fatal for a setting whose whole point is that the admin can change it.
+ */
 export async function updateSetting(key: string, value: Json): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("app_settings")
     .update({ value })
-    .eq("key", key);
-  if (error) throw error;
+    .eq("key", key)
+    .select("key");
+
+  if (error) {
+    console.error("updateSetting failed:", error);
+    if (
+      error.code === "23514" ||
+      /app_settings_minimum_meal_plans_bounds/.test(error.message)
+    ) {
+      throw new Error(
+        `Minimum lunch boxes must be a whole number between ${MINIMUM_MEAL_PLANS_BOUNDS.min} and ${MINIMUM_MEAL_PLANS_BOUNDS.max}.`,
+      );
+    }
+    throw new Error("Couldn't save that setting. Please try again.");
+  }
+  if (!data?.length) {
+    throw new Error(
+      "Nothing was saved — your account may not have admin access. Sign out and back in, then try again.",
+    );
+  }
 }
