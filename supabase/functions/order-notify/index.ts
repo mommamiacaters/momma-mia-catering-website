@@ -126,8 +126,27 @@ function itemRows(items: Item[]): string {
   const isComponent = (i: Item) =>
     i.meal_plan_id == null && !!i.plan_instance_id && planned.has(i.plan_instance_id);
 
-  const componentsOf = (planInstanceId: string | null | undefined) =>
-    planInstanceId ? items.filter((i) => isComponent(i) && i.plan_instance_id === planInstanceId) : [];
+  // Group the components by box ONCE, then CONSUME each group as it's emitted.
+  // Re-filtering per plan line would render a box's dishes once per plan line
+  // pointing at that box, so two plan lines sharing a plan_instance_id would
+  // list every dish twice and the visible lines would sum to double the Total.
+  // create_order v5 rejects duplicate ids, but pre-v5 rows aren't covered by a
+  // constraint added afterwards — rendering shouldn't rely on that invariant.
+  const pending = new Map<string, Item[]>();
+  for (const i of items) {
+    if (!isComponent(i)) continue;
+    const id = i.plan_instance_id as string;
+    const list = pending.get(id) ?? [];
+    list.push(i);
+    pending.set(id, list);
+  }
+
+  const componentsOf = (planInstanceId: string | null | undefined) => {
+    if (!planInstanceId) return [];
+    const list = pending.get(planInstanceId) ?? [];
+    pending.delete(planInstanceId); // consumed — never emit this box twice
+    return list;
+  };
 
   const out: string[] = [];
   for (const i of items) {
