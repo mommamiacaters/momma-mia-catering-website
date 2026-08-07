@@ -580,7 +580,10 @@ export type Database = {
           p_customer: Json
           p_items: Json
           p_order_ref: string
+          /** Legacy: pre-v6 clients uploaded first and passed their own key. */
           p_payment_proof_url?: string
+          /** v6: the server mints the storage key from this and returns it. */
+          p_proof_ext?: string
         }
         Returns: Json
       }

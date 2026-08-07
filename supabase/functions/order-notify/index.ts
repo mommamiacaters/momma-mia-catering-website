@@ -416,8 +416,20 @@ Deno.serve(async (req) => {
   let attachments: Attachment[] | undefined;
   const proofPath = payload.order?.paymentProofUrl;
   if (kind === "store_alert" && proofPath && RESEND_API_KEY) {
-    const a = await fetchProofAttachment(proofPath);
-    if (a) attachments = [a];
+    // Retry briefly. Since create_order v6 the SERVER reserves the storage key
+    // and the client uploads to it just AFTER the order commits — while this
+    // alert is already on its way. The bytes usually land within a second, so a
+    // couple of short retries turn a race into a non-event. If they still
+    // aren't there we send anyway: renderStoreAlert prints the path instead,
+    // and the order must never wait on an attachment.
+    for (let attempt = 0; attempt < 3 && !attachments; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+      const a = await fetchProofAttachment(proofPath);
+      if (a) attachments = [a];
+    }
+    if (!attachments) {
+      console.warn(`order-notify: proof ${proofPath} not readable after 3 tries — sending without it`);
+    }
   }
 
   let { subject, html } = render(kind, payload, { proofAttached: !!attachments });

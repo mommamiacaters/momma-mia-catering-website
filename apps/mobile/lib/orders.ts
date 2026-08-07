@@ -9,15 +9,10 @@ function makeOrderRef(): string {
   return `MM-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}-${rand}`;
 }
 
-// Unguessable token for the payment-proof storage path. The path must NOT be
-// derivable from the (low-entropy) order_ref, or an attacker could overwrite a
-// customer's proof before review. Prefer crypto.randomUUID where available
-// (web + newer RN), fall back to a high-entropy token (no extra native dep).
-function randomToken(): string {
-  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
-  if (c?.randomUUID) return c.randomUUID();
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
-}
+// randomToken() lived here to mint an unguessable proof path, so the key could
+// not be derived from the low-entropy order_ref. create_order v6 mints the key
+// server-side (gen_random_uuid) — the concern is the same, it just moved
+// somewhere a storage policy can verify it.
 
 export interface CheckoutCustomer {
   firstName: string;
@@ -79,7 +74,12 @@ interface CreateOrderResult {
   order_id: string;
   order_ref: string;
   total_cents: number;
+  /** Storage key the server reserved for this order's payment proof. */
+  payment_proof_path: string | null;
 }
+
+/** Mirrors create_order's allow-list — anything else is refused server-side. */
+const PROOF_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
 
 /**
  * Submit an order via the server-authoritative `create_order` RPC.
@@ -102,24 +102,26 @@ export async function submitOrder(opts: {
   const { customer, lines, proof } = opts;
   const orderRef = makeOrderRef();
 
-  // 1) upload payment proof to the private bucket (best-effort, non-fatal).
-  //    Keyed by the client-generated order_ref so the path is stable; the RPC
-  //    owns everything price/identity related.
-  let paymentProofUrl: string | null = null;
+  // 1) PARSE the proof — the upload now happens AFTER the order commits.
+  //    It used to run first, so any create_order rejection rolled the order back
+  //    and stranded the blob in the private bucket with nothing referencing it
+  //    (todo 017). The server reserves the key and hands it back instead.
+  let parsedProof: { body: ArrayBuffer; mime: string; ext: string } | null = null;
   if (proof?.uri) {
     try {
       const resp = await fetch(proof.uri);
       const arrayBuffer = await resp.arrayBuffer();
-      const ext = proof.mimeType?.split('/')[1] || 'jpg';
-      // Unguessable path + upsert:false → a proof can't be overwritten/guessed.
-      const path = `${randomToken()}.${ext}`;
-      const { data, error } = await supabase.storage
-        .from('payment-proofs')
-        .upload(path, arrayBuffer, { contentType: proof.mimeType || 'image/jpeg', upsert: false });
-      if (error) console.warn('Payment proof upload failed:', error.message);
-      else paymentProofUrl = data?.path ?? path;
+      const raw = (proof.mimeType?.split('/')[1] || 'jpg').toLowerCase();
+      // Must match create_order's allow-list: an extension it rejects would now
+      // fail the whole ORDER, so anything unfamiliar drops the proof instead.
+      const ext = PROOF_EXTS.includes(raw) ? raw : raw === 'jfif' ? 'jpg' : null;
+      if (ext) {
+        parsedProof = { body: arrayBuffer, mime: proof.mimeType || 'image/jpeg', ext };
+      } else {
+        console.warn('Unsupported payment proof type, sending order without it:', raw);
+      }
     } catch (e) {
-      console.warn('Payment proof upload error:', e);
+      console.warn('Payment proof read error:', e);
     }
   }
 
@@ -137,9 +139,8 @@ export async function submitOrder(opts: {
       order_type: 'delivery',
     },
     p_order_ref: orderRef,
-    // The generated arg type is `string | undefined` (it has a SQL default);
-    // `null` isn't assignable. Same coercion the web client uses.
-    p_payment_proof_url: paymentProofUrl ?? undefined,
+    // The server mints the storage key from this and returns it.
+    p_proof_ext: parsedProof?.ext ?? undefined,
   });
   // Wrap raw plpgsql exceptions in friendly copy — UI never sees DB strings.
   if (error) throw new Error(mapOrderError(error.message));
@@ -150,6 +151,23 @@ export async function submitOrder(opts: {
   // a wrong-by-zero is loud and easy to catch, vs. silently showing client math.
   const result = (data ?? {}) as Partial<CreateOrderResult>;
   const totalCents = typeof result.total_cents === 'number' ? result.total_cents : 0;
+
+  // 3) Upload to the key the server reserved. Still best-effort: the order is
+  //    already committed, and the store alert says plainly when no proof is on
+  //    file, so a failure here costs a follow-up rather than the order.
+  if (parsedProof && result.payment_proof_path) {
+    try {
+      const { error: upErr } = await supabase.storage
+        .from('payment-proofs')
+        .upload(result.payment_proof_path, parsedProof.body, {
+          contentType: parsedProof.mime,
+          upsert: false,
+        });
+      if (upErr) console.warn('Payment proof upload failed:', upErr.message);
+    } catch (e) {
+      console.warn('Payment proof upload error:', e);
+    }
+  }
 
   return { orderRef, totalCents };
 }

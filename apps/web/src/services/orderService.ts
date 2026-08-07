@@ -1,6 +1,9 @@
 import type { OrderSubmission } from "../types";
 import { supabase } from "../lib/supabase";
 
+/** Mirrors create_order's allow-list — anything else is refused server-side. */
+const PROOF_EXTS = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
+
 /**
  * Map a raw create_order error to customer copy. The patterns are taken
  * verbatim from that function's `raise` statements — don't copy them from
@@ -61,30 +64,33 @@ function dataUriToBlob(dataUri: string): { blob: Blob; mime: string } {
 export async function submitOrder(data: OrderSubmission): Promise<void> {
   const { customer, order, orderRef, paymentProof } = data;
 
-  // 1) upload payment proof to the private bucket (if provided)
-  let paymentProofUrl: string | null = null;
+  // 1) PARSE the proof — but do not upload yet.
+  //
+  // The upload used to happen here, before create_order. Every raise in that
+  // function then rolled the order back and left the blob in the private bucket
+  // with nothing referencing it (todo 017). Now the server reserves the key and
+  // we upload to it AFTER the order commits, so a rejected order has no upload
+  // to orphan.
+  //
+  // dataUriToBlob stays inside the try: a malformed data URI would throw in
+  // atob and abort the whole submission. The proof is best-effort metadata, not
+  // the system of record — degrade to "no proof" rather than failing checkout.
+  let proof: { blob: Blob; mime: string; ext: string } | null = null;
   if (paymentProof?.base64) {
-    // dataUriToBlob lives INSIDE this try-block: a malformed data URI (bad
-    // base64, no comma, etc.) would throw in atob and abort the whole order
-    // submission. Better to degrade to "no proof attached" than to fail
-    // checkout — the proof is best-effort metadata, not the system of record.
     try {
       const { blob, mime } = dataUriToBlob(paymentProof.base64);
-      // Unguessable path + upsert:false → a proof can't be overwritten/guessed
-      // (the low-entropy order_ref must not be derivable from the path).
-      const ext = (paymentProof.fileName?.split(".").pop() || mime.split("/")[1] || "jpg").toLowerCase();
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { data: up, error: upErr } = await supabase.storage
-        .from("payment-proofs")
-        .upload(path, blob, { contentType: mime, upsert: false });
-      if (upErr) {
-        // Non-fatal: keep the order, just note the proof failed to attach.
-        console.error("Payment proof upload failed:", upErr.message);
-      } else {
-        paymentProofUrl = up?.path ?? path;
-      }
+      const raw = (
+        paymentProof.fileName?.split(".").pop() ||
+        mime.split("/")[1] ||
+        "jpg"
+      ).toLowerCase();
+      // Must match create_order's allow-list. An extension it rejects would now
+      // fail the whole ORDER, so anything unfamiliar drops the proof instead —
+      // preserving "a bad proof never costs you the order".
+      const ext = PROOF_EXTS.includes(raw) ? raw : raw === "jfif" ? "jpg" : null;
+      if (ext) proof = { blob, mime, ext };
+      else console.error("Unsupported payment proof type, sending order without it:", raw);
     } catch (e) {
-      // Malformed data URI — keep the order, drop the proof.
       console.error("Payment proof parse failed:", e instanceof Error ? e.message : e);
     }
   }
@@ -110,7 +116,7 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
       ])
     : order.items.map((it) => ({ menu_item_id: it.menuItemId, qty: 1 }));
 
-  const { error } = await supabase.rpc("create_order", {
+  const { data: result, error } = await supabase.rpc("create_order", {
     p_items: items as unknown as never,
     p_customer: {
       first_name: customer.firstName,
@@ -124,12 +130,28 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
       order_type: "delivery",
     },
     p_order_ref: orderRef,
-    p_payment_proof_url: paymentProofUrl ?? undefined,
+    // The server mints the storage key from this and returns it.
+    p_proof_ext: proof?.ext ?? undefined,
   });
   if (error) {
     // Keep the raw Postgres text for the console; never render it.
     console.error("create_order failed:", error.message);
     throw new Error(mapOrderError(error.message));
+  }
+
+  // 3) Upload to the key the server reserved. Still non-fatal: the order is
+  //    already committed and the store alert says plainly when no proof is on
+  //    file, so a failure here costs a follow-up, not the order.
+  const proofPath = (result as { payment_proof_path?: string } | null)
+    ?.payment_proof_path;
+  if (proof && proofPath) {
+    const { error: upErr } = await supabase.storage
+      .from("payment-proofs")
+      .upload(proofPath, proof.blob, {
+        contentType: proof.mime,
+        upsert: false,
+      });
+    if (upErr) console.error("Payment proof upload failed:", upErr.message);
   }
   // No client-side notify call. See the docstring above — emails are sent
   // server-side via the order-notify trigger.
