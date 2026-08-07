@@ -20,6 +20,7 @@ import RegisterPage from "./pages/RegisterPage/RegisterPage";
 import AccountPage from "./pages/AccountPage/AccountPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminProducts from "./pages/admin/AdminProducts";
+import AdminCarousels from "./pages/admin/AdminCarousels";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminMealPlans from "./pages/admin/AdminMealPlans";
 import AdminSettings from "./pages/admin/AdminSettings";
@@ -113,6 +114,7 @@ function AppContent() {
             <Route index element={<AdminOrders />} />
             <Route path="plans" element={<AdminMealPlans />} />
             <Route path="menu" element={<AdminProducts />} />
+            <Route path="carousels" element={<AdminCarousels />} />
             <Route path="company" element={<AdminCompanyProfile />} />
             <Route path="settings" element={<AdminSettings />} />
             {/* Orders moved to the index; keep old links and bookmarks alive. */}

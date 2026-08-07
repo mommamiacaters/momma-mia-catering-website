@@ -61,3 +61,13 @@ const NOT_FOUND: ServiceContent = {
 export function getServiceContent(slug: string): ServiceContent {
   return SERVICE_CONTENT_MAP[slug] ?? NOT_FOUND;
 }
+
+/** The service pages that have a carousel — drives the admin's page picker. */
+export const CAROUSEL_SERVICES: { slug: string; title: string }[] = Object.entries(
+  SERVICE_CONTENT_MAP,
+).map(([slug, content]) => ({ slug, title: content.title }));
+
+/** Bundled images a page falls back to when the database has no active rows. */
+export function getServiceFallbackImages(slug: string): string[] {
+  return SERVICE_CONTENT_MAP[slug]?.images ?? [];
+}

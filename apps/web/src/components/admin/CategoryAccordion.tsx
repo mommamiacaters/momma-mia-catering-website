@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 interface CategoryAccordionProps {
   name: string;
@@ -8,6 +9,8 @@ interface CategoryAccordionProps {
   isOpen: boolean;
   onToggle: () => void;
   onAdd: () => void;
+  /** carousel editor link; omitted for categories with no service page */
+  carouselHref?: string;
   children: React.ReactNode;
 }
 
@@ -20,6 +23,7 @@ const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   isOpen,
   onToggle,
   onAdd,
+  carouselHref,
   children,
 }) => {
   const showingFiltered = totalCount != null && totalCount !== count;
@@ -41,6 +45,18 @@ const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
             {showingFiltered ? `${count} of ${totalCount}` : count}
           </span>
         </button>
+        {carouselHref && (
+          <Link
+            to={carouselHref}
+            onClick={(e) => e.stopPropagation()}
+            title={`Edit the carousel on the ${name} service page`}
+            aria-label={`Edit the carousel on the ${name} service page`}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-arvo-bold text-brand-text/60 hover:text-brand-primary hover:bg-brand-primary/10 cursor-pointer"
+          >
+            <i className="pi pi-images text-xs" aria-hidden="true" />
+            <span className="hidden sm:inline">Edit carousel</span>
+          </Link>
+        )}
         <button
           onClick={onAdd}
           className="mr-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-arvo-bold text-brand-primary hover:bg-brand-primary/10 cursor-pointer"

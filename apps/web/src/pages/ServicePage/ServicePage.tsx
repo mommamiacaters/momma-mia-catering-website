@@ -7,12 +7,26 @@ import CheckALunch from "../../components/CheckALunch/CheckALunch";
 import { getServiceContent } from "../../constants/serviceContent";
 import { getCategoryDisplayName, SOCIAL_LINKS } from "../../constants";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
+import { useCarouselImages } from "../../hooks/useCarouselImages";
 
 const ServicePage: React.FC = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const serviceContent = useMemo(() => getServiceContent(slug || ""), [slug]);
   const order = useOrderManagement(slug, serviceContent.hasMenu);
+  const dbSlides = useCarouselImages(slug || "");
+
+  // Admin-uploaded photos replace the bundled set outright. While loading, on a
+  // failed request, and when nothing has been uploaded yet, the hook reports no
+  // slides and the page renders exactly what it always has.
+  const carouselImages = useMemo(
+    () => (dbSlides.length > 0 ? dbSlides.map((s) => s.src) : serviceContent.images),
+    [dbSlides, serviceContent.images]
+  );
+  const carouselAlts = useMemo(
+    () => (dbSlides.length > 0 ? dbSlides.map((s) => s.alt) : undefined),
+    [dbSlides]
+  );
 
   const handleCheckout = () => {
     navigate("/checkout", {
@@ -71,10 +85,14 @@ const ServicePage: React.FC = () => {
         </div>
 
         {/* Carousel Section - Full Bleed */}
-        {serviceContent.images.length > 0 && (
+        {carouselImages.length > 0 && (
           <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen">
+            {/* Keyed on the image set: swapping in DB photos remounts the
+                carousel so its internal slide index cannot point past the end. */}
             <Carousel
-              images={serviceContent.images}
+              key={carouselImages.join("|")}
+              images={carouselImages}
+              alts={carouselAlts}
               title={serviceContent.title}
             />
           </div>

@@ -11,6 +11,14 @@ import CustomerPreview from "../../components/admin/CustomerPreview";
 const SELECT =
   "id, category_id, name, description, image_url, price_cents, item_type, sub_category_id, is_available, is_catering, sort_order";
 
+// Menu category slug → service-page slug. Keep this explicit: the slugs are NOT
+// equal ('party-tray' is singular, its service page 'party-trays' is plural).
+const CATEGORY_TO_SERVICE: Record<string, string> = {
+  "check-a-lunch": "check-a-lunch",
+  "party-tray": "party-trays",
+  "fun-boxes": "fun-boxes",
+};
+
 const AdminProducts: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
@@ -173,6 +181,7 @@ const AdminProducts: React.FC = () => {
               const all = grouped.get(cat.id) ?? [];
               const visible = isFiltering ? all.filter(matches) : all;
               if (isFiltering && visible.length === 0) return null;
+              const serviceSlug = CATEGORY_TO_SERVICE[cat.slug];
 
               return (
                 <CategoryAccordion
@@ -183,6 +192,7 @@ const AdminProducts: React.FC = () => {
                   isOpen={isFiltering ? true : openCats.has(cat.id)}
                   onToggle={() => toggleCat(cat.id)}
                   onAdd={() => setItemModal({ open: true, initial: null, defaultCategoryId: cat.id })}
+                  carouselHref={serviceSlug ? `/admin/carousels?service=${serviceSlug}` : undefined}
                 >
                   <CategoryItemList
                     categoryName={cat.name}

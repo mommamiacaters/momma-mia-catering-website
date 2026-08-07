@@ -41,6 +41,42 @@ export type Database = {
         }
         Relationships: []
       }
+      carousel_images: {
+        Row: {
+          alt_text: string | null
+          created_at: string
+          id: number
+          image_url: string
+          is_active: boolean
+          service_slug: string
+          sort_order: number
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string
+          id?: never
+          image_url: string
+          is_active?: boolean
+          service_slug: string
+          sort_order?: number
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string
+          id?: never
+          image_url?: string
+          is_active?: boolean
+          service_slug?: string
+          sort_order?: number
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string

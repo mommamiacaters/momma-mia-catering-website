@@ -4,11 +4,13 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 interface CarouselProps {
   images: string[];
   title: string;
+  /** Per-image alt text, positional. Blank/missing entries fall back to the title. */
+  alts?: (string | null)[];
   /** Auto-advance interval in ms. 0 = disabled. Default 5000. */
   autoPlay?: number;
 }
 
-const Carousel: React.FC<CarouselProps> = ({ images, title, autoPlay = 5000 }) => {
+const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 5000 }) => {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [index, setIndex] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -233,7 +235,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, autoPlay = 5000 }) =
                 {shouldLoad ? (
                   <img
                     src={src}
-                    alt={`${title} ${i + 1}`}
+                    alt={alts?.[i]?.trim() || `${title} ${i + 1}`}
                     className="w-full h-full object-cover carousel-img-loaded"
                     loading={i === 0 ? "eager" : "lazy"}
                     decoding={i === 0 ? "sync" : "async"}
