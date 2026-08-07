@@ -40,7 +40,13 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (open) cancelRef.current?.focus();
+    if (!open) return;
+    // Modal focuses its own panel on open (Modal.tsx, so Tab starts inside the
+    // dialog and screen readers announce the title). That runs in the child's
+    // effect, i.e. AFTER this one settles in a production build — focusing
+    // Cancel synchronously here gets silently overwritten. Defer past it.
+    const id = requestAnimationFrame(() => cancelRef.current?.focus());
+    return () => cancelAnimationFrame(id);
   }, [open]);
 
   return (
