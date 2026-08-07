@@ -418,6 +418,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                             ? "bg-green-200/60 text-green-700"
                             : "bg-brand-secondary text-brand-text/40"
                       }`}
+                      title={`${filledSlots} of ${totalSlots} dishes chosen for this box`}
                     >
                       {filledSlots}/{totalSlots}
                     </span>
@@ -487,6 +488,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                           ? "bg-green-200/60 text-green-700"
                           : "bg-brand-secondary text-brand-text/50"
                     }`}
+                    title={`${count} of ${max} ${label.toLowerCase()} chosen for the box you're filling`}
                   >
                     {count}/{max}
                   </span>

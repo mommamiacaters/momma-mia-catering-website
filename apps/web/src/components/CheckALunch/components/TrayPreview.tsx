@@ -97,6 +97,10 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
     planInstances.length > 0 &&
     planInstances.every((pi) => isPlanInstanceComplete(pi, getMealPlanLimits(pi.type)));
 
+  const completedCount = planInstances.filter((pi) =>
+    isPlanInstanceComplete(pi, getMealPlanLimits(pi.type))
+  ).length;
+
   // Unfilled slots across every box — drives the disabled CTA's label.
   const remainingSlots = planInstances.reduce((sum, pi) => {
     const limits = getMealPlanLimits(pi.type);
@@ -226,7 +230,12 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
         // Cap the panel to the viewport so a long list scrolls inside it rather
         // than pushing the pinned CTA off-screen. dvh (not vh) so mobile
         // browser chrome doesn't cut it off.
-        compact ? "lg:max-h-[calc(100dvh-7rem)]" : ""
+        // 12rem = TWICE the 6rem (lg:top-24) offset the <aside> sticks at, which
+        // is what centres the panel: the leftover viewport splits evenly above
+        // and below. Budget the offset and the cap together — subtracting only
+        // 7rem left 96px of air on top and 16px underneath, so it read as
+        // pinned to the bottom of the screen.
+        compact ? "lg:max-h-[calc(100dvh-12rem)]" : ""
       } ${
         allComplete
           ? "bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 shadow-lg shadow-green-100/50"
@@ -249,19 +258,17 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
               ? "Your Lunch Box"
               : "Your Lunch Boxes"}
         </h3>
+        {/* Every count in this panel names its own unit — "1/9" alone doesn't
+            say one-of-nine WHAT. */}
         <span
-          className={`ml-auto font-poppins text-sm font-medium px-3 py-1 rounded-full ${
+          className={`ml-auto shrink-0 font-poppins text-sm font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${
             allComplete
               ? "bg-green-200/60 text-green-700"
               : "bg-brand-secondary text-brand-text/60"
           }`}
+          title={`${completedCount} of ${sortedInstances.length} lunch boxes have all their dishes chosen`}
         >
-          {
-            sortedInstances.filter((pi) =>
-              isPlanInstanceComplete(pi, getMealPlanLimits(pi.type))
-            ).length
-          }
-          /{sortedInstances.length} done
+          {completedCount}/{sortedInstances.length} boxes
         </span>
       </div>
 
@@ -339,8 +346,9 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                         ? "bg-brand-primary/10 text-brand-primary"
                         : "bg-brand-secondary text-brand-text/50"
                   }`}
+                  title={`${filledSlots} of ${totalSlots} dishes chosen for this box`}
                 >
-                  {filledSlots}/{totalSlots}
+                  {filledSlots}/{totalSlots} dishes
                   {isComplete && " \u2713"}
                 </span>
               </div>
@@ -387,13 +395,16 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                         </span>
                         {compact && (
                           <span
-                            className={`ml-auto font-poppins text-[0.65rem] font-semibold ${
+                            className={`ml-auto font-poppins text-[0.65rem] font-semibold whitespace-nowrap ${
                               categoryComplete
                                 ? "text-green-600"
                                 : "text-brand-text/40"
                             }`}
+                            title={`${filled} of ${max} ${label.toLowerCase()}${
+                              max === 1 ? "" : "es"
+                            } chosen for this box`}
                           >
-                            {filled}/{max} {categoryComplete && "✓"}
+                            {filled} of {max} {categoryComplete && "✓"}
                           </span>
                         )}
                       </div>

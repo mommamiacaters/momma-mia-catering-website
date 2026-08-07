@@ -155,6 +155,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             onClick={() => onRemoveMany(BULK_STEP)}
             disabled={!canRemoveMore}
             className={`${bulkBtn} bg-brand-secondary text-brand-text/70 enabled:hover:bg-brand-divider`}
+            title={`Take ${item.name} out of the last ${BULK_STEP} boxes it was added to`}
             aria-label={`Remove ${BULK_STEP} ${item.name} from your boxes`}
           >
             −{BULK_STEP}
@@ -164,6 +165,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             onClick={() => onAddMany(BULK_STEP)}
             disabled={!canAddMore}
             className={`${bulkBtn} bg-brand-primary/10 text-brand-primary enabled:hover:bg-brand-primary/20`}
+            title={`Put ${item.name} in the next ${BULK_STEP} boxes that still need this course`}
             aria-label={`Add ${item.name} to the next ${BULK_STEP} boxes`}
           >
             +{BULK_STEP}
@@ -173,6 +175,11 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             onClick={() => onAddMany(Number.POSITIVE_INFINITY)}
             disabled={!canAddMore}
             className={`${bulkBtn} bg-brand-primary text-white enabled:hover:bg-brand-primary/90 enabled:shadow-sm enabled:shadow-brand-primary/20`}
+            title={
+              canAddMore
+                ? `Put ${item.name} in all ${openSlots} boxes still missing this course`
+                : "Every box already has this course"
+            }
             aria-label={
               canAddMore
                 ? `Fill all ${openSlots} remaining slots with ${item.name}`
@@ -186,6 +193,11 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             onClick={() => onRemoveMany(Number.POSITIVE_INFINITY)}
             disabled={!canRemoveMore}
             className={`${bulkBtn} border border-brand-divider text-brand-text/60 enabled:hover:border-red-300 enabled:hover:text-red-600`}
+            title={
+              canRemoveMore
+                ? `Take ${item.name} out of all ${placedCount} boxes it's in`
+                : `${item.name} isn't in any box yet`
+            }
             aria-label={
               canRemoveMore
                 ? `Remove all ${placedCount} ${item.name} from your boxes`
