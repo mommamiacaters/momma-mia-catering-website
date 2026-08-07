@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p2
 issue_id: "017"
 tags: [data-integrity, storage, checkout]
@@ -125,3 +125,56 @@ deletes nothing and returns `data: [], error: null` — it fails silently.
 Referenced: `b3e8c941-2052-4332-a0d3-27f8f7d4e752.jpg` (order MM-20260805-2244-9738) — KEEP.
 Purge script ready at `<scratchpad>/purge-orphan-proofs.mjs` (dry-run by default). Not executed:
 deleting customer payment evidence is irreversible, so it wants a human confirming the list.
+
+---
+
+## 2026-08-07 — RESOLVED
+
+Built the "invert who owns the key" design, with both blockers designed out.
+
+**create_order v6** (`20260807100000`, applied): pass `p_proof_ext` and the server reserves
+`<uuid>.<ext>` on the order row and returns it; the client uploads to that exact key AFTER the
+order commits. A rejected order therefore has no upload to orphan. Extension is allow-listed
+server-side (jpg/jpeg/png/webp/heic/heif) rather than sanitised, since it lands in a storage path.
+
+**Blocker 1 (a dead tab leaving a paid order the store never hears about) designed out**, not
+mitigated: `notified_at` is still stamped by create_order in the same finalize UPDATE as always.
+Nothing was deferred to a second round-trip, so there is no window in which a committed order
+fails to notify. The store alert can now briefly outrun the bytes instead, so order-notify (v12)
+retries the proof fetch 3× at 1.5s before falling back to printing the path — which it already did.
+
+**Blocker 2 (deploy window) reduced to a follow-up call, not a lost proof**: both clients already
+treat a failed upload as non-fatal, and `renderStoreAlert` branches on `!o.paymentProofUrl` to tell
+the store no proof is on file. Deployed client-first anyway, and only applied the 020 policy after
+confirming the new bundle was live.
+
+**Major 3 dissolved**: there is no `p_proof_uploaded` flag and no confirm RPC, so the client can
+never NULL a proof that actually landed.
+
+**Client guard**: both web and mobile mirror the server's extension allow-list, because an
+extension the RPC rejects would now fail the whole ORDER. Anything unfamiliar drops the proof
+instead — a bad proof must never cost the order.
+
+**Overload trap**: adding a defaulted 5th parameter left two `create_order` functions, and a 4-arg
+call matched both ("function is not unique"). The 4-arg version is dropped after the new one
+exists; pre-v6 clients land on the 5-arg function with `p_proof_ext` null and route down the
+legacy `p_payment_proof_url` path.
+
+### Verified
+- DB (rolled back): 1 overload; path minted, stored and returned; `notified_at` stamped; junk
+  extension rejected; legacy 4-arg still accepted; v5's minimum + orphan-component guards intact.
+- **Live site, end to end**: drove a real 45-box checkout to Submit with the create_order request
+  intercepted and aborted. Network order was `CREATE_ORDER_RPC` first with `p_proof_ext: "jpg"` and
+  no `p_payment_proof_url` — and **zero upload events**, i.e. a failed order wrote nothing to
+  storage. That is the bug, gone.
+- Bucket: 2 objects, **0 orphans**, no test residue.
+
+### AC-3 — existing orphans purged
+3 objects (incl. a 2.7 MB one from 2026-05-24) removed via the Storage API. Direct SQL DELETE is
+refused by `storage.protect_delete()`, which exists to stop the row and the blob drifting apart.
+Bucket went 5 → 2, both survivors referenced by real orders. Script:
+`<scratchpad>/purge-orphan-proofs.mjs` (dry-run by default).
+
+**Not done, deliberately** (was major #5): bucket-level `file_size_limit` / `allowed_mime_types`.
+Mobile has no client-side size guard, so a 6 MB Android screenshot would start failing server-side
+with nothing explaining why. Wants its own change with the client prerequisite first.
