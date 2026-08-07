@@ -10,7 +10,15 @@ interface FoodCardProps {
   currentQuantity: number;
   onAdd: () => void;
   onDecrease: () => void;
+  /** Open slots for this dish's type across EVERY box, not just the active one. */
+  openSlots: number;
+  /** Copies of this dish placed across every box. */
+  placedCount: number;
+  onAddMany: (count: number) => void;
+  onRemoveMany: (count: number) => void;
 }
+
+const BULK_STEP = 10;
 
 const FoodCard: React.FC<FoodCardProps> = memo(({
   item,
@@ -19,7 +27,18 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   currentQuantity,
   onAdd,
   onDecrease,
+  openSlots,
+  placedCount,
+  onAddMany,
+  onRemoveMany,
 }) => {
+  // Bulk actions span all boxes, so they gate on global capacity — NOT on
+  // isDisabled, which only means "the active box is full for this course".
+  // Filling the other 23 boxes is still perfectly valid in that state.
+  const canAddMore = openSlots > 0;
+  const canRemoveMore = placedCount > 0;
+  const bulkBtn =
+    "h-9 rounded-lg font-poppins text-xs font-bold tabular-nums transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer";
   return (
     <div
       className={`group relative bg-white rounded-2xl overflow-hidden transition-[box-shadow,transform,opacity] duration-300 ${
@@ -72,7 +91,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-end pt-1">
+        <div className="flex items-center justify-end pt-1 min-h-[2.25rem]">
           {isSelected ? (
             <div className="flex items-center gap-2">
               <button
@@ -126,6 +145,56 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             </button>
           )}
         </div>
+
+        {/* Bulk actions — a single order can run to 24 boxes / 72 picks, so
+            one-at-a-time is not a realistic way to fill it. These act across
+            every box, which is why they survive `isDisabled`. */}
+        <div className="grid grid-cols-2 gap-1.5 mt-2">
+          <button
+            type="button"
+            onClick={() => onRemoveMany(BULK_STEP)}
+            disabled={!canRemoveMore}
+            className={`${bulkBtn} bg-brand-secondary text-brand-text/70 enabled:hover:bg-brand-divider`}
+            aria-label={`Remove ${BULK_STEP} ${item.name} from your boxes`}
+          >
+            −{BULK_STEP}
+          </button>
+          <button
+            type="button"
+            onClick={() => onAddMany(BULK_STEP)}
+            disabled={!canAddMore}
+            className={`${bulkBtn} bg-brand-primary/10 text-brand-primary enabled:hover:bg-brand-primary/20`}
+            aria-label={`Add ${item.name} to the next ${BULK_STEP} boxes`}
+          >
+            +{BULK_STEP}
+          </button>
+          <button
+            type="button"
+            onClick={() => onAddMany(Number.POSITIVE_INFINITY)}
+            disabled={!canAddMore}
+            className={`${bulkBtn} bg-brand-primary text-white enabled:hover:bg-brand-primary/90 enabled:shadow-sm enabled:shadow-brand-primary/20`}
+            aria-label={
+              canAddMore
+                ? `Fill all ${openSlots} remaining slots with ${item.name}`
+                : "No open slots left for this course"
+            }
+          >
+            Fill all{canAddMore ? ` ${openSlots}` : ""}
+          </button>
+          <button
+            type="button"
+            onClick={() => onRemoveMany(Number.POSITIVE_INFINITY)}
+            disabled={!canRemoveMore}
+            className={`${bulkBtn} border border-brand-divider text-brand-text/60 enabled:hover:border-red-300 enabled:hover:text-red-600`}
+            aria-label={
+              canRemoveMore
+                ? `Remove all ${placedCount} ${item.name} from your boxes`
+                : `${item.name} is not in any box`
+            }
+          >
+            Clear{canRemoveMore ? ` ${placedCount}` : ""}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -133,6 +202,8 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   prev.item === next.item &&
   prev.isSelected === next.isSelected &&
   prev.isDisabled === next.isDisabled &&
+  prev.openSlots === next.openSlots &&
+  prev.placedCount === next.placedCount &&
   prev.currentQuantity === next.currentQuantity
 );
 

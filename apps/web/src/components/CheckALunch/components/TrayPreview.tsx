@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Package,
   CheckCircle2,
@@ -51,6 +51,35 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
   onMoveItem,
   compact = false,
 }) => {
+  // ─── Follow the box you're filling ───
+  // With 20+ boxes the panel scrolls independently of the picker, so choosing
+  // a box in "Pick Your Dishes" would leave the panel showing some unrelated
+  // box. Bring the chosen one into view.
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (!activePlanInstanceId) return;
+    const container = listRef.current;
+    const el = cardRefs.current[activePlanInstanceId];
+    if (!container || !el) return;
+    // Nothing to scroll (full-width layout isn't height-capped).
+    if (container.scrollHeight <= container.clientHeight) return;
+
+    // Measured against the container rather than scrollIntoView(), which walks
+    // up to the nearest scrollable ancestor and would drag the whole PAGE when
+    // the panel happens not to be it.
+    const delta =
+      el.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    container.scrollTo({
+      top: Math.max(0, container.scrollTop + delta - 8),
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  }, [activePlanInstanceId]);
+
   // ─── Drag state ───
   const [dragState, setDragState] = useState<{
     sourcePlanId: string;
@@ -239,6 +268,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
       {/* Plan instance cards — clickable to select. min-h-0 lets this flex
           child shrink below its content so it can actually scroll. */}
       <div
+        ref={listRef}
         className={`space-y-4 ${
           compact ? "overflow-y-auto min-h-0 -mx-1 px-1" : ""
         }`}
@@ -257,6 +287,9 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
           return (
             <div
               key={pi.id}
+              ref={(el) => {
+                cardRefs.current[pi.id] = el;
+              }}
               onClick={() => onSetActivePlan(pi.id)}
               role="button"
               tabIndex={0}

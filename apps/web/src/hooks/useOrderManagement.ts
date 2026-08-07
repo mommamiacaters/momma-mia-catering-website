@@ -184,8 +184,19 @@ export function useOrderManagement(
   const planByNameRef = useRef(planByName);
   planByNameRef.current = planByName;
 
-  const limitsFor = (type: string): Record<string, number> =>
-    planByNameRef.current.get(type)?.slots ?? { main: 0, side: 0, rice: 0, dessert: 0 };
+  // Reads only through planByNameRef, so it is genuinely reference-stable —
+  // useCallback([]) states that rather than leaving callers to assert it with a
+  // bare [] dep list the linter can't verify.
+  const limitsFor = useCallback(
+    (type: string): Record<string, number> =>
+      planByNameRef.current.get(type)?.slots ?? {
+        main: 0,
+        side: 0,
+        rice: 0,
+        dessert: 0,
+      },
+    []
+  );
 
   const selectedItems = useMemo<SelectedItemWithQuantity[]>(() => {
     return planInstances
@@ -434,7 +445,9 @@ export function useOrderManagement(
         );
       });
     },
-    [] // stable — reads activePlanRef.current at call time
+    // limitsFor is useCallback([])-stable, so listing it costs no churn and
+    // keeps the dep list honest; the rest is read from refs at call time.
+    [limitsFor]
   );
 
   const handleItemQuantityDecrease = useCallback(
@@ -473,6 +486,107 @@ export function useOrderManagement(
       });
     },
     [] // stable — reads activePlanRef.current at call time
+  );
+
+  /**
+   * Bulk add: drop this dish into up to `count` open slots of its own type,
+   * FIFO by displayOrder. Pass Infinity for "fill every box".
+   *
+   * Deliberately IGNORES the active plan. handleItemAdd targets the active box
+   * and bails once that box is full, which is right for one-at-a-time picking
+   * but would make "+10" add exactly one. Bulk is inherently a
+   * across-all-boxes operation — that is the whole reason it exists when an
+   * order runs to 24 boxes and 72 individual picks.
+   */
+  const handleItemAddMany = useCallback((item: MenuItem, count: number) => {
+    if (count <= 0) return;
+    setPlanInstances((prev) => {
+      if (prev.length === 0) return prev;
+      let remaining = count;
+      const sorted = [...prev].sort((a, b) => a.displayOrder - b.displayOrder);
+      const additions = new Map<string, AssignedItem[]>();
+
+      for (const pi of sorted) {
+        if (remaining <= 0) break;
+        const limits = limitsFor(pi.type);
+        const used = pi.items.filter((ai) => ai.type === item.type).length;
+        let open = Math.max(0, (limits[item.type] || 0) - used);
+        while (open > 0 && remaining > 0) {
+          const list = additions.get(pi.id) ?? [];
+          list.push({
+            instanceId: generateItemId(item.name),
+            planInstanceId: pi.id,
+            menuItemId: item.id,
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            category: item.category,
+            type: item.type,
+            image: item.image,
+          });
+          additions.set(pi.id, list);
+          open--;
+          remaining--;
+        }
+      }
+
+      if (additions.size === 0) return prev;
+      return prev.map((pi) =>
+        additions.has(pi.id)
+          ? { ...pi, items: [...pi.items, ...(additions.get(pi.id) as AssignedItem[])] }
+          : pi
+      );
+    });
+  }, [limitsFor]);
+
+  /**
+   * Bulk remove: take out up to `count` copies of this dish, last-placed first,
+   * across every box. Pass Infinity for "clear it everywhere". Also ignores the
+   * active plan, so it undoes exactly what handleItemAddMany did.
+   */
+  const handleItemRemoveMany = useCallback((item: MenuItem, count: number) => {
+    if (count <= 0) return;
+    setPlanInstances((prev) => {
+      const sorted = [...prev].sort((a, b) => a.displayOrder - b.displayOrder);
+      const doomed = new Set<string>();
+      let remaining = count;
+
+      // Walk boxes back-to-front so "-10" peels off the most recent fills.
+      for (let i = sorted.length - 1; i >= 0 && remaining > 0; i--) {
+        const matches = sorted[i].items.filter((ai) => ai.name === item.name);
+        for (let j = matches.length - 1; j >= 0 && remaining > 0; j--) {
+          doomed.add(matches[j].instanceId);
+          remaining--;
+        }
+      }
+
+      if (doomed.size === 0) return prev;
+      return prev.map((pi) => ({
+        ...pi,
+        items: pi.items.filter((ai) => !doomed.has(ai.instanceId)),
+      }));
+    });
+  }, []);
+
+  /** Open slots for this dish's type across EVERY box — drives "Fill all (n)". */
+  const getOpenSlotsForType = useCallback(
+    (itemType: string): number =>
+      planInstances.reduce((sum, pi) => {
+        const limits = getMealPlanLimits(pi.type);
+        const used = pi.items.filter((ai) => ai.type === itemType).length;
+        return sum + Math.max(0, (limits[itemType] || 0) - used);
+      }, 0),
+    [planInstances, getMealPlanLimits]
+  );
+
+  /** How many copies of this dish are placed across EVERY box. */
+  const getTotalPlacedCount = useCallback(
+    (item: MenuItem): number =>
+      planInstances.reduce(
+        (sum, pi) => sum + pi.items.filter((ai) => ai.name === item.name).length,
+        0
+      ),
+    [planInstances]
   );
 
   const handleItemRemove = useCallback((item: SelectedItemWithQuantity) => {
@@ -609,7 +723,7 @@ export function useOrderManagement(
         }
       });
     },
-    []
+    [limitsFor]
   );
 
   // ─── Query helpers ───
@@ -703,6 +817,10 @@ export function useOrderManagement(
     handleMealPlanSelect,
     handleMealPlanQuantityChange,
     handleItemAdd,
+    handleItemAddMany,
+    handleItemRemoveMany,
+    getOpenSlotsForType,
+    getTotalPlacedCount,
     handleItemQuantityDecrease,
     handleItemRemove,
     handleAssignedItemRemove,

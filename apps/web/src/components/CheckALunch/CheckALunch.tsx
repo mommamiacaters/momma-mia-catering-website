@@ -35,6 +35,11 @@ interface CheckALunchProps {
   onItemAdd: (item: MenuItem) => void;
   onItemRemove: (item: SelectedItemWithQuantity) => void;
   onItemQuantityDecrease: (item: MenuItem) => void;
+  /** Bulk fill/clear across every box — see useOrderManagement. */
+  onItemAddMany: (item: MenuItem, count: number) => void;
+  onItemRemoveMany: (item: MenuItem, count: number) => void;
+  getOpenSlotsForType: (itemType: string) => number;
+  getTotalPlacedCount: (item: MenuItem) => number;
   plans: MealPlan[];
   getMealPlanPrice: (type: MealPlanType, planInstanceId?: string) => number;
   getMealPlanLimits: (type: MealPlanType) => Record<string, number>;
@@ -76,6 +81,10 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   onMealPlanQuantityChange,
   onItemAdd,
   onItemQuantityDecrease,
+  onItemAddMany,
+  onItemRemoveMany,
+  getOpenSlotsForType,
+  getTotalPlacedCount,
   plans,
   getMealPlanPrice,
   getMealPlanLimits,
@@ -553,10 +562,14 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                           isSelected={isItemSelected(item)}
                           isDisabled={isCatFull}
                           currentQuantity={getCurrentItemQuantity(item)}
+                          openSlots={getOpenSlotsForType(item.type)}
+                          placedCount={getTotalPlacedCount(item)}
                           onAdd={() => onItemAdd(item)}
                           onDecrease={() =>
                             onItemQuantityDecrease(item)
                           }
+                          onAddMany={(n) => onItemAddMany(item, n)}
+                          onRemoveMany={(n) => onItemRemoveMany(item, n)}
                         />
                       ))}
                     </div>

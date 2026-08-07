@@ -121,6 +121,10 @@ const ServicePage: React.FC = () => {
                 onItemAdd={order.handleItemAdd}
                 onItemRemove={order.handleItemRemove}
                 onItemQuantityDecrease={order.handleItemQuantityDecrease}
+                onItemAddMany={order.handleItemAddMany}
+                onItemRemoveMany={order.handleItemRemoveMany}
+                getOpenSlotsForType={order.getOpenSlotsForType}
+                getTotalPlacedCount={order.getTotalPlacedCount}
                 getMealPlanPrice={order.getMealPlanPrice}
                 getMealPlanLimits={order.getMealPlanLimits}
                 getItemsByCategory={order.getItemsByCategory}
