@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Check, ChevronRight, Zap, Info } from "lucide-react";
+import { Check, ChevronRight, Zap, Info, Trash2 } from "lucide-react";
+import ConfirmDialog from "../ui/ConfirmDialog";
 import {
   deriveMinimumState,
   useStoreSettings,
@@ -38,6 +39,8 @@ interface CheckALunchProps {
   /** Bulk fill/clear across every box — see useOrderManagement. */
   onItemAddMany: (item: MenuItem, count: number) => void;
   onItemRemoveMany: (item: MenuItem, count: number) => void;
+  /** Empty one course — a single box when given an id, every box when null. */
+  clearCourse: (itemType: string, planInstanceId: string | null) => void;
   getOpenSlotsForType: (itemType: string) => number;
   getTotalPlacedCount: (item: MenuItem) => number;
   plans: MealPlan[];
@@ -83,6 +86,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   onItemQuantityDecrease,
   onItemAddMany,
   onItemRemoveMany,
+  clearCourse,
   getOpenSlotsForType,
   getTotalPlacedCount,
   plans,
@@ -97,6 +101,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   onMoveItem,
 }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryType>("main");
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   // Order minimum, set by the admin in app_settings. planInstances.length is the
   // same figure getTotalMealPlanCount() gives the cart, and deriveMinimumState is
@@ -153,6 +158,22 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
       ) as Record<CategoryType, boolean>,
     [hasMealPlan, categoryCounts, maxAllowed]
   );
+
+  // What a Clear press would actually remove: this box's dishes for the current
+  // course while filling one, or the whole order's while auto-filling.
+  const clearableCount = useMemo(() => {
+    const boxes = activePlanInstanceId
+      ? planInstances.filter((pi) => pi.id === activePlanInstanceId)
+      : planInstances;
+    return boxes.reduce(
+      (sum, pi) => sum + pi.items.filter((i) => i.type === activeCategory).length,
+      0
+    );
+  }, [planInstances, activePlanInstanceId, activeCategory]);
+
+  const activeLabel =
+    CATEGORY_CONFIG.find((c) => c.type === activeCategory)?.label ??
+    activeCategory;
 
   const activeMax = maxAllowed[activeCategory] || 0;
   const activeSelected = categoryCounts[activeCategory];
@@ -499,8 +520,10 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
 
           {/* ── Active Category Header + Progress ── */}
           <div className="mb-6">
-            <div className="flex items-end justify-between mb-2">
-              <div>
+            {/* Wraps below sm: the title plus Clear plus the count badge do not
+                fit a 343px picker column on a phone. */}
+            <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 mb-2">
+              <div className="min-w-0">
                 <h4 className="font-arvo text-2xl font-bold text-brand-text">
                   {getCategoryDisplayName(activeCategory)}
                 </h4>
@@ -512,15 +535,41 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   }
                 </p>
               </div>
-              <span
-                className={`font-poppins text-sm font-semibold px-3 py-1 rounded-full ${
-                  isMaxReached
-                    ? "bg-green-100 text-green-700"
-                    : "bg-brand-secondary text-brand-text/50"
-                }`}
-              >
-                {activeSelected} of {activeMax} selected
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Scope is spelled out in the label, because "Clear" means one
+                    box while you're filling one and EVERY box in auto-fill —
+                    a 25x difference the button must not leave ambiguous. */}
+                {clearableCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      activePlanInstanceId
+                        ? clearCourse(activeCategory, activePlanInstanceId)
+                        : setConfirmClearAll(true)
+                    }
+                    className="flex items-center gap-1.5 rounded-full border border-brand-divider px-3 py-1 font-poppins text-sm font-medium text-brand-text/60 transition-colors hover:border-red-300 hover:text-red-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
+                    title={
+                      activePlanInstanceId
+                        ? `Remove the ${activeLabel.toLowerCase()} from #${activePlanNum} ${activePlan?.type ?? ""}`
+                        : `Remove every ${activeLabel.toLowerCase()} from all ${sortedInstances.length} boxes`
+                    }
+                  >
+                    <Trash2 size={14} />
+                    {activePlanInstanceId
+                      ? "Clear this box"
+                      : `Clear all ${clearableCount}`}
+                  </button>
+                )}
+                <span
+                  className={`font-poppins text-sm font-semibold px-3 py-1 rounded-full whitespace-nowrap ${
+                    isMaxReached
+                      ? "bg-green-100 text-green-700"
+                      : "bg-brand-secondary text-brand-text/50"
+                  }`}
+                >
+                  {activeSelected} of {activeMax} selected
+                </span>
+              </div>
             </div>
 
             <div className="h-1.5 bg-brand-divider/40 rounded-full overflow-hidden">
@@ -603,6 +652,30 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           </section>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmClearAll}
+        title={`Clear every ${activeLabel}?`}
+        // Pluralise "dish", never the course name — "Rice"/"Dessert" + "es"
+        // gives "ricees" / "dessertes".
+        message={
+          <>
+            This removes all <strong>{clearableCount}</strong>{" "}
+            {clearableCount === 1 ? "dish" : "dishes"} from the{" "}
+            <strong>{activeLabel}</strong> course, across{" "}
+            <strong>all {sortedInstances.length} lunch boxes</strong>. Your boxes
+            and every other course stay exactly as they are.
+            <br />
+            <span className="text-brand-text/50">This can&rsquo;t be undone.</span>
+          </>
+        }
+        confirmLabel={`Clear all ${clearableCount}`}
+        onConfirm={() => {
+          clearCourse(activeCategory, null);
+          setConfirmClearAll(false);
+        }}
+        onCancel={() => setConfirmClearAll(false)}
+      />
     </div>
   );
 };

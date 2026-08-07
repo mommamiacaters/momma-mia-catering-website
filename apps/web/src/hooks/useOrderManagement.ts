@@ -589,6 +589,26 @@ export function useOrderManagement(
     [planInstances]
   );
 
+  /**
+   * Empty one course. Scope is explicit rather than inferred from the active
+   * plan: pass a planInstanceId to clear that box only, or null to clear the
+   * course across every box. The caller decides, because "clear" means two very
+   * different-sized things depending on whether you're filling one box or
+   * auto-filling, and guessing would make the destructive case the ambiguous one.
+   */
+  const clearCourse = useCallback(
+    (itemType: string, planInstanceId: string | null) => {
+      setPlanInstances((prev) =>
+        prev.map((pi) =>
+          planInstanceId && pi.id !== planInstanceId
+            ? pi
+            : { ...pi, items: pi.items.filter((ai) => ai.type !== itemType) }
+        )
+      );
+    },
+    []
+  );
+
   const handleItemRemove = useCallback((item: SelectedItemWithQuantity) => {
     setPlanInstances((prev) =>
       prev.map((pi) => ({
@@ -819,6 +839,7 @@ export function useOrderManagement(
     handleItemAdd,
     handleItemAddMany,
     handleItemRemoveMany,
+    clearCourse,
     getOpenSlotsForType,
     getTotalPlacedCount,
     handleItemQuantityDecrease,

@@ -123,6 +123,7 @@ const ServicePage: React.FC = () => {
                 onItemQuantityDecrease={order.handleItemQuantityDecrease}
                 onItemAddMany={order.handleItemAddMany}
                 onItemRemoveMany={order.handleItemRemoveMany}
+                clearCourse={order.clearCourse}
                 getOpenSlotsForType={order.getOpenSlotsForType}
                 getTotalPlacedCount={order.getTotalPlacedCount}
                 getMealPlanPrice={order.getMealPlanPrice}
