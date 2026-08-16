@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface SafeImageProps {
   src: string | null | undefined;
@@ -8,6 +8,8 @@ interface SafeImageProps {
   /** PrimeIcons class for the placeholder, e.g. "pi-image". */
   icon?: string;
   iconClass?: string;
+  /** Fires when the image breaks (true) or a new src resets it (false). */
+  onStatusChange?: (failed: boolean) => void;
 }
 
 /**
@@ -24,12 +26,19 @@ const SafeImage: React.FC<SafeImageProps> = ({
   className = "",
   icon = "pi-image",
   iconClass = "text-brand-text/30 text-lg",
+  onStatusChange,
 }) => {
   const [failed, setFailed] = useState(false);
+  // Ref keeps an unstable callback prop from re-running the reset effect.
+  const statusRef = useRef(onStatusChange);
+  statusRef.current = onStatusChange;
 
   // A new src deserves a fresh attempt — otherwise swapping in a good photo after
   // a bad one would stay stuck on the placeholder.
-  useEffect(() => setFailed(false), [src]);
+  useEffect(() => {
+    setFailed(false);
+    statusRef.current?.(false);
+  }, [src]);
 
   if (!src || failed) {
     return (
@@ -49,7 +58,10 @@ const SafeImage: React.FC<SafeImageProps> = ({
       alt={alt}
       className={className}
       loading="lazy"
-      onError={() => setFailed(true)}
+      onError={() => {
+        setFailed(true);
+        statusRef.current?.(true);
+      }}
     />
   );
 };

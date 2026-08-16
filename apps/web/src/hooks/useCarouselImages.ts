@@ -19,11 +19,14 @@ interface SlideState {
 
 const EMPTY: CarouselSlide[] = [];
 
-/** Decodes an image off-screen; a photo that won't decode never blocks the swap. */
-async function preload(src: string): Promise<void> {
+/** Decodes an image off-screen. false = the URL is broken or won't decode. */
+async function canDecode(src: string): Promise<boolean> {
   const img = new Image();
   img.src = src;
-  await img.decode().catch(() => undefined);
+  return img.decode().then(
+    () => true,
+    () => false,
+  );
 }
 
 export function useCarouselImages(slug: string): CarouselSlide[] {
@@ -36,11 +39,14 @@ export function useCarouselImages(slug: string): CarouselSlide[] {
     listCarouselImages(slug)
       .then(async (rows) => {
         if (cancelled) return;
-        const slides = rows.map((row) => ({ src: row.image_url, alt: row.alt_text }));
-        // Hold the bundled photos on screen until the first replacement can
-        // paint, otherwise the swap flashes an empty hero while it downloads.
-        if (slides.length > 0) await preload(slides[0].src);
+        const candidates = rows.map((row) => ({ src: row.image_url, alt: row.alt_text }));
+        // Decode everything off-screen and drop what won't paint: a row whose
+        // stored file is missing or corrupt must never surface as a blank
+        // slide. This also holds the bundled photos on screen until the
+        // replacements are actually paintable, so the swap can't flash empty.
+        const decodable = await Promise.all(candidates.map((s) => canDecode(s.src)));
         if (cancelled) return;
+        const slides = candidates.filter((_, i) => decodable[i]);
         setState({ slug, slides });
       })
       .catch((err) => {
