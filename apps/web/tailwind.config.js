@@ -29,7 +29,12 @@ export default {
       },
       animation: {
         shimmer: 'shimmer 1.5s infinite',
-        'page-in': 'page-in 200ms ease-out both',
+        // No fill mode: the end state IS the natural state, and a filling
+        // transform would stay on the page wrapper forever — turning it into
+        // the containing block for every `fixed` descendant (order drawer,
+        // bag button, admin modals), which pins them to the page instead of
+        // the viewport and kills their internal scrolling.
+        'page-in': 'page-in 200ms ease-out',
       },
     },
   },
