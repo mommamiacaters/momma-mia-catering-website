@@ -10,7 +10,9 @@ import type {
   PaymentProof,
 } from "../../types";
 import { submitOrder } from "../../services/orderService";
+import { menuService } from "../../services/menuService";
 import {
+  deriveDishMinimumState,
   deriveMinimumState,
   useStoreSettings,
 } from "../../hooks/useStoreSettings";
@@ -120,6 +122,7 @@ const CheckoutPage: React.FC = () => {
   // Order-minimum gate. Hooks must stay above the `!effectiveState` early return.
   const {
     minimumMealPlans,
+    minimumQtyPerDish,
     error: settingsError,
     retry: retrySettings,
   } = useStoreSettings();
@@ -127,6 +130,10 @@ const CheckoutPage: React.FC = () => {
   const [gateError, setGateError] = useState<string | null>(null);
   const boxes = effectiveState?.planInstances?.length ?? 0;
   const min = deriveMinimumState(minimumMealPlans, boxes);
+  const dishMin = deriveDishMinimumState(
+    minimumQtyPerDish,
+    effectiveState?.planInstances ?? [],
+  );
 
   /**
    * Fresh read straight from the DB, bypassing the module cache, so an admin
@@ -145,6 +152,36 @@ const CheckoutPage: React.FC = () => {
       if (boxes > 0 && boxes < live) {
         setGateError(
           `The minimum order size is ${live} lunch boxes. Your order has ${boxes}. Please go back and add ${live - boxes} more — nothing has been charged.`,
+        );
+        return false;
+      }
+      // Same fresh read for the per-dish floor — INCLUDING the per-dish
+      // overrides. The cart's minQty snapshots can be a day stale, and this
+      // gate exists precisely so the server's post-payment check never fires;
+      // so ask menu_items what the server will actually enforce.
+      const rawDish = s[SETTING_KEYS.minimumQtyPerDish];
+      const liveDish =
+        typeof rawDish === "number" && Number.isInteger(rawDish) && rawDish >= 0
+          ? rawDish
+          : 0;
+      const cartPlans = effectiveState?.planInstances ?? [];
+      const dishIds = [
+        ...new Set(cartPlans.flatMap((pi) => pi.items.map((ai) => ai.menuItemId))),
+      ];
+      const liveOverrides = await menuService.fetchDishMinimums(dishIds);
+      const livePlans = cartPlans.map((pi) => ({
+        ...pi,
+        items: pi.items.map((ai) =>
+          liveOverrides.has(ai.menuItemId)
+            ? { ...ai, minQty: liveOverrides.get(ai.menuItemId) ?? null }
+            : ai,
+        ),
+      }));
+      const liveDishMin = deriveDishMinimumState(liveDish, livePlans);
+      if (boxes > 0 && liveDishMin.violations.length > 0) {
+        const v = liveDishMin.violations[0];
+        setGateError(
+          `Each dish needs at least ${v.required} servings once it's in your order. "${v.name}" has ${v.current} — please go back and add ${v.remaining} more, or take it out. Nothing has been charged.`,
         );
         return false;
       }
@@ -498,7 +535,7 @@ const CheckoutPage: React.FC = () => {
               {/* A below-minimum (or unverifiable) cart gets an explanation and
                   a way out — NOT a silent navigate() that would teleport the
                   customer and destroy half-typed delivery details. */}
-              {boxes > 0 && min.blocked ? (
+              {boxes > 0 && (min.blocked || dishMin.blocked) ? (
                 <div className="text-center py-6">
                   <AlertCircle
                     size={40}
@@ -507,12 +544,18 @@ const CheckoutPage: React.FC = () => {
                   <h2 className="font-arvo font-bold text-brand-text text-lg mb-2">
                     {settingsError
                       ? "Couldn't load the order rules"
-                      : "A few more lunch boxes needed"}
+                      : min.blocked
+                        ? "A few more lunch boxes needed"
+                        : "Some dishes need more servings"}
                   </h2>
                   <p className="font-poppins text-sm text-brand-text/60 mb-6 max-w-sm mx-auto leading-relaxed">
                     {settingsError
                       ? "We couldn't confirm this store's order rules just now. Please check your connection and try again — nothing has been charged."
-                      : `Your order has ${boxes} lunch ${boxes === 1 ? "box" : "boxes"}. Orders need at least ${min.minimum} before we can take it. Nothing has been charged.`}
+                      : min.blocked
+                        ? `Your order has ${boxes} lunch ${boxes === 1 ? "box" : "boxes"}. Orders need at least ${min.minimum} before we can take it. Nothing has been charged.`
+                        : `Each dish in your order has a per-order minimum. Still short: ${dishMin.violations
+                            .map((v) => `${v.name} (${v.current}/${v.required})`)
+                            .join(", ")}. Please go back and top them up, or take them out. Nothing has been charged.`}
                   </p>
                   <button
                     onClick={() =>

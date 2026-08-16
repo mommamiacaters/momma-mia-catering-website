@@ -107,13 +107,16 @@ export function useOrderManagement(
   const activePlanRef = useRef(activePlanInstanceId);
   activePlanRef.current = activePlanInstanceId;
 
-  // Fetch menu data when slug changes
+  // Fetch menu data when slug changes. The Merienda Meals page still uses the
+  // legacy 'fun-boxes' menu category in the database.
   useEffect(() => {
-    if (
-      !slug ||
-      !hasMenu ||
-      (slug !== "check-a-lunch" && slug !== "fun-boxes")
-    ) {
+    const category =
+      slug === "check-a-lunch"
+        ? ("check-a-lunch" as const)
+        : slug === "merienda-meals"
+          ? ("fun-boxes" as const)
+          : null;
+    if (!slug || !hasMenu || !category) {
       return;
     }
 
@@ -133,9 +136,7 @@ export function useOrderManagement(
             : null;
           if (!cancelled) setMenuData(data);
         } else {
-          const data = await menuService.getCategoryMenuData(
-            slug as "check-a-lunch" | "fun-boxes",
-          );
+          const data = await menuService.getCategoryMenuData(category);
           if (!cancelled) setMenuData(data);
         }
       } catch (err) {
@@ -286,13 +287,13 @@ export function useOrderManagement(
         // Aggregate across all plans
         return planInstances.reduce(
           (total, pi) =>
-            total + pi.items.filter((ai) => ai.name === item.name).length,
+            total + pi.items.filter((ai) => ai.menuItemId === item.id).length,
           0
         );
       }
       const pi = planInstances.find((p) => p.id === activePlanInstanceId);
       if (!pi) return 0;
-      return pi.items.filter((ai) => ai.name === item.name).length;
+      return pi.items.filter((ai) => ai.menuItemId === item.id).length;
     },
     [activePlanInstanceId, planInstances]
   );
@@ -436,6 +437,7 @@ export function useOrderManagement(
           category: item.category,
           type: item.type,
           image: item.image,
+          minQty: item.minQty ?? null,
         };
 
         return prev.map((pi) =>
@@ -462,7 +464,7 @@ export function useOrderManagement(
 
         for (const pi of sorted) {
           for (const ai of pi.items) {
-            if (ai.name === item.name) {
+            if (ai.menuItemId === item.id) {
               if (!currentActivePlan || pi.id === currentActivePlan) {
                 allItems.push({ planId: pi.id, item: ai });
               }
@@ -523,6 +525,7 @@ export function useOrderManagement(
             category: item.category,
             type: item.type,
             image: item.image,
+            minQty: item.minQty ?? null,
           });
           additions.set(pi.id, list);
           open--;
@@ -553,7 +556,7 @@ export function useOrderManagement(
 
       // Walk boxes back-to-front so "-10" peels off the most recent fills.
       for (let i = sorted.length - 1; i >= 0 && remaining > 0; i--) {
-        const matches = sorted[i].items.filter((ai) => ai.name === item.name);
+        const matches = sorted[i].items.filter((ai) => ai.menuItemId === item.id);
         for (let j = matches.length - 1; j >= 0 && remaining > 0; j--) {
           doomed.add(matches[j].instanceId);
           remaining--;
@@ -583,7 +586,7 @@ export function useOrderManagement(
   const getTotalPlacedCount = useCallback(
     (item: MenuItem): number =>
       planInstances.reduce(
-        (sum, pi) => sum + pi.items.filter((ai) => ai.name === item.name).length,
+        (sum, pi) => sum + pi.items.filter((ai) => ai.menuItemId === item.id).length,
         0
       ),
     [planInstances]
@@ -753,10 +756,10 @@ export function useOrderManagement(
       if (activePlanInstanceId) {
         const pi = planInstances.find((p) => p.id === activePlanInstanceId);
         if (!pi) return false;
-        return pi.items.some((ai) => ai.name === item.name);
+        return pi.items.some((ai) => ai.menuItemId === item.id);
       }
       return planInstances.some((pi) =>
-        pi.items.some((ai) => ai.name === item.name)
+        pi.items.some((ai) => ai.menuItemId === item.id)
       );
     },
     [activePlanInstanceId, planInstances]

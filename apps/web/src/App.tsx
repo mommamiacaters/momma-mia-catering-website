@@ -87,6 +87,8 @@ function AppContent() {
           <Route path="/meals" element={<MealsPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          {/* Fun Boxes became Merienda Meals; keep old links and bookmarks alive. */}
+          <Route path="/services/fun-boxes" element={<Navigate to="/services/merienda-meals" replace />} />
           <Route path="/services/:slug" element={<ServicePage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
 

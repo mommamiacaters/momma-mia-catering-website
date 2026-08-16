@@ -36,10 +36,10 @@ const MealsPage: React.FC = () => {
     },
     {
       id: 3,
-      title: "\u{1F381} Fun Boxes",
-      slug: "fun-boxes",
+      title: "\u{1F96A} Merienda Meals",
+      slug: "merienda-meals",
       description:
-        "Pasta? Sandwich? Dessert? but make it fun. Curated lunch boxes you can mix and match\u2014ideal for events, client gifts, team perks, and anything worth celebrating.",
+        "Pasta? Sandwich? Dessert? Curated merienda boxes you can mix and match\u2014ideal for events, client gifts, team perks, and anything worth celebrating.",
       image: funBoxes,
       size: "small" as const,
     },

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Check, ChevronRight, Zap, Info, Trash2 } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import {
+  deriveDishMinimumState,
   deriveMinimumState,
   useStoreSettings,
 } from "../../hooks/useStoreSettings";
@@ -109,11 +110,25 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   // never disagree.
   const {
     minimumMealPlans,
+    minimumQtyPerDish,
     error: settingsError,
     retry: retrySettings,
   } = useStoreSettings();
   const totalBoxes = planInstances.length;
   const min = deriveMinimumState(minimumMealPlans, totalBoxes);
+  // Per-dish floors — same shared-derivation contract as the box minimum.
+  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances);
+
+  // Violation chips need the full MenuItem back to call onItemAddMany with.
+  const itemById = useMemo(() => {
+    const map = new Map<string, MenuItem>();
+    if (menuData) {
+      for (const cat of CATEGORIES) {
+        for (const it of menuData[cat] ?? []) map.set(it.id, it);
+      }
+    }
+    return map;
+  }, [menuData]);
 
   // Preload ALL category images when menu data arrives
   useEffect(() => {
@@ -317,6 +332,53 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   width: `${Math.min(100, (totalBoxes / min.minimum) * 100)}%`,
                 }}
               />
+            </div>
+          </div>
+        )}
+
+        {/* ── Per-dish minimums ── every dish placed in the boxes must reach
+            its own floor (menu override, else the store default). Blocks
+            checkout exactly like the box minimum, so it gets the same
+            persistent-banner treatment. */}
+        {dishMin.violations.length > 0 && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3"
+          >
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <Info size={18} className="text-amber-600 shrink-0" />
+              <p className="font-poppins text-sm text-brand-text">
+                <strong className="font-semibold">
+                  Some dishes are below their per-order minimum.
+                </strong>{" "}
+                <span className="text-brand-text/60">
+                  Add more of each, or take the dish out of your boxes.
+                </span>
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {dishMin.violations.map((v) => {
+                const item = itemById.get(v.menuItemId);
+                const canQuickAdd =
+                  !!item && getOpenSlotsForType(item.type) > 0;
+                return (
+                  <button
+                    key={v.menuItemId}
+                    type="button"
+                    onClick={() => item && onItemAddMany(item, v.remaining)}
+                    disabled={!canQuickAdd}
+                    className="rounded-full bg-white border border-amber-300 px-3 py-1.5 font-poppins text-xs font-semibold text-amber-800 tabular-nums transition-colors enabled:hover:bg-amber-100 enabled:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={
+                      canQuickAdd
+                        ? `Put ${v.name} in ${v.remaining} more open slots to reach ${v.required}`
+                        : `No open slots left for this course — swap other dishes out first, or remove ${v.name}`
+                    }
+                  >
+                    {v.name} · {v.current}/{v.required} — add {v.remaining}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -615,6 +677,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                           currentQuantity={getCurrentItemQuantity(item)}
                           openSlots={getOpenSlotsForType(item.type)}
                           placedCount={getTotalPlacedCount(item)}
+                          requiredMin={
+                            minimumQtyPerDish === null
+                              ? null
+                              : (item.minQty ?? minimumQtyPerDish)
+                          }
                           onAdd={() => onItemAdd(item)}
                           onDecrease={() =>
                             onItemQuantityDecrease(item)

@@ -3,6 +3,7 @@ import {
   fetchAllSettings,
   updateSetting,
   MINIMUM_MEAL_PLANS_BOUNDS,
+  MINIMUM_QTY_PER_DISH_BOUNDS,
   type AppSettingRow,
 } from "../../services/settingsService";
 import type { Json } from "@momma-mia/db";
@@ -10,6 +11,7 @@ import type { Json } from "@momma-mia/db";
 /** Per-key limits, mirroring the DB CHECK constraints. */
 const NUMBER_BOUNDS: Record<string, { min: number; max: number }> = {
   minimum_meal_plans: MINIMUM_MEAL_PLANS_BOUNDS,
+  minimum_qty_per_dish: MINIMUM_QTY_PER_DISH_BOUNDS,
 };
 const DEFAULT_BOUNDS = { min: 0, max: 999 };
 

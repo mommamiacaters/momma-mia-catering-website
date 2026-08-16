@@ -19,6 +19,10 @@ export function mapOrderError(msg: string): string {
   if (min) {
     return `Orders need at least ${min[1]} lunch boxes. Your order was NOT placed and nothing was charged by this site. If you already sent a payment it has not been applied — please contact us and we'll sort it out.`;
   }
+  const dishMin = msg.match(/minimum (\d+) of dish "(.+?)" per order; this order has (\d+)/i);
+  if (dishMin) {
+    return `"${dishMin[2]}" needs at least ${dishMin[1]} servings per order — your order has ${dishMin[3]}. Your order was NOT placed and nothing was charged by this site. If you already sent a payment it has not been applied — please contact us and we'll sort it out.`;
+  }
   if (/not part of any lunch box/i.test(msg) || /duplicate lunch box/i.test(msg)) {
     return "Something's off with your cart. Please rebuild your order and try again.";
   }

@@ -33,7 +33,7 @@ Momma Mia Catering brings homestyle cooking and warm hospitality to your events 
 🍽️ Our Services
 • Check-A-Lunch — Fresh, healthy lunch options delivered daily to your workplace or event
 • Party Trays — Delicious assortments perfect for celebrations and gatherings
-• Fun Boxes — Individual meal boxes packed with flavor and fun
+• Merienda Meals — Individual merienda boxes packed with flavor
 • Catering Services — Full-service catering for weddings, corporate events, and special occasions
 • Equipment Rental — Professional-grade catering equipment for rent
 

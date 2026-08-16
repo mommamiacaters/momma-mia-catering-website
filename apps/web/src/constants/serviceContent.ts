@@ -28,10 +28,10 @@ const SERVICE_CONTENT_MAP: Record<string, ServiceContent> = {
     images: [tray1, tray2, tray3, tray4, tray5, tray6, tray7, tray8, tray9],
     hasMenu: false,
   },
-  "fun-boxes": {
-    title: "Fun Boxes",
+  "merienda-meals": {
+    title: "Merienda Meals",
     description:
-      "Individual meal boxes packed with flavor and fun! Perfect for picnics, lunch meetings, or when you want a complete meal in a convenient package. Each box is carefully curated with fresh ingredients.",
+      "Individual merienda boxes packed with flavor! Perfect for picnics, meetings, or afternoon gatherings — a satisfying bite in a convenient package. Each box is carefully curated with fresh ingredients.",
     images: [box1, box2, box3],
     hasMenu: true,
   },

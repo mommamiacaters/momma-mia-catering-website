@@ -22,6 +22,7 @@ import { isPlanInstanceComplete } from "../../utils/mealPlanUtils";
 import { PLAN_SLOT_META } from "../../constants/planSlots";
 import { CompositionIcons, SlotIcon } from "../ui/SlotIcons";
 import {
+  deriveDishMinimumState,
   deriveMinimumState,
   useStoreSettings,
 } from "../../hooks/useStoreSettings";
@@ -72,6 +73,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
 }) => {
   const {
     minimumMealPlans,
+    minimumQtyPerDish,
     error: settingsError,
     retry: retrySettings,
   } = useStoreSettings();
@@ -80,10 +82,11 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   // blocked is true while the minimum is still unknown, so there is neither a
   // load-window flash nor a load-window bypass.
   const min = deriveMinimumState(minimumMealPlans, totalMealPlans);
+  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances);
   const allBoxesFilled =
     planInstances.length > 0 &&
     planInstances.every((pi) => isPlanInstanceComplete(pi, getMealPlanLimits(pi.type)));
-  const canCheckout = !min.blocked && allBoxesFilled;
+  const canCheckout = !min.blocked && !dishMin.blocked && allBoxesFilled;
 
   // Plan reorder drag state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -773,6 +776,13 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                   <AlertCircle size={16} />
                   Add {min.remaining} more{" "}
                   {min.remaining === 1 ? "box" : "boxes"}
+                </>
+              ) : dishMin.violations.length > 0 ? (
+                <>
+                  <AlertCircle size={16} />
+                  {dishMin.violations.length === 1
+                    ? `Add ${dishMin.violations[0].remaining} more ${dishMin.violations[0].name}`
+                    : `${dishMin.violations.length} dishes below their minimum`}
                 </>
               ) : !allBoxesFilled ? (
                 <>

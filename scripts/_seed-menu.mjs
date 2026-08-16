@@ -35,7 +35,7 @@ const CATS = {
   'check-a-lunch': { name: 'Check-a-Lunch', sort: 1 },
   'cafe-menu':     { name: 'Café Menu',     sort: 2 },
   'party-tray':    { name: 'Party Trays',   sort: 3 },
-  'fun-boxes':     { name: 'Fun Boxes',     sort: 4 },
+  'fun-boxes':     { name: 'Merienda Meals', sort: 4 },
   'add-on':        { name: 'Add-ons',       sort: 5 },
 };
 const cateringSlugs = new Set(['party-tray', 'fun-boxes']);

@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -236,6 +261,7 @@ export type Database = {
           is_available: boolean
           is_catering: boolean
           item_type: string | null
+          min_qty: number | null
           name: string
           price_cents: number | null
           sort_order: number
@@ -251,6 +277,7 @@ export type Database = {
           is_available?: boolean
           is_catering?: boolean
           item_type?: string | null
+          min_qty?: number | null
           name: string
           price_cents?: number | null
           sort_order?: number
@@ -266,6 +293,7 @@ export type Database = {
           is_available?: boolean
           is_catering?: boolean
           item_type?: string | null
+          min_qty?: number | null
           name?: string
           price_cents?: number | null
           sort_order?: number
@@ -386,6 +414,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          archived_at: string | null
           client_id: string | null
           created_at: string
           customer_email: string
@@ -408,6 +437,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           client_id?: string | null
           created_at?: string
           customer_email: string
@@ -430,6 +460,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           client_id?: string | null
           created_at?: string
           customer_email?: string
@@ -566,12 +597,23 @@ export type Database = {
       }
     }
     Views: {
+      admin_order_stats: {
+        Row: {
+          archived_orders: number | null
+          pending_orders: number | null
+          today_orders: number | null
+          total_orders: number | null
+          total_sales_cents: number | null
+        }
+        Relationships: []
+      }
       meal_plan_options: {
         Row: {
           description: string | null
           image_url: string | null
           meal_plan_id: number | null
           menu_item_id: string | null
+          min_qty: number | null
           name: string | null
           price_cents: number | null
           slot: string | null
@@ -599,6 +641,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _notify_config: { Args: never; Returns: Record<string, unknown> }
       _order_notify_post: {
         Args: {
           p_kind: string
@@ -616,9 +659,7 @@ export type Database = {
           p_customer: Json
           p_items: Json
           p_order_ref: string
-          /** Legacy: pre-v6 clients uploaded first and passed their own key. */
           p_payment_proof_url?: string
-          /** v6: the server mints the storage key from this and returns it. */
           p_proof_ext?: string
         }
         Returns: Json
@@ -773,6 +814,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["client", "driver", "admin"],

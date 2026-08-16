@@ -7,10 +7,14 @@ import type { Json } from "@momma-mia/db";
 /** Stable keys so callers never hardcode raw strings. */
 export const SETTING_KEYS = {
   minimumMealPlans: "minimum_meal_plans",
+  minimumQtyPerDish: "minimum_qty_per_dish",
 } as const;
 
 /** Mirrors the app_settings_minimum_meal_plans_bounds CHECK constraint. */
 export const MINIMUM_MEAL_PLANS_BOUNDS = { min: 0, max: 500 } as const;
+
+/** Mirrors the app_settings_minimum_qty_per_dish_bounds CHECK constraint. */
+export const MINIMUM_QTY_PER_DISH_BOUNDS = { min: 0, max: 500 } as const;
 
 export interface AppSettingRow {
   key: string;
@@ -59,6 +63,11 @@ export async function updateSetting(key: string, value: Json): Promise<void> {
 
   if (error) {
     console.error("updateSetting failed:", error);
+    if (/app_settings_minimum_qty_per_dish_bounds/.test(error.message)) {
+      throw new Error(
+        `Minimum per dish must be a whole number between ${MINIMUM_QTY_PER_DISH_BOUNDS.min} and ${MINIMUM_QTY_PER_DISH_BOUNDS.max}.`,
+      );
+    }
     if (
       error.code === "23514" ||
       /app_settings_minimum_meal_plans_bounds/.test(error.message)

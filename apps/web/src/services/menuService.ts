@@ -13,6 +13,8 @@ export interface MenuItem {
   category: string;
   type: string;
   image: string;
+  /** menu_items.min_qty: null/absent = store default, 0 = no minimum. */
+  minQty?: number | null;
 }
 
 /** Dishes grouped by plan slot. "starch" became "rice"; "dessert" is new. */
@@ -79,6 +81,8 @@ export interface PlanOption {
   subCategoryId: number;
   subCategoryName: string;
   subCategorySort: number;
+  /** Per-dish order floor: null = store default, 0 = no minimum. */
+  minQty: number | null;
 }
 
 export interface MenuResponse {
@@ -293,7 +297,7 @@ class MenuService {
     const { data, error } = await supabase
       .from("meal_plan_options")
       .select(
-        "menu_item_id, name, description, image_url, price_cents, slot, sub_category_id, sub_category_name, sub_category_sort",
+        "menu_item_id, name, description, image_url, price_cents, slot, sub_category_id, sub_category_name, sub_category_sort, min_qty",
       )
       .eq("meal_plan_id", mealPlanId);
 
@@ -315,6 +319,7 @@ class MenuService {
         subCategoryId: row.sub_category_id as number,
         subCategoryName: row.sub_category_name as string,
         subCategorySort: row.sub_category_sort as number,
+        minQty: (row.min_qty as number | null) ?? null,
       });
     }
 
@@ -339,6 +344,7 @@ class MenuService {
       category: "check-a-lunch",
       type: o.slot,
       image: o.image ?? "",
+      minQty: o.minQty,
     });
     return {
       main: opts.main.map(toMenuItem),
@@ -346,6 +352,22 @@ class MenuService {
       rice: opts.rice.map(toMenuItem),
       dessert: opts.dessert.map(toMenuItem),
     };
+  }
+
+  /**
+   * Live, uncached read of per-dish minimums for the checkout gate. The cart's
+   * minQty snapshots can be a day stale; the gate that runs before the payment
+   * QR must use what the server will actually enforce. Throws on failure so
+   * the caller fails closed.
+   */
+  async fetchDishMinimums(menuItemIds: string[]): Promise<Map<string, number | null>> {
+    if (menuItemIds.length === 0) return new Map();
+    const { data, error } = await supabase
+      .from("menu_items")
+      .select("id, min_qty")
+      .in("id", menuItemIds);
+    if (error) throw new Error(error.message);
+    return new Map((data ?? []).map((row) => [row.id as string, row.min_qty as number | null]));
   }
 
   async refreshMenuData(): Promise<void> {

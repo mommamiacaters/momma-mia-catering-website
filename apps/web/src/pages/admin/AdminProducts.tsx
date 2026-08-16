@@ -9,14 +9,14 @@ import CategoryFormModal from "../../components/admin/CategoryFormModal";
 import CustomerPreview from "../../components/admin/CustomerPreview";
 
 const SELECT =
-  "id, category_id, name, description, image_url, price_cents, item_type, sub_category_id, is_available, is_catering, sort_order";
+  "id, category_id, name, description, image_url, price_cents, item_type, sub_category_id, is_available, is_catering, sort_order, min_qty";
 
 // Menu category slug → service-page slug. Keep this explicit: the slugs are NOT
 // equal ('party-tray' is singular, its service page 'party-trays' is plural).
 const CATEGORY_TO_SERVICE: Record<string, string> = {
   "check-a-lunch": "check-a-lunch",
   "party-tray": "party-trays",
-  "fun-boxes": "fun-boxes",
+  "fun-boxes": "merienda-meals",
 };
 
 const AdminProducts: React.FC = () => {

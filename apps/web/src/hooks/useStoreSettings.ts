@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchPublicSettings, SETTING_KEYS } from "../services/settingsService";
 import type { Json } from "@momma-mia/db";
+import type { PlanInstance } from "../types";
 
 /** Settings are business config, not live data — a few minutes stale is fine. */
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -69,6 +70,8 @@ function loadSettings(): Promise<Record<string, Json>> {
 export interface StoreSettings {
   /** null = unknown (still loading, or the fetch failed). NEVER a guess. */
   minimumMealPlans: number | null;
+  /** Store-default floor for every dish in a lunch-box order. Same null rule. */
+  minimumQtyPerDish: number | null;
   loading: boolean;
   error: boolean;
   retry: () => void;
@@ -121,13 +124,17 @@ export function useStoreSettings(): StoreSettings {
   // malformed key, which means "rule off" and matches the server's
   // coalesce(..., 0) exactly. A value that never arrived stays unknown.
   let minimumMealPlans: number | null = null;
+  let minimumQtyPerDish: number | null = null;
   if (!loading && !error && settings) {
-    const raw = settings[SETTING_KEYS.minimumMealPlans];
-    minimumMealPlans =
-      typeof raw === "number" && Number.isInteger(raw) && raw >= 0 ? raw : 0;
+    minimumMealPlans = parseSetting(settings[SETTING_KEYS.minimumMealPlans]);
+    minimumQtyPerDish = parseSetting(settings[SETTING_KEYS.minimumQtyPerDish]);
   }
 
-  return { minimumMealPlans, loading, error, retry };
+  return { minimumMealPlans, minimumQtyPerDish, loading, error, retry };
+}
+
+function parseSetting(raw: Json | undefined): number {
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 0 ? raw : 0;
 }
 
 export interface MinimumState {
@@ -160,5 +167,77 @@ export function deriveMinimumState(
     met: known && boxes >= minimum,
     remaining: Math.max(0, minimum - boxes),
     blocked: !known || boxes < minimum,
+  };
+}
+
+export interface DishMinimumViolation {
+  menuItemId: string;
+  name: string;
+  required: number;
+  current: number;
+  remaining: number;
+}
+
+export interface DishMinimumState {
+  /** The store default came from the DB (as opposed to loading/failed). */
+  known: boolean;
+  /** Every selected dish currently under its floor, alphabetical. */
+  violations: DishMinimumViolation[];
+  /** Must not proceed to checkout — true while unknown too, if dishes exist. */
+  blocked: boolean;
+}
+
+/**
+ * Per-dish floors, mirroring create_order v7: every distinct dish placed in
+ * the boxes must reach coalesce(its min_qty snapshot, the store default).
+ * Shared by the menu banner, the cart drawer and checkout — same reason as
+ * deriveMinimumState. Counts by menuItemId, never by name.
+ */
+export function deriveDishMinimumState(
+  minimumQtyPerDish: number | null,
+  planInstances: PlanInstance[],
+): DishMinimumState {
+  const known = minimumQtyPerDish !== null;
+  const tally = new Map<
+    string,
+    { name: string; count: number; minQty: number | null }
+  >();
+  for (const pi of planInstances) {
+    for (const ai of pi.items) {
+      const row =
+        tally.get(ai.menuItemId) ?? { name: ai.name, count: 0, minQty: null };
+      row.count += 1;
+      // Box order is NOT add order (boxes reorder), so "latest wins" is not
+      // knowable here. Strictest defined snapshot wins: over-blocking is
+      // recoverable in the UI, an under-block is pay-then-reject. Checkout
+      // re-reads the live overrides either way.
+      if (ai.minQty !== undefined && ai.minQty !== null) {
+        row.minQty = row.minQty === null ? ai.minQty : Math.max(row.minQty, ai.minQty);
+      }
+      tally.set(ai.menuItemId, row);
+    }
+  }
+
+  const violations: DishMinimumViolation[] = [];
+  if (minimumQtyPerDish !== null) {
+    for (const [menuItemId, row] of tally) {
+      const required = row.minQty ?? minimumQtyPerDish;
+      if (required > 0 && row.count < required) {
+        violations.push({
+          menuItemId,
+          name: row.name,
+          required,
+          current: row.count,
+          remaining: required - row.count,
+        });
+      }
+    }
+    violations.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  return {
+    known,
+    violations,
+    blocked: tally.size > 0 && (!known || violations.length > 0),
   };
 }

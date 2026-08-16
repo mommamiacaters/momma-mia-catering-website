@@ -23,6 +23,7 @@ const blank = {
   category_id: 0,
   sub_category_id: 0,
   price: "",
+  min_qty: "",
   image_url: "",
   description: "",
   is_available: true,
@@ -60,6 +61,7 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
         category_id: initial.category_id ?? categories[0]?.id ?? 0,
         sub_category_id: initial.sub_category_id ?? 0,
         price: initial.price_cents == null ? "" : String(initial.price_cents / 100),
+        min_qty: initial.min_qty == null ? "" : String(initial.min_qty),
         image_url: initial.image_url ?? "",
         description: initial.description ?? "",
         is_available: initial.is_available,
@@ -84,6 +86,7 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
       description: form.description.trim() || null,
       image_url: form.image_url.trim() || null,
       price_cents: form.price.trim() === "" ? null : Math.round(Number(form.price) * 100),
+      min_qty: form.min_qty.trim() === "" ? null : Math.floor(Number(form.min_qty)),
       sub_category_id: form.sub_category_id || null,
       item_type: selectedSub ? (selectedSub.slot ?? selectedSub.slug) : null,
       is_available: form.is_available,
@@ -213,6 +216,32 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
               </span>
             </span>
           )}
+        </div>
+
+        <div>
+          <label htmlFor="item-min-qty" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
+            Minimum per order <span className="text-brand-text/40 font-normal">(optional)</span>
+          </label>
+          <input
+            id="item-min-qty"
+            type="number"
+            min="0"
+            max="500"
+            step="1"
+            className={inputClass}
+            value={form.min_qty}
+            placeholder="Blank = store default"
+            onChange={(e) => setForm({ ...form, min_qty: e.target.value })}
+          />
+          <span className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-brand-secondary/50 px-3 py-2 font-poppins text-xs text-brand-text/65">
+            <i className="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+            <span>
+              Once this dish is in a lunch-box order, the order must include at
+              least this many of it. Blank uses the store default (Store
+              Settings → <strong>Minimum of each dish per order</strong>);{" "}
+              <strong>0</strong> removes the minimum for this dish only.
+            </span>
+          </span>
         </div>
 
         <div>

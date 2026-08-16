@@ -14,6 +14,8 @@ interface FoodCardProps {
   openSlots: number;
   /** Copies of this dish placed across every box. */
   placedCount: number;
+  /** Per-order floor once this dish is picked; null = unknown, 0 = none. */
+  requiredMin: number | null;
   onAddMany: (count: number) => void;
   onRemoveMany: (count: number) => void;
 }
@@ -29,6 +31,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   onDecrease,
   openSlots,
   placedCount,
+  requiredMin,
   onAddMany,
   onRemoveMany,
 }) => {
@@ -37,6 +40,9 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   // Filling the other 23 boxes is still perfectly valid in that state.
   const canAddMore = openSlots > 0;
   const canRemoveMore = placedCount > 0;
+  const minFloor = requiredMin ?? 0;
+  const belowMin = minFloor > 0 && placedCount > 0 && placedCount < minFloor;
+  const toMin = minFloor - placedCount;
   const bulkBtn =
     "h-9 rounded-lg font-poppins text-xs font-bold tabular-nums transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer";
   return (
@@ -207,6 +213,31 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             Clear{canRemoveMore ? ` ${placedCount}` : ""}
           </button>
         </div>
+
+        {/* Per-dish minimum — a floor the whole order must reach once this
+            dish is picked at all. Unselected cards state it up front;
+            below-the-floor cards get a one-tap catch-up. */}
+        {minFloor > 0 && placedCount === 0 && (
+          <p className="mt-2 font-poppins text-[0.7rem] text-brand-text/40 text-center tabular-nums">
+            Minimum {minFloor} per order
+          </p>
+        )}
+        {belowMin && (
+          <button
+            type="button"
+            onClick={() => onAddMany(toMin)}
+            disabled={!canAddMore}
+            className="mt-2 w-full h-9 rounded-lg bg-amber-100 text-amber-800 font-poppins text-xs font-bold tabular-nums transition-colors enabled:hover:bg-amber-200 enabled:cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            title={
+              canAddMore
+                ? `Add ${toMin} more ${item.name} to reach the minimum of ${minFloor} per order`
+                : "No open slots left for this course — free some up first"
+            }
+            aria-label={`${item.name} is at ${placedCount} of its ${minFloor} minimum — add ${toMin} more`}
+          >
+            {placedCount} of {minFloor} min — add {toMin}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -216,7 +247,8 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   prev.isDisabled === next.isDisabled &&
   prev.openSlots === next.openSlots &&
   prev.placedCount === next.placedCount &&
-  prev.currentQuantity === next.currentQuantity
+  prev.currentQuantity === next.currentQuantity &&
+  prev.requiredMin === next.requiredMin
 );
 
 FoodCard.displayName = "FoodCard";

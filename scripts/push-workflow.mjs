@@ -40,7 +40,7 @@ PERSONALITY:
 SERVICES & PRICING:
 - Check-A-Lunch: Individual boxed meals (₱600-900), 1-2 days notice
 - Party Trays: Serves 8-10 people (₱2,250-4,250), 2-3 days notice
-- Fun Boxes: Mix & match boxes (₱750-1,250), 2-3 days notice
+- Merienda Meals: Mix & match merienda boxes (₱750-1,250), 2-3 days notice
 - Full Catering Service: ₱1,000-2,500 per person, 1-2 weeks notice
 - Equipment Rental: Tables, chairs, etc (₱500-2,500/item), 3-5 days notice
 

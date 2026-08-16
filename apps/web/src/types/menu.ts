@@ -18,6 +18,8 @@ export interface MenuItemRecord {
   is_available: boolean;
   is_catering: boolean;
   sort_order: number;
+  /** Per-order floor for this dish. null = store default, 0 = no minimum. */
+  min_qty: number | null;
 }
 
 export type AvailabilityFilter = "all" | "showing" | "hidden";

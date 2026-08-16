@@ -40,6 +40,8 @@ export interface AssignedItem {
   category: string;
   type: string;             // "main" | "side" | "starch"
   image: string;
+  /** menu_items.min_qty snapshot: null/absent = store default, 0 = no minimum. */
+  minQty?: number | null;
 }
 
 // Stable plan instance with its own items
