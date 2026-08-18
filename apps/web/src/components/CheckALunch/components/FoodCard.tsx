@@ -1,7 +1,8 @@
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import { Plus, Minus, Check } from "lucide-react";
 import { MenuItem } from "../../../types";
 import CachedImage from "../../CachedImage";
+import ImageLightbox from "../../ui/ImageLightbox";
 
 interface FoodCardProps {
   item: MenuItem;
@@ -40,6 +41,8 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   // Filling the other 23 boxes is still perfectly valid in that state.
   const canAddMore = openSlots > 0;
   const canRemoveMore = placedCount > 0;
+  // Internal state keeps the memo comparator honest — no new props involved.
+  const [showPhoto, setShowPhoto] = useState(false);
   const minFloor = requiredMin ?? 0;
   const belowMin = minFloor > 0 && placedCount > 0 && placedCount < minFloor;
   const toMin = minFloor - placedCount;
@@ -71,8 +74,13 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
         </div>
       )}
 
-      {/* Image — relative container fixes gradient overlay positioning */}
-      <div className="relative aspect-[4/3] overflow-hidden">
+      {/* Image — clicking opens the full-view photo with the description. */}
+      <button
+        type="button"
+        onClick={() => setShowPhoto(true)}
+        aria-label={`View a larger photo of ${item.name}`}
+        className="relative aspect-[4/3] overflow-hidden block w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
+      >
         <CachedImage
           src={item.image}
           alt={item.name}
@@ -83,7 +91,15 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
         />
         {/* Subtle bottom gradient for text readability */}
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
-      </div>
+      </button>
+
+      <ImageLightbox
+        open={showPhoto}
+        src={typeof item.image === "string" ? item.image : ""}
+        title={item.name}
+        description={item.description}
+        onClose={() => setShowPhoto(false)}
+      />
 
       {/* Content */}
       <div className="p-4">

@@ -6,6 +6,7 @@ import {
   ShoppingBag,
   ArrowRight,
   Crosshair,
+  AlertCircle,
 } from "lucide-react";
 import {
   CategoryType,
@@ -15,6 +16,10 @@ import {
 } from "../../../types";
 import { FALLBACK_IMAGE } from "../../CachedImage";
 import { isPlanInstanceComplete } from "../../../utils/mealPlanUtils";
+import {
+  deriveDishMinimumState,
+  useStoreSettings,
+} from "../../../hooks/useStoreSettings";
 import { PLAN_SLOT_META } from "../../../constants/planSlots";
 import { SlotIcon } from "../../ui/SlotIcons";
 
@@ -96,6 +101,12 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
   const allComplete =
     planInstances.length > 0 &&
     planInstances.every((pi) => isPlanInstanceComplete(pi, getMealPlanLimits(pi.type)));
+
+  // Same shared derivation as the banner, cart drawer and checkout — this
+  // panel must never celebrate "complete" while a dish is under its floor.
+  const { minimumQtyPerDish } = useStoreSettings();
+  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances);
+  const dishesShort = dishMin.violations.length > 0;
 
   const completedCount = planInstances.filter((pi) =>
     isPlanInstanceComplete(pi, getMealPlanLimits(pi.type))
@@ -593,44 +604,92 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
           </p>
         )}
 
+      {/* Per-dish minimums — the same amber warning the cart drawer and
+          checkout show, so this panel can't green-light what they will block. */}
+      {dishesShort && (
+        <div
+          role="status"
+          className="mt-4 shrink-0 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-3"
+        >
+          <p className="font-poppins text-xs text-brand-text mb-1.5">
+            <strong className="font-semibold">
+              Some dishes are below their per-order minimum.
+            </strong>{" "}
+            <span className="text-brand-text/60">
+              Add more of each in the dish picker, or take them out.
+            </span>
+          </p>
+          <ul className="space-y-0.5">
+            {dishMin.violations.map((v) => (
+              <li
+                key={v.menuItemId}
+                className="font-poppins text-xs font-semibold text-amber-800 tabular-nums"
+              >
+                {v.name} · {v.current}/{v.required} — add {v.remaining}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Footer CTA — always rendered so it stays pinned below the scrolling
           list and the panel height doesn't jump on completion. Disabled until
-          every box is filled, and says what's still missing. */}
+          every box is filled; short dish minimums turn it into an amber
+          "review" state that opens the bag, where the same rule blocks
+          checkout. */}
       <div
         className={`mt-5 pt-5 border-t shrink-0 ${
-          allComplete ? "border-green-200" : "border-brand-divider/60"
+          allComplete && !dishesShort ? "border-green-200" : "border-brand-divider/60"
         }`}
       >
         <button
           onClick={() => document.getElementById("bag-button")?.click()}
           disabled={!allComplete}
           className={`w-full group flex items-center justify-center gap-3 py-4 rounded-xl font-arvo font-bold text-lg transition-[box-shadow,transform,background-color] ${
-            allComplete
-              ? "bg-gradient-to-r from-brand-primary to-brand-accent text-white shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:shadow-brand-primary/30 active:scale-[0.98] hover:-translate-y-0.5 cursor-pointer"
-              : "bg-brand-secondary text-brand-text/40 cursor-not-allowed"
+            !allComplete
+              ? "bg-brand-secondary text-brand-text/40 cursor-not-allowed"
+              : dishesShort
+                ? "bg-amber-100 text-amber-800 hover:bg-amber-200 cursor-pointer"
+                : "bg-gradient-to-r from-brand-primary to-brand-accent text-white shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:shadow-brand-primary/30 active:scale-[0.98] hover:-translate-y-0.5 cursor-pointer"
           }`}
           aria-label={
-            allComplete
-              ? "View your order in the shopping bag"
-              : `${remainingSlots} more ${
+            !allComplete
+              ? `${remainingSlots} more ${
                   remainingSlots === 1 ? "dish" : "dishes"
                 } needed before you can check out`
+              : dishesShort
+                ? `${dishMin.violations.length} ${
+                    dishMin.violations.length === 1 ? "dish is" : "dishes are"
+                  } below their per-order minimum — open the order to review`
+                : "View your order in the shopping bag"
           }
         >
-          <ShoppingBag size={22} />
-          {allComplete ? (
+          {!allComplete ? (
             <>
+              <ShoppingBag size={22} />
+              <span className="font-poppins text-sm font-semibold">
+                {remainingSlots} more {remainingSlots === 1 ? "dish" : "dishes"}{" "}
+                to go
+              </span>
+            </>
+          ) : dishesShort ? (
+            <>
+              <AlertCircle size={20} />
+              <span className="font-poppins text-sm font-semibold">
+                {dishMin.violations.length}{" "}
+                {dishMin.violations.length === 1 ? "dish" : "dishes"} below
+                minimum
+              </span>
+            </>
+          ) : (
+            <>
+              <ShoppingBag size={22} />
               Let&apos;s Dig In!
               <ArrowRight
                 size={18}
                 className="transition-transform group-hover:translate-x-1"
               />
             </>
-          ) : (
-            <span className="font-poppins text-sm font-semibold">
-              {remainingSlots} more {remainingSlots === 1 ? "dish" : "dishes"}{" "}
-              to go
-            </span>
           )}
         </button>
       </div>

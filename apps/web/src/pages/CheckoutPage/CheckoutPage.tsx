@@ -129,7 +129,27 @@ const CheckoutPage: React.FC = () => {
   const [checking, setChecking] = useState(false);
   const [gateError, setGateError] = useState<string | null>(null);
   const boxes = effectiveState?.planInstances?.length ?? 0;
-  const min = deriveMinimumState(minimumMealPlans, boxes);
+  // The service's own floor (fetched from the cart's plans) beats the store
+  // default. Until it loads, the default applies — verifyMinimum re-reads
+  // everything live before any money moves either way.
+  const [categoryMinBoxes, setCategoryMinBoxes] = useState<number | null>(null);
+  useEffect(() => {
+    const ids = (effectiveState?.planInstances ?? []).map((pi) => pi.mealPlanId);
+    if (ids.length === 0) return;
+    let active = true;
+    menuService
+      .fetchPlanCategoryMinimum(ids)
+      .then((m) => {
+        if (active) setCategoryMinBoxes(m);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+    // The cart doesn't change while checkout is mounted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const min = deriveMinimumState(categoryMinBoxes ?? minimumMealPlans, boxes);
   const dishMin = deriveDishMinimumState(
     minimumQtyPerDish,
     effectiveState?.planInstances ?? [],
@@ -147,8 +167,13 @@ const CheckoutPage: React.FC = () => {
     try {
       const s = await fetchPublicSettings();
       const raw = s[SETTING_KEYS.minimumMealPlans];
-      const live =
+      const liveDefault =
         typeof raw === "number" && Number.isInteger(raw) && raw >= 0 ? raw : 0;
+      // The cart's service may carry its own floor — read it live too.
+      const liveCatMin = await menuService.fetchPlanCategoryMinimum(
+        (effectiveState?.planInstances ?? []).map((pi) => pi.mealPlanId),
+      );
+      const live = liveCatMin ?? liveDefault;
       if (boxes > 0 && boxes < live) {
         setGateError(
           `The minimum order size is ${live} lunch boxes. Your order has ${boxes}. Please go back and add ${live - boxes} more — nothing has been charged.`,
@@ -219,16 +244,29 @@ const CheckoutPage: React.FC = () => {
     ? [...planInstances].sort((a, b) => a.displayOrder - b.displayOrder)
     : null;
 
-  // Instance numbering per type
-  const instanceNumbers = new Map<string, number>();
-  if (sortedPlanInstances) {
-    const typeCounters = new Map<string, number>();
-    for (const pi of sortedPlanInstances) {
-      const n = (typeCounters.get(pi.type) || 0) + 1;
-      typeCounters.set(pi.type, n);
-      instanceNumbers.set(pi.id, n);
-    }
-  }
+  // Identical boxes collapse into one summary card with a count — a 30-box
+  // order is usually two or three builds, and must read that way instead of
+  // thirty near-identical cards. Same grouping the admin order view uses:
+  // signature = plan + its dishes (by id, sorted so order can't split groups).
+  const groupedBoxes = sortedPlanInstances
+    ? [
+        ...sortedPlanInstances
+          .reduce((map, pi) => {
+            const sig =
+              pi.type +
+              "|" +
+              pi.items
+                .map((i) => `${i.type}:${i.menuItemId}`)
+                .sort()
+                .join("|");
+            const existing = map.get(sig);
+            if (existing) existing.count += 1;
+            else map.set(sig, { type: pi.type, count: 1, sample: pi });
+            return map;
+          }, new Map<string, { type: string; count: number; sample: PlanInstance }>())
+          .values(),
+      ]
+    : null;
 
   // ─── Step handlers ───
   // Gate the transition BEFORE the payment QR is rendered. This is what stops
@@ -326,60 +364,70 @@ const CheckoutPage: React.FC = () => {
   // ─── Order Summary (shared between steps) ───
   const OrderSummary = (
     <div className="bg-white rounded-2xl shadow-sm p-5 lg:sticky lg:top-8">
-      <h2 className="font-arvo font-bold text-brand-text text-lg mb-4">
-        Order Summary
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-arvo font-bold text-brand-text text-lg">
+          Order Summary
+        </h2>
+        {sortedPlanInstances && sortedPlanInstances.length > 0 && (
+          <span className="rounded-full bg-brand-primary/10 px-2.5 py-1 font-poppins text-xs font-semibold text-brand-primary tabular-nums">
+            {sortedPlanInstances.length}{" "}
+            {sortedPlanInstances.length === 1 ? "box" : "boxes"}
+          </span>
+        )}
+      </div>
 
-      {sortedPlanInstances && sortedPlanInstances.length > 0 ? (
+      {groupedBoxes && groupedBoxes.length > 0 ? (
         <div className="space-y-3 mb-4">
-          {sortedPlanInstances.map((pi) => {
-            const instanceNum = instanceNumbers.get(pi.id) || 1;
-            return (
-              <div
-                key={pi.id}
-                className="border border-brand-divider rounded-xl overflow-hidden"
-              >
-                <div className="px-3 py-2.5 bg-brand-secondary/50 flex items-center gap-2">
-                  <Package size={14} className="text-brand-primary shrink-0" />
-                  <span className="font-poppins text-sm font-semibold text-brand-text">
-                    #{instanceNum} {pi.type}
-                  </span>
-                </div>
-                <div className="px-3 py-2 space-y-2">
-                  {CATEGORY_ORDER.map((catType) => {
-                    const items = pi.items.filter((item) => item.type === catType);
-                    if (items.length === 0) return null;
-                    return (
-                      <div key={catType}>
-                        <p className="font-poppins text-[0.65rem] font-semibold text-brand-text/40 uppercase tracking-wider mb-1">
-                          {getCategoryDisplayName(catType)}
-                        </p>
-                        {items.map((item) => (
-                          <div key={item.instanceId} className="flex items-center gap-2 py-1">
-                            <div className="w-7 h-7 rounded-md overflow-hidden shrink-0 border border-brand-divider/50">
-                              <img
-                                src={item.image || FALLBACK_IMAGE}
-                                alt={item.name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <span className="font-poppins text-sm text-brand-text capitalize truncate">
-                              {item.name}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                  {pi.items.length === 0 && (
-                    <p className="font-poppins text-xs text-brand-text/30 italic py-1">
-                      No dishes selected
-                    </p>
-                  )}
-                </div>
+          {groupedBoxes.map((group) => (
+            <div
+              key={group.sample.id}
+              className="border border-brand-divider rounded-xl overflow-hidden"
+            >
+              <div className="px-3 py-2.5 bg-brand-secondary/50 flex items-center gap-2">
+                <Package size={14} className="text-brand-primary shrink-0" />
+                <span className="font-poppins text-sm font-semibold text-brand-text min-w-0 truncate">
+                  {group.type}
+                </span>
+                <span className="ml-auto shrink-0 rounded-full bg-brand-primary px-2 py-0.5 font-poppins text-xs font-bold text-white tabular-nums">
+                  ×{group.count}
+                </span>
               </div>
-            );
-          })}
+              <div className="px-3 py-2 space-y-2">
+                {CATEGORY_ORDER.map((catType) => {
+                  const items = group.sample.items.filter(
+                    (item) => item.type === catType,
+                  );
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={catType}>
+                      <p className="font-poppins text-[0.65rem] font-semibold text-brand-text/40 uppercase tracking-wider mb-1">
+                        {getCategoryDisplayName(catType)}
+                      </p>
+                      {items.map((item) => (
+                        <div key={item.instanceId} className="flex items-center gap-2 py-1">
+                          <div className="w-7 h-7 rounded-md overflow-hidden shrink-0 border border-brand-divider/50">
+                            <img
+                              src={item.image || FALLBACK_IMAGE}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span className="font-poppins text-sm text-brand-text capitalize truncate">
+                            {item.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                {group.sample.items.length === 0 && (
+                  <p className="font-poppins text-xs text-brand-text/30 italic py-1">
+                    No dishes selected
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         /* Fallback: flat item list */

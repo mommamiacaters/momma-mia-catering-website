@@ -51,39 +51,44 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   return (
     <Modal open={open} onClose={onCancel} title={title} size="sm">
-      <div className="flex gap-3">
-        {tone === "danger" && (
-          <AlertTriangle
-            size={22}
-            className="text-red-500 shrink-0 mt-0.5"
-            aria-hidden="true"
-          />
-        )}
-        <div className="font-poppins text-sm text-brand-text/70 leading-relaxed">
-          {message}
+      {/* Modal leaves body padding to its children (the admin forms bring
+          p-6); without this wrapper the message sat flush against the edges. */}
+      <div className="p-6">
+        <div className="flex gap-3.5">
+          {tone === "danger" && (
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50"
+              aria-hidden="true"
+            >
+              <AlertTriangle size={20} className="text-red-500" />
+            </span>
+          )}
+          <div className="font-poppins text-sm text-brand-text/70 leading-relaxed pt-1">
+            {message}
+          </div>
         </div>
-      </div>
 
-      <div className="flex justify-end gap-2 pt-5">
-        <button
-          ref={cancelRef}
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg border border-brand-divider px-4 py-2.5 font-arvo-bold text-sm text-brand-text transition-colors hover:bg-brand-secondary cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
-        >
-          {cancelLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          className={`rounded-lg px-5 py-2.5 font-arvo-bold text-sm text-white transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-            tone === "danger"
-              ? "bg-red-600 hover:bg-red-700 focus:ring-red-600"
-              : "bg-brand-primary hover:bg-brand-primary/90 focus:ring-brand-primary"
-          }`}
-        >
-          {confirmLabel}
-        </button>
+        <div className="mt-6 flex justify-end gap-2 border-t border-brand-divider pt-4">
+          <button
+            ref={cancelRef}
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-brand-divider px-4 py-2.5 font-arvo-bold text-sm text-brand-text transition-colors hover:bg-brand-secondary cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className={`rounded-lg px-5 py-2.5 font-arvo-bold text-sm text-white transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              tone === "danger"
+                ? "bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                : "bg-brand-primary hover:bg-brand-primary/90 focus:ring-brand-primary"
+            }`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
       </div>
     </Modal>
   );
