@@ -2,11 +2,15 @@ import type { Database } from '@momma-mia/db';
 import { supabase } from './supabase';
 import type { CartLine } from '../store/cart';
 
+// Order reference: MM-XXXXXX — same short format as the web app (see
+// apps/web/src/utils/validation.ts). Old-format refs stay valid.
 function makeOrderRef(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, '0');
-  const rand = Math.random().toString(36).slice(2, 6);
-  return `MM-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}-${rand}`;
+  const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  let out = '';
+  for (let i = 0; i < 6; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return `MM-${out}`;
 }
 
 // randomToken() lived here to mint an unguessable proof path, so the key could

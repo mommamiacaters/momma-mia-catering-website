@@ -85,14 +85,18 @@ export function fileToBase64(file: File): Promise<string> {
   });
 }
 
-/** Secure order reference: MM-YYYYMMDD-HHMM-xxxx */
+/**
+ * Order reference: MM-XXXXXX. Six characters from an unambiguous uppercase
+ * alphabet (no 0/O/1/I/L) — short enough to read over the phone, ~900M combos
+ * so collisions are a non-issue at this store's volume. The date/time the old
+ * MM-YYYYMMDD-HHMM-xxxx format carried is already on the order row; existing
+ * refs keep their old format (the DB constraint accepts both).
+ */
 export function generateSecureOrderRef(): string {
-  const now = new Date();
-  const date = now.toISOString().slice(0, 10).replace(/-/g, "");
-  const hhmm = String(now.getHours()).padStart(2, "0") +
-    String(now.getMinutes()).padStart(2, "0");
-  const arr = new Uint8Array(4);
+  const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+  const arr = new Uint8Array(6);
   crypto.getRandomValues(arr);
-  const hex = Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 4);
-  return `MM-${date}-${hhmm}-${hex}`;
+  let out = "";
+  for (const b of arr) out += alphabet[b % alphabet.length];
+  return `MM-${out}`;
 }

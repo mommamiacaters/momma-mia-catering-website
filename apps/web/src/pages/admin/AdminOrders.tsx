@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import MapPlaceholder from "../../components/maps/MapPlaceholder";
 import PaginationBar from "../../components/ui/PaginationBar";
+
+// recharts is admin-only weight; the storefront bundle must not carry it.
+const SalesChart = lazy(() => import("../../components/admin/SalesChart"));
 import {
   ORDER_STATUSES,
   type OrderStatus,
@@ -51,6 +54,41 @@ const SELECT =
 const PAGE_SIZE = 10;
 
 type OrdersView = "active" | "archived";
+
+/** Delivery/creation-date range, as yyyy-mm-dd Manila days ("" = unbounded). */
+interface DateRange {
+  from: string;
+  to: string;
+}
+
+/** The day after `day`, for an exclusive upper bound. */
+const nextDay = (day: string) => {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/** Today's date in Manila as yyyy-mm-dd, regardless of the admin's timezone. */
+const manilaToday = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
+
+const addDays = (day: string, n: number) => {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+/** Quick ranges. Computed at click time so an overnight tab can't go stale. */
+const RANGE_PRESETS: { label: string; range: () => DateRange }[] = [
+  { label: "Today", range: () => ({ from: manilaToday(), to: manilaToday() }) },
+  {
+    label: "Yesterday",
+    range: () => ({ from: addDays(manilaToday(), -1), to: addDays(manilaToday(), -1) }),
+  },
+  { label: "Last 7 days", range: () => ({ from: addDays(manilaToday(), -6), to: manilaToday() }) },
+  { label: "Last 30 days", range: () => ({ from: addDays(manilaToday(), -29), to: manilaToday() }) },
+  { label: "This month", range: () => ({ from: `${manilaToday().slice(0, 7)}-01`, to: manilaToday() }) },
+];
 
 // ---------------------------------------------------------------- grouping
 
@@ -144,6 +182,7 @@ const AdminOrders: React.FC = () => {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [range, setRange] = useState<DateRange>({ from: "", to: "" });
 
   /**
    * Paged on the SERVER, one page per request. PostgREST caps responses at
@@ -152,13 +191,16 @@ const AdminOrders: React.FC = () => {
    * `count: exact` returns the true total so the pager can size itself and the
    * footer can be honest about what is on screen.
    */
-  const load = async (targetPage: number, targetView: OrdersView) => {
+  const load = async (targetPage: number, targetView: OrdersView, targetRange: DateRange) => {
     const from = (targetPage - 1) * PAGE_SIZE;
     let query = supabase.from("orders").select(SELECT, { count: "exact" });
     query =
       targetView === "active"
         ? query.is("archived_at", null)
         : query.not("archived_at", "is", null);
+    // Manila days: the +08:00 offset makes "Aug 5" mean the store's Aug 5.
+    if (targetRange.from) query = query.gte("created_at", `${targetRange.from}T00:00:00+08:00`);
+    if (targetRange.to) query = query.lt("created_at", `${nextDay(targetRange.to)}T00:00:00+08:00`);
     const { data, error, count } = await query
       .order("created_at", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
@@ -180,10 +222,10 @@ const AdminOrders: React.FC = () => {
 
   useEffect(() => {
     void (async () => {
-      await Promise.all([load(1, "active"), loadStats()]);
+      await Promise.all([load(1, "active", { from: "", to: "" }), loadStats()]);
       setLoading(false);
     })();
-    // Runs once — page/view changes go through goToPage/switchView.
+    // Runs once — page/view/range changes go through their handlers.
   }, []);
 
   const goToPage = async (next: number) => {
@@ -194,7 +236,7 @@ const AdminOrders: React.FC = () => {
     // page-scoped for the same reason.
     setExpanded(null);
     setSelected(new Set());
-    await load(next, view);
+    await load(next, view, range);
     setPaging(false);
   };
 
@@ -205,7 +247,17 @@ const AdminOrders: React.FC = () => {
     setPage(1);
     setExpanded(null);
     setSelected(new Set());
-    await load(1, next);
+    await load(1, next, range);
+    setPaging(false);
+  };
+
+  const applyRange = async (next: DateRange) => {
+    setPaging(true);
+    setRange(next);
+    setPage(1);
+    setExpanded(null);
+    setSelected(new Set());
+    await load(1, view, next);
     setPaging(false);
   };
 
@@ -246,7 +298,7 @@ const AdminOrders: React.FC = () => {
       setPage(nextPage);
       setExpanded(null);
       setSelected(new Set());
-      await load(nextPage, view);
+      await load(nextPage, view, range);
       void loadStats();
     }
     setBulkBusy(false);
@@ -352,6 +404,13 @@ const AdminOrders: React.FC = () => {
         ))}
       </div>
 
+      {/* Sales chart — deferred so recharts stays out of the storefront bundle. */}
+      <Suspense
+        fallback={<div className="mb-6 h-[248px] rounded-xl border border-brand-divider bg-white animate-pulse" />}
+      >
+        <SalesChart />
+      </Suspense>
+
       {error && (
         <div
           role="alert"
@@ -364,6 +423,64 @@ const AdminOrders: React.FC = () => {
         </div>
       )}
 
+      {/* Date-range filter for the list below. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {/* Quick toggles: click to apply, click again to clear. A preset is
+            "active" purely when the inputs match it, so manual edits release
+            the toggle by themselves. */}
+        {RANGE_PRESETS.map(({ label, range: presetRange }) => {
+          const r = presetRange();
+          const active = range.from === r.from && range.to === r.to;
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => void applyRange(active ? { from: "", to: "" } : r)}
+              aria-pressed={active}
+              className={`rounded-full px-3 py-1.5 font-poppins text-sm transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary ${
+                active
+                  ? "bg-brand-primary text-white font-semibold"
+                  : "bg-white border border-brand-divider text-brand-text/60 hover:border-brand-primary/40 hover:text-brand-text"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+        <span className="mx-1 h-5 w-px bg-brand-divider" aria-hidden="true" />
+        <label className="flex items-center gap-2 font-poppins text-sm text-brand-text/60">
+          From
+          <input
+            type="date"
+            value={range.from}
+            max={range.to || undefined}
+            onChange={(e) => void applyRange({ ...range, from: e.target.value })}
+            aria-label="Show orders placed on or after this date"
+            className="rounded-lg border border-brand-divider bg-white px-2.5 py-1.5 font-poppins text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          />
+        </label>
+        <label className="flex items-center gap-2 font-poppins text-sm text-brand-text/60">
+          to
+          <input
+            type="date"
+            value={range.to}
+            min={range.from || undefined}
+            onChange={(e) => void applyRange({ ...range, to: e.target.value })}
+            aria-label="Show orders placed on or before this date"
+            className="rounded-lg border border-brand-divider bg-white px-2.5 py-1.5 font-poppins text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          />
+        </label>
+        {(range.from || range.to) && (
+          <button
+            type="button"
+            onClick={() => void applyRange({ from: "", to: "" })}
+            className="rounded-lg px-2.5 py-1.5 font-poppins text-sm text-brand-primary transition-colors hover:bg-brand-primary/10 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          >
+            Clear dates
+          </button>
+        )}
+      </div>
+
       {loading ? (
         <div className="py-16 flex justify-center">
           <div className="w-8 h-8 border-4 border-brand-primary/30 border-t-brand-primary rounded-full animate-spin" />
@@ -374,7 +491,11 @@ const AdminOrders: React.FC = () => {
             <i className="pi pi-receipt text-xl text-brand-primary" aria-hidden="true" />
           </div>
           <p className="font-poppins text-brand-text/60">
-            {view === "archived" ? "No archived orders." : "No orders yet."}
+            {range.from || range.to
+              ? "No orders in this date range."
+              : view === "archived"
+                ? "No archived orders."
+                : "No orders yet."}
           </p>
         </div>
       ) : (
