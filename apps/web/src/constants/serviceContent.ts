@@ -26,7 +26,7 @@ const SERVICE_CONTENT_MAP: Record<string, ServiceContent> = {
     description:
       "Perfect for celebrations, office gatherings, and special events. Our party trays feature an assortment of delicious appetizers, main courses, and desserts that will impress your guests.",
     images: [tray1, tray2, tray3, tray4, tray5, tray6, tray7, tray8, tray9],
-    hasMenu: false,
+    hasMenu: true,
   },
   "merienda-meals": {
     title: "Merienda Meals",
@@ -57,6 +57,16 @@ const NOT_FOUND: ServiceContent = {
   images: [],
   hasMenu: false,
 };
+
+/**
+ * The service pages where customers order and pay online through the box
+ * builder. Catering and equipment rental stay quote-based.
+ */
+export const ORDERABLE_SERVICE_SLUGS = [
+  "check-a-lunch",
+  "party-trays",
+  "merienda-meals",
+] as const;
 
 export function getServiceContent(slug: string): ServiceContent {
   return SERVICE_CONTENT_MAP[slug] ?? NOT_FOUND;

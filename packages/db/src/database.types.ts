@@ -107,6 +107,7 @@ export type Database = {
           created_at: string
           id: number
           is_active: boolean
+          min_order_boxes: number | null
           name: string
           slug: string
           sort_order: number
@@ -116,6 +117,7 @@ export type Database = {
           created_at?: string
           id?: number
           is_active?: boolean
+          min_order_boxes?: number | null
           name: string
           slug: string
           sort_order?: number
@@ -125,6 +127,7 @@ export type Database = {
           created_at?: string
           id?: number
           is_active?: boolean
+          min_order_boxes?: number | null
           name?: string
           slug?: string
           sort_order?: number
@@ -194,7 +197,7 @@ export type Database = {
       }
       meal_plans: {
         Row: {
-          category_id: number | null
+          category_id: number
           created_at: string
           description: string | null
           dessert_count: number
@@ -210,7 +213,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          category_id?: number | null
+          category_id: number
           created_at?: string
           description?: string | null
           dessert_count?: number
@@ -597,6 +600,14 @@ export type Database = {
       }
     }
     Views: {
+      admin_daily_sales: {
+        Row: {
+          day: string | null
+          orders: number | null
+          sales_cents: number | null
+        }
+        Relationships: []
+      }
       admin_order_stats: {
         Row: {
           archived_orders: number | null

@@ -4,6 +4,9 @@ export interface Category {
   slug: string;
   name: string;
   sort_order: number;
+  /** Per-service order minimum. null = store default, 0 = none. Optional so
+      callers that don't select it keep compiling. */
+  min_order_boxes?: number | null;
 }
 
 export interface MenuItemRecord {
@@ -56,6 +59,8 @@ export interface MealPlan {
   rice_count: number;
   sort_order: number;
   is_active: boolean;
+  /** categories.id — which food service page sells this plan. */
+  category_id: number;
 }
 
 /** Row of the meal_plan_price_ranges view — what a plan would cost in range mode. */

@@ -115,7 +115,12 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     retry: retrySettings,
   } = useStoreSettings();
   const totalBoxes = planInstances.length;
-  const min = deriveMinimumState(minimumMealPlans, totalBoxes);
+  // This service's own floor beats the store default; a service without one
+  // inherits it (and null-unknown still blocks).
+  const min = deriveMinimumState(
+    plans[0]?.categoryMinBoxes ?? minimumMealPlans,
+    totalBoxes,
+  );
   // Per-dish floors — same shared-derivation contract as the box minimum.
   const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances);
 

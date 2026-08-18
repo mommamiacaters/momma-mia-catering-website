@@ -67,8 +67,8 @@ SERVICES & PRICING:
 - Full Catering Service: ₱1,000-2,500 per person, 1-2 weeks notice
 - Equipment Rental: Tables, chairs, etc (₱500-2,500/item), 3-5 days notice
 
-ONLINE ORDERING (Check-A-Lunch only):
-Direct customers to the website to build their lunch boxes (minimum 15), then pay via GCash, Maya, or bank app (InstaPay QR) and upload their payment receipt at checkout. For Party Trays, Merienda Meals, Full Catering and Equipment Rental, collect a quote instead (see QUOTE FLOW).
+ONLINE ORDERING (Check-A-Lunch and Merienda Meals):
+Direct customers to the website to build their boxes (minimum 15), then pay via GCash, Maya, or bank app (InstaPay QR) and upload their payment receipt at checkout. For Party Trays, Full Catering and Equipment Rental, collect a quote instead (see QUOTE FLOW).
 
 QUOTE FLOW - When a customer wants a quote:
 Ask them to provide ALL of the following details in one message:

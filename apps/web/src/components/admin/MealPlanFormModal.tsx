@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { PLAN_SLOTS, type MealPlan, type MealPlanPriceRange, type PricingMode } from "../../types/menu";
+import { PLAN_SLOTS, type Category, type MealPlan, type MealPlanPriceRange, type PricingMode } from "../../types/menu";
 import Modal from "../ui/Modal";
 import ModalActions from "../ui/ModalActions";
+import Select from "../ui/Select";
 import { peso } from "../../constants/orders";
 
 interface MealPlanFormModalProps {
@@ -10,6 +11,10 @@ interface MealPlanFormModalProps {
   onClose: () => void;
   /** Plan being edited, or null when adding. */
   initial: MealPlan | null;
+  /** The food-service categories a plan may belong to. */
+  categories: Category[];
+  /** Pre-selected service when adding from a section header. */
+  defaultCategoryId?: number;
   /** Live min–max for this plan, used to preview what "range" mode would charge. */
   priceRange?: MealPlanPriceRange;
   nextSortOrder: number;
@@ -34,12 +39,15 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
   open,
   onClose,
   initial,
+  categories,
+  defaultCategoryId,
   priceRange,
   nextSortOrder,
   onSaved,
 }) => {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [categoryId, setCategoryId] = useState(0);
   const [counts, setCounts] = useState<Counts>(blankCounts);
   const [pricingMode, setPricingMode] = useState<PricingMode>("fixed");
   const [isActive, setIsActive] = useState(true);
@@ -52,6 +60,7 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
     if (initial) {
       setName(initial.name);
       setPrice(String(initial.price_cents / 100));
+      setCategoryId(initial.category_id);
       setCounts({
         main_count: initial.main_count,
         side_count: initial.side_count,
@@ -63,11 +72,12 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
     } else {
       setName("");
       setPrice("");
+      setCategoryId(defaultCategoryId ?? categories[0]?.id ?? 0);
       setCounts(blankCounts);
       setPricingMode("fixed");
       setIsActive(true);
     }
-  }, [open, initial]);
+  }, [open, initial, defaultCategoryId, categories]);
 
   /**
    * The description customers read is DERIVED from the counts rather than typed,
@@ -98,6 +108,9 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
     const payload = {
       name: trimmed,
       description: composition,
+      // The service page that sells this plan — also scopes which dishes its
+      // builder offers, via the meal_plan_options view.
+      category_id: categoryId,
       // Kept even in range mode: it is what the plan falls back to if the mode is
       // switched back, so flipping to range and back doesn't lose the figure.
       price_cents: Math.round(Number(price || 0) * 100),
@@ -144,67 +157,53 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
           </div>
         )}
 
-        <div>
-          <label htmlFor="plan-name" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
-            Plan name
-          </label>
-          <input
-            id="plan-name"
-            className={inputClass}
-            required
-            autoFocus
-            value={name}
-            placeholder="e.g. Standard Bento"
-            onChange={(e) => setName(e.target.value)}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="plan-name" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
+              Plan name
+            </label>
+            <input
+              id="plan-name"
+              className={inputClass}
+              required
+              autoFocus
+              value={name}
+              placeholder="e.g. Standard Bento"
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="plan-category" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
+              Sold under
+            </label>
+            <Select
+              id="plan-category"
+              value={categoryId}
+              onChange={(e) => setCategoryId(Number(e.target.value))}
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+            <p className="mt-1.5 font-poppins text-xs text-brand-text/55">
+              Which service page sells this plan — it also decides which dishes
+              the builder offers.
+            </p>
+          </div>
         </div>
 
-        {/* ── How this plan charges ─────────────────────────────────────── */}
-        <fieldset>
-          <legend className="block text-sm font-poppins font-medium text-brand-text mb-2">
-            How this plan is priced
-          </legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(
-              [
-                {
-                  mode: "fixed" as const,
-                  title: "One fixed price",
-                  blurb: "Every box costs the same. The dishes picked don't change the total.",
-                },
-                {
-                  mode: "range" as const,
-                  title: "Price range",
-                  blurb: "The customer pays for the dishes they choose, shown as a range.",
-                },
-              ]
-            ).map(({ mode, title, blurb }) => (
-              <label
-                key={mode}
-                className={`flex cursor-pointer gap-2.5 rounded-lg border p-3 transition-colors ${
-                  pricingMode === mode
-                    ? "border-brand-primary bg-brand-primary/5"
-                    : "border-brand-divider hover:border-brand-primary/40"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="pricing-mode"
-                  value={mode}
-                  checked={pricingMode === mode}
-                  onChange={() => setPricingMode(mode)}
-                  className="mt-0.5 accent-brand-primary"
-                />
-                <span className="min-w-0">
-                  <span className="block font-arvo-bold text-sm text-brand-text">{title}</span>
-                  <span className="block font-poppins text-xs text-brand-text/60 leading-snug">
-                    {blurb}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        {/*
+          The pricing-mode picker is DISABLED for now (owner call, 2026-08-17):
+          new plans are always fixed-price. A plan that is already in range
+          mode keeps working and shows its live range below — only the toggle
+          is gone. Restore the radio fieldset here to re-enable it.
+        */}
+        {pricingMode === "range" && (
+          <p className="rounded-lg bg-brand-secondary/50 px-4 py-2.5 font-poppins text-xs text-brand-text/65">
+            This plan is priced <strong>by dish choice</strong> (a range). New
+            plans use one fixed price.
+          </p>
+        )}
 
         {pricingMode === "fixed" ? (
           <div>

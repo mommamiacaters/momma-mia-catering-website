@@ -54,7 +54,7 @@ export const PLAN_SLOT_LABELS: Record<PlanSlot, string> = {
   dessert: "Dessert",
 };
 
-/** A purchasable Check-a-Lunch box, straight from public.meal_plans. */
+/** A purchasable box/tray plan, straight from public.meal_plans. */
 export interface MealPlan {
   id: number;
   name: string;
@@ -67,6 +67,10 @@ export interface MealPlan {
   /** Pesos; only meaningful when pricingMode is "range". */
   minPrice: number;
   maxPrice: number;
+  /** Menu category slug the plan belongs to — which service page sells it. */
+  categorySlug: string | null;
+  /** The service's own order minimum; null = the store default applies. */
+  categoryMinBoxes: number | null;
 }
 
 /** One dish a plan may be built from, via public.meal_plan_options. */
@@ -225,23 +229,28 @@ class MenuService {
   }
 
   /**
-   * The purchasable plans, with their composition and price.
+   * The purchasable plans, with their composition and price. Pass a category
+   * slug to get only the plans that service page sells; the cache always holds
+   * every plan and the filter runs on the way out.
    *
    * Joined against meal_plan_price_ranges rather than deriving a range here, so
    * the storefront quotes exactly the figure the admin preview shows and
    * create_order will charge. Three copies of this arithmetic is three chances
    * to disagree.
    */
-  async getMealPlans(): Promise<MealPlan[]> {
+  async getMealPlans(categorySlug?: string): Promise<MealPlan[]> {
+    const filtered = (all: MealPlan[]) =>
+      categorySlug ? all.filter((p) => p.categorySlug === categorySlug) : all;
+
     if (this.planCache && Date.now() - this.planCacheAt < this.cacheDuration) {
-      return this.planCache;
+      return filtered(this.planCache);
     }
 
     const [{ data: plans, error }, { data: ranges }] = await Promise.all([
       supabase
         .from("meal_plans")
         .select(
-          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count",
+          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, category:categories(slug, min_order_boxes)",
         )
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
@@ -250,7 +259,7 @@ class MenuService {
 
     if (error) {
       console.error("Failed to fetch meal plans:", error.message);
-      return this.planCache ?? [];
+      return filtered(this.planCache ?? []);
     }
 
     const rangeById = new Map(
@@ -259,6 +268,7 @@ class MenuService {
 
     const mapped: MealPlan[] = (plans ?? []).map((p) => {
       const r = rangeById.get(p.id);
+      const cat = Array.isArray(p.category) ? p.category[0] : p.category;
       return {
         id: p.id,
         name: p.name,
@@ -273,12 +283,15 @@ class MenuService {
         },
         minPrice: centsToPesos((r?.min_cents as number) ?? 0),
         maxPrice: centsToPesos((r?.max_cents as number) ?? 0),
+        categorySlug: (cat as { slug: string } | null)?.slug ?? null,
+        categoryMinBoxes:
+          (cat as { min_order_boxes: number | null } | null)?.min_order_boxes ?? null,
       };
     });
 
     this.planCache = mapped;
     this.planCacheAt = Date.now();
-    return mapped;
+    return filtered(mapped);
   }
 
   /**
@@ -368,6 +381,28 @@ class MenuService {
       .in("id", menuItemIds);
     if (error) throw new Error(error.message);
     return new Map((data ?? []).map((row) => [row.id as string, row.min_qty as number | null]));
+  }
+
+  /**
+   * Live, uncached read of the per-service order floor for the checkout gate:
+   * the categories behind the given plans, reduced to the strictest defined
+   * floor (carts are single-service in practice). null = every category uses
+   * the store default. Throws on failure so the caller fails closed.
+   */
+  async fetchPlanCategoryMinimum(mealPlanIds: number[]): Promise<number | null> {
+    if (mealPlanIds.length === 0) return null;
+    const { data, error } = await supabase
+      .from("meal_plans")
+      .select("category:categories(min_order_boxes)")
+      .in("id", [...new Set(mealPlanIds)]);
+    if (error) throw new Error(error.message);
+    const defined = (data ?? [])
+      .map((row) => {
+        const cat = Array.isArray(row.category) ? row.category[0] : row.category;
+        return (cat as { min_order_boxes: number | null } | null)?.min_order_boxes ?? null;
+      })
+      .filter((m): m is number => m !== null);
+    return defined.length ? Math.max(...defined) : null;
   }
 
   async refreshMenuData(): Promise<void> {

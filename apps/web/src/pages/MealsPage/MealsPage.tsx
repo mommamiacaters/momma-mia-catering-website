@@ -24,6 +24,7 @@ const MealsPage: React.FC = () => {
         "Packed meals with heart. Choose your meals for the week or day. Freshly prepared, delivered daily. No subscriptions\u2014just food that works around your schedule.",
       image: checkLunch,
       size: "small" as const,
+      orderable: true,
     },
     {
       id: 2,
@@ -33,6 +34,7 @@ const MealsPage: React.FC = () => {
         "Generous portions, easy hosting. Delicious, ready-to-serve trays for 8\u201310 people. Perfect for family get-togethers, potlucks, or surprise celebrations.",
       image: partyTrays,
       size: "large" as const,
+      orderable: true,
     },
     {
       id: 3,
@@ -42,6 +44,7 @@ const MealsPage: React.FC = () => {
         "Pasta? Sandwich? Dessert? Curated merienda boxes you can mix and match\u2014ideal for events, client gifts, team perks, and anything worth celebrating.",
       image: funBoxes,
       size: "small" as const,
+      orderable: true,
     },
     {
       id: 4,

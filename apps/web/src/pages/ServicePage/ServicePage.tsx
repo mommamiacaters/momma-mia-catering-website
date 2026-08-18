@@ -4,7 +4,7 @@ import Carousel from "../../components/Carousel/Carousel";
 import ContactSection from "../../components/ContactSection/ContactSection";
 import ShoppingBag from "../../components/ShoppingBag/ShoppingBag";
 import CheckALunch from "../../components/CheckALunch/CheckALunch";
-import { getServiceContent } from "../../constants/serviceContent";
+import { getServiceContent, ORDERABLE_SERVICE_SLUGS } from "../../constants/serviceContent";
 import { getCategoryDisplayName, SOCIAL_LINKS } from "../../constants";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
 import { useCarouselImages } from "../../hooks/useCarouselImages";
@@ -55,9 +55,10 @@ const ServicePage: React.FC = () => {
           <span className="text-sm sm:text-base">Back to Home</span>
         </Link>
 
-        {/* Shopping Bag and Sidebar */}
+        {/* Shopping Bag and Sidebar — pointless on a page with nothing to order */}
         <ShoppingBag
-          isVisible={serviceContent.hasMenu}
+          isVisible={serviceContent.hasMenu && order.plans.length > 0}
+          categoryMinBoxes={order.plans[0]?.categoryMinBoxes ?? null}
           planInstances={order.planInstances}
           activePlanInstanceId={order.activePlanInstanceId}
           onSetActivePlan={order.setActivePlanInstanceId}
@@ -122,8 +123,28 @@ const ServicePage: React.FC = () => {
               </div>
             )}
 
-            {/* Only render for Check - A - Lunch */}
-            {slug === "check-a-lunch" && (
+            {/* Any food service with plans gets the builder; one that has no
+                plans yet (Party Trays until the admin creates some) says so
+                instead of rendering an empty picker. */}
+            {(ORDERABLE_SERVICE_SLUGS as readonly string[]).includes(slug ?? "") &&
+              !order.loading &&
+              !order.error &&
+              order.plans.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="mx-auto max-w-md rounded-2xl border border-brand-divider bg-white px-6 py-10 shadow-sm">
+                    <p className="font-arvo font-bold text-brand-text text-lg mb-2">
+                      Online ordering is coming soon
+                    </p>
+                    <p className="font-poppins text-sm text-brand-text/60 leading-relaxed">
+                      We&rsquo;re still plating up this menu. Message us below for a
+                      quote in the meantime — we&rsquo;d love to feed your crowd.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+            {(ORDERABLE_SERVICE_SLUGS as readonly string[]).includes(slug ?? "") &&
+              order.plans.length > 0 && (
               <CheckALunch
                 mealPlanOrders={order.mealPlanOrders}
                 selectedItems={order.selectedItems}

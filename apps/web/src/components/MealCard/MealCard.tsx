@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { UtensilsCrossed } from "lucide-react";
 import Image from "../../components/Image/Image";
 import { MealPost } from "../../types";
 
@@ -41,6 +42,13 @@ const MealCard: React.FC<MealCardProps> = ({ post }) => {
           alt={post.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
+        {/* Orderable services get a badge; catering and rentals are quoted. */}
+        {post.orderable && (
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 font-poppins text-xs font-semibold text-brand-primary shadow-md">
+            <UtensilsCrossed size={13} aria-hidden="true" />
+            Order online
+          </span>
+        )}
       </div>
       <div className="p-6 text-center">
         <h2 className="font-arvo-bold text-xl text-brand-text mt-1 mb-3 group-hover:text-brand-primary transition-colors duration-200">

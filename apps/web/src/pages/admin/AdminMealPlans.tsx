@@ -1,29 +1,39 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { PLAN_SLOTS, type MealPlan, type MealPlanPriceRange } from "../../types/menu";
+import { PLAN_SLOTS, type Category, type MealPlan, type MealPlanPriceRange } from "../../types/menu";
 import MealPlanFormModal from "../../components/admin/MealPlanFormModal";
 import { peso } from "../../constants/orders";
 
 const SELECT =
-  "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, sort_order, is_active";
+  "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, sort_order, is_active, category_id";
+
+/** The food-service categories that always get a section, even when empty. */
+const SERVICE_CATEGORY_SLUGS = ["check-a-lunch", "party-tray", "fun-boxes"];
 
 const AdminMealPlans: React.FC = () => {
   const [plans, setPlans] = useState<MealPlan[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [ranges, setRanges] = useState<Map<number, MealPlanPriceRange>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modal, setModal] = useState<{ open: boolean; initial: MealPlan | null }>({
-    open: false,
-    initial: null,
-  });
+  const [modal, setModal] = useState<{
+    open: boolean;
+    initial: MealPlan | null;
+    defaultCategoryId?: number;
+  }>({ open: false, initial: null });
 
   const load = async () => {
-    const [{ data, error }, { data: rangeRows }] = await Promise.all([
+    const [{ data, error }, { data: rangeRows }, { data: cats }] = await Promise.all([
       supabase.from("meal_plans").select(SELECT).order("sort_order"),
       supabase.from("meal_plan_price_ranges").select("*"),
+      supabase
+        .from("categories")
+        .select("id, slug, name, sort_order, min_order_boxes")
+        .order("sort_order"),
     ]);
     if (error) setError(error.message);
     setPlans((data as MealPlan[]) ?? []);
+    setCategories((cats as Category[]) ?? []);
     setRanges(
       new Map(((rangeRows as MealPlanPriceRange[]) ?? []).map((r) => [r.meal_plan_id, r])),
     );
@@ -33,6 +43,45 @@ const AdminMealPlans: React.FC = () => {
   useEffect(() => {
     void load();
   }, []);
+
+  // One section per food service (always shown, so the admin can see where a
+  // new plan will land), plus a section for any other category holding plans.
+  const sections = categories
+    .filter(
+      (c) =>
+        SERVICE_CATEGORY_SLUGS.includes(c.slug) ||
+        plans.some((p) => p.category_id === c.id),
+    )
+    .map((c) => ({ category: c, plans: plans.filter((p) => p.category_id === c.id) }));
+
+  // ---- per-service order minimum (categories.min_order_boxes) ---------------
+  const [minDraft, setMinDraft] = useState<{ id: number; value: string } | null>(null);
+  const [minSaving, setMinSaving] = useState(false);
+
+  const saveMin = async () => {
+    if (!minDraft || minSaving) return;
+    const raw = minDraft.value.trim();
+    const next = raw === "" ? null : Math.floor(Number(raw));
+    if (next !== null && (!Number.isFinite(next) || next < 0 || next > 500)) {
+      setError("Minimum per order must be a whole number between 0 and 500, or blank for the store default.");
+      return;
+    }
+    setMinSaving(true);
+    const { data, error } = await supabase
+      .from("categories")
+      .update({ min_order_boxes: next })
+      .eq("id", minDraft.id)
+      .select("id");
+    setMinSaving(false);
+    if (error || !data?.length) {
+      setError(error?.message ?? "Nothing was saved — you may need to sign in again.");
+      return;
+    }
+    setCategories((prev) =>
+      prev.map((c) => (c.id === minDraft.id ? { ...c, min_order_boxes: next } : c)),
+    );
+    setMinDraft(null);
+  };
 
   const toggleActive = async (plan: MealPlan) => {
     setPlans((prev) =>
@@ -63,7 +112,7 @@ const AdminMealPlans: React.FC = () => {
         <div>
           <h1 className="font-arvo-bold text-2xl text-brand-text">Meal Plans</h1>
           <p className="font-poppins text-sm text-brand-text/60 mt-0.5">
-            The Check-a-Lunch boxes customers can order, and what each one includes.
+            The boxes and trays customers can order, grouped by the service page that sells them.
           </p>
         </div>
         <button
@@ -90,16 +139,94 @@ const AdminMealPlans: React.FC = () => {
         <div className="py-16 flex justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-primary/30 border-t-brand-primary" />
         </div>
-      ) : plans.length === 0 ? (
-        <div className="rounded-xl border border-brand-divider bg-white p-12 text-center shadow-sm">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-accent/20">
-            <i className="pi pi-box text-xl text-brand-primary" aria-hidden="true" />
-          </div>
-          <p className="font-poppins text-brand-text/60">No meal plans yet.</p>
-        </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {plans.map((plan) => (
+        <div className="space-y-8">
+          {sections.map(({ category, plans: sectionPlans }) => (
+            <section key={category.id} aria-label={`${category.name} plans`}>
+              <div className="mb-3 flex items-center gap-3">
+                <h2 className="font-arvo-bold text-lg text-brand-text">{category.name}</h2>
+                <span className="rounded-full bg-brand-accent/20 px-2 py-0.5 font-poppins text-xs text-brand-text/70">
+                  {sectionPlans.length} {sectionPlans.length === 1 ? "plan" : "plans"}
+                </span>
+
+                {/* Per-service order minimum — overrides the store default. */}
+                {minDraft?.id === category.id ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      max={500}
+                      step={1}
+                      autoFocus
+                      value={minDraft.value}
+                      placeholder="default"
+                      aria-label={`Minimum boxes per order for ${category.name} (blank = store default)`}
+                      onChange={(e) => setMinDraft({ id: category.id, value: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void saveMin();
+                        if (e.key === "Escape") setMinDraft(null);
+                      }}
+                      className="w-20 rounded-lg border border-brand-divider bg-white px-2 py-1 font-poppins text-xs text-brand-text tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                    />
+                    <button
+                      onClick={() => void saveMin()}
+                      disabled={minSaving}
+                      aria-label={`Save minimum for ${category.name}`}
+                      className="rounded-lg bg-brand-primary px-2.5 py-1 font-poppins text-xs font-semibold text-white hover:bg-brand-primary/90 cursor-pointer disabled:opacity-60"
+                    >
+                      {minSaving ? "…" : "Save"}
+                    </button>
+                    <button
+                      onClick={() => setMinDraft(null)}
+                      aria-label="Cancel editing minimum"
+                      className="rounded-lg px-2 py-1 font-poppins text-xs text-brand-text/60 hover:bg-brand-secondary cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() =>
+                      setMinDraft({
+                        id: category.id,
+                        value: category.min_order_boxes == null ? "" : String(category.min_order_boxes),
+                      })
+                    }
+                    title={`Minimum boxes/trays per order on the ${category.name} page — click to change. Blank means the store default from Settings applies.`}
+                    className="inline-flex items-center gap-1 rounded-full border border-brand-divider bg-white px-2.5 py-0.5 font-poppins text-xs text-brand-text/70 tabular-nums transition-colors hover:border-brand-primary/40 hover:text-brand-text cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  >
+                    <i className="pi pi-sliders-h text-[10px]" aria-hidden="true" />
+                    Min/order:{" "}
+                    {category.min_order_boxes == null
+                      ? "store default"
+                      : category.min_order_boxes === 0
+                        ? "none"
+                        : category.min_order_boxes}
+                  </button>
+                )}
+
+                <div className="flex-1 border-t border-brand-divider" />
+                <button
+                  onClick={() =>
+                    setModal({ open: true, initial: null, defaultCategoryId: category.id })
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-poppins text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-primary/10 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                >
+                  <i className="pi pi-plus text-[10px]" aria-hidden="true" /> Add to{" "}
+                  {category.name}
+                </button>
+              </div>
+
+              {sectionPlans.length === 0 ? (
+                <div className="rounded-xl border-2 border-dashed border-brand-divider bg-white/50 px-4 py-6 text-center">
+                  <p className="font-poppins text-sm text-brand-text/50">
+                    No plans yet — this service page says &ldquo;online ordering coming
+                    soon&rdquo; until one is added.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {sectionPlans.map((plan) => (
             <article
               key={plan.id}
               className={`flex flex-col rounded-xl border bg-white p-5 shadow-sm transition-opacity ${
@@ -172,6 +299,10 @@ const AdminMealPlans: React.FC = () => {
                 </button>
               </div>
             </article>
+                  ))}
+                </div>
+              )}
+            </section>
           ))}
         </div>
       )}
@@ -180,6 +311,8 @@ const AdminMealPlans: React.FC = () => {
         open={modal.open}
         onClose={() => setModal({ open: false, initial: null })}
         initial={modal.initial}
+        categories={categories.filter((c) => SERVICE_CATEGORY_SLUGS.includes(c.slug))}
+        defaultCategoryId={modal.defaultCategoryId}
         priceRange={modal.initial ? ranges.get(modal.initial.id) : undefined}
         nextSortOrder={(plans.at(-1)?.sort_order ?? 0) + 1}
         onSaved={load}

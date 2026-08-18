@@ -73,6 +73,8 @@ export interface MealPost {
   description: string;
   image: string;
   size: "small" | "medium" | "large";
+  /** Customers can order and pay online here (vs quote-based services). */
+  orderable?: boolean;
 }
 
 

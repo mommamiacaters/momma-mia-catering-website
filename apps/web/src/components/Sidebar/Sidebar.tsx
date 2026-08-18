@@ -48,6 +48,8 @@ interface ShoppingBagSidebarProps {
     targetItemInstanceId?: string
   ) => void;
   onCheckout?: () => void;
+  /** This service's own order minimum; null = the store default applies. */
+  categoryMinBoxes?: number | null;
 }
 
 const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label }) => ({
@@ -70,6 +72,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   getTotalMealPlanCount,
   onMoveItem,
   onCheckout,
+  categoryMinBoxes = null,
 }) => {
   const {
     minimumMealPlans,
@@ -80,8 +83,9 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   const isCartEmpty = planInstances.length === 0;
   const totalMealPlans = getTotalMealPlanCount();
   // blocked is true while the minimum is still unknown, so there is neither a
-  // load-window flash nor a load-window bypass.
-  const min = deriveMinimumState(minimumMealPlans, totalMealPlans);
+  // load-window flash nor a load-window bypass. The service's own floor beats
+  // the store default.
+  const min = deriveMinimumState(categoryMinBoxes ?? minimumMealPlans, totalMealPlans);
   const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances);
   const allBoxesFilled =
     planInstances.length > 0 &&

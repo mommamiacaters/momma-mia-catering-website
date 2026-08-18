@@ -39,7 +39,7 @@ Momma Mia Catering brings homestyle cooking and warm hospitality to your events 
 
 ❓ FAQs
 Q: How do I place an order?
-A: Click "Start Order" to browse our Check-a-Lunch menu, or click "Get A Quote" for custom catering!
+A: Check-a-Lunch and Merienda Meals can be ordered and paid online — click "Start Order" to build your boxes. For everything else, click "Get A Quote"!
 
 Q: How far in advance should I order?
 A: We recommend ordering at least 48 hours in advance. For large events, please contact us 1-2 weeks ahead.

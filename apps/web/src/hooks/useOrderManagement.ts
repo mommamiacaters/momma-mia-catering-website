@@ -10,6 +10,7 @@ import type {
   PlanSlot,
 } from "../types";
 import { menuService, type MealPlan } from "../services/menuService";
+import { useStoreSettings } from "./useStoreSettings";
 
 function generatePlanId(): string {
   return `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -87,6 +88,8 @@ export function useOrderManagement(
   slug: string | undefined,
   hasMenu: boolean
 ) {
+  // Shares the module-level settings cache — no extra request per mount.
+  const { minimumMealPlans } = useStoreSettings();
   const [menuData, setMenuData] = useState<MenuTypeData | null>(null);
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [planInstances, setPlanInstances] = useState<PlanInstance[]>(() => {
@@ -107,15 +110,19 @@ export function useOrderManagement(
   const activePlanRef = useRef(activePlanInstanceId);
   activePlanRef.current = activePlanInstanceId;
 
-  // Fetch menu data when slug changes. The Merienda Meals page still uses the
-  // legacy 'fun-boxes' menu category in the database.
+  // Fetch menu data when slug changes. Every food service page runs the same
+  // plan-based builder; the map translates its URL slug to the menu CATEGORY
+  // slug (Merienda Meals kept the legacy 'fun-boxes' category, and the
+  // party-tray category is singular while its page is plural).
   useEffect(() => {
     const category =
       slug === "check-a-lunch"
-        ? ("check-a-lunch" as const)
+        ? "check-a-lunch"
         : slug === "merienda-meals"
-          ? ("fun-boxes" as const)
-          : null;
+          ? "fun-boxes"
+          : slug === "party-trays"
+            ? "party-tray"
+            : null;
     if (!slug || !hasMenu || !category) {
       return;
     }
@@ -126,19 +133,16 @@ export function useOrderManagement(
 
     (async () => {
       try {
-        if (slug === "check-a-lunch") {
-          // Plans and their selectable dishes both come from the database now.
-          const loaded = await menuService.getMealPlans();
-          if (cancelled) return;
-          setPlans(loaded);
-          const data = loaded.length
-            ? await menuService.getPlanMenuData(loaded[0].id)
-            : null;
-          if (!cancelled) setMenuData(data);
-        } else {
-          const data = await menuService.getCategoryMenuData(category);
-          if (!cancelled) setMenuData(data);
-        }
+        // Plans and their selectable dishes both come from the database. All
+        // plans in a category share one dish pool (the meal_plan_options view
+        // joins by category), so the first plan's options serve every plan.
+        const loaded = await menuService.getMealPlans(category);
+        if (cancelled) return;
+        setPlans(loaded);
+        const data = loaded.length
+          ? await menuService.getPlanMenuData(loaded[0].id)
+          : null;
+        if (!cancelled) setMenuData(data);
       } catch (err) {
         console.error("Error fetching menu data:", err);
         if (!cancelled) setError("Failed to load menu items. Please try again later.");
@@ -301,7 +305,13 @@ export function useOrderManagement(
   // ─── Meal Plan Management ───
 
   const handleMealPlanSelect = useCallback((type: MealPlanType) => {
-    const mealPlanId = planByName.get(type)?.id ?? 0;
+    const plan = planByName.get(type);
+    const mealPlanId = plan?.id ?? 0;
+    // A fresh selection starts at this SERVICE's order minimum, not 1 — every
+    // order has to reach it anyway. A service without its own floor uses the
+    // store default; unknown settings or a switched-off minimum fall back to
+    // the old single box.
+    const seedCount = Math.max(1, plan?.categoryMinBoxes ?? minimumMealPlans ?? 1);
     setPlanInstances((prev) => {
       const instancesOfType = prev.filter((pi) => pi.type === type);
       if (instancesOfType.length > 0) {
@@ -312,24 +322,24 @@ export function useOrderManagement(
         }
         return remaining;
       } else {
-        // Select: add one instance
         const maxOrder = prev.reduce(
           (max, pi) => Math.max(max, pi.displayOrder),
           -1
         );
-        return [
-          ...prev,
-          {
+        const seeded: PlanInstance[] = [];
+        for (let i = 0; i < seedCount; i++) {
+          seeded.push({
             id: generatePlanId(),
             mealPlanId,
             type,
-            displayOrder: maxOrder + 1,
+            displayOrder: maxOrder + 1 + i,
             items: [],
-          },
-        ];
+          });
+        }
+        return [...prev, ...seeded];
       }
     });
-  }, [planByName]);
+  }, [planByName, minimumMealPlans]);
 
   const handleMealPlanQuantityChange = useCallback(
     (type: MealPlanType, newQuantity: number) => {
