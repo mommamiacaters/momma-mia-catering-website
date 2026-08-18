@@ -7,6 +7,7 @@ import {
   type AppSettingRow,
 } from "../../services/settingsService";
 import type { Json } from "@momma-mia/db";
+import AdminCompanyProfile from "./AdminCompanyProfile";
 
 /** Per-key limits, mirroring the DB CHECK constraints. */
 const NUMBER_BOUNDS: Record<string, { min: number; max: number }> = {
@@ -99,7 +100,7 @@ const AdminSettings: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <h1 className="font-arvo-bold text-2xl text-brand-text mb-1">Store Settings</h1>
       <p className="font-poppins text-sm text-brand-text/60 mb-6">
         Tune how the storefront behaves — no code deploy needed. Changes reach a
@@ -113,6 +114,11 @@ const AdminSettings: React.FC = () => {
         </div>
       )}
 
+      {/* Two flexible columns: ordering rules on the left, business details on
+          the right. Stacks on narrow screens. */}
+      <div className="grid gap-8 xl:grid-cols-2 xl:items-start">
+        <section aria-label="Ordering rules">
+          <h2 className="font-arvo-bold text-lg text-brand-text mb-3">Ordering rules</h2>
       {loading ? (
         <div className="py-16 flex justify-center">
           <div className="w-8 h-8 border-4 border-brand-primary/30 border-t-brand-primary rounded-full animate-spin" />
@@ -184,6 +190,13 @@ const AdminSettings: React.FC = () => {
           ))}
         </div>
       )}
+        </section>
+
+        <section aria-label="Company profile">
+          <h2 className="font-arvo-bold text-lg text-brand-text mb-3">Company profile</h2>
+          <AdminCompanyProfile embedded />
+        </section>
+      </div>
     </div>
   );
 };

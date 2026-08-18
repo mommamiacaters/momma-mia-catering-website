@@ -11,7 +11,6 @@ const navItems = [
   { to: "/admin/plans", label: "Meal Plans", icon: "pi-th-large", end: false },
   { to: "/admin/menu", label: "Products & Menu", icon: "pi-box", end: false },
   { to: "/admin/carousels", label: "Page Carousels", icon: "pi-images", end: false },
-  { to: "/admin/company", label: "Company Profile", icon: "pi-building", end: false },
   { to: "/admin/settings", label: "Settings", icon: "pi-cog", end: false },
 ];
 

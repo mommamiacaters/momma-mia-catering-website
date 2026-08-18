@@ -24,7 +24,6 @@ import AdminCarousels from "./pages/admin/AdminCarousels";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminMealPlans from "./pages/admin/AdminMealPlans";
 import AdminSettings from "./pages/admin/AdminSettings";
-import AdminCompanyProfile from "./pages/admin/AdminCompanyProfile";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 function AppContent() {
@@ -117,7 +116,8 @@ function AppContent() {
             <Route path="plans" element={<AdminMealPlans />} />
             <Route path="menu" element={<AdminProducts />} />
             <Route path="carousels" element={<AdminCarousels />} />
-            <Route path="company" element={<AdminCompanyProfile />} />
+            {/* Company Profile merged into Settings; keep old links alive. */}
+            <Route path="company" element={<Navigate to="/admin/settings" replace />} />
             <Route path="settings" element={<AdminSettings />} />
             {/* Orders moved to the index; keep old links and bookmarks alive. */}
             <Route path="orders" element={<Navigate to="/admin" replace />} />

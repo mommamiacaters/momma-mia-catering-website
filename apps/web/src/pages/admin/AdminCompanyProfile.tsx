@@ -37,7 +37,7 @@ const isEmail = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.trim());
  * The order-notification email is the inbox the SERVER notifies on every order
  * (via the order-notify trigger → n8n). Other fields are contact details.
  */
-const AdminCompanyProfile: React.FC = () => {
+const AdminCompanyProfile: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const [saved, setSaved] = useState<Form>(EMPTY);
   const [form, setForm] = useState<Form>(EMPTY);
   const [loading, setLoading] = useState(true);
@@ -104,8 +104,10 @@ const AdminCompanyProfile: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="font-arvo-bold text-2xl text-brand-text mb-1">Company Profile</h1>
+    <div className={embedded ? "" : "max-w-2xl"}>
+      {!embedded && (
+        <h1 className="font-arvo-bold text-2xl text-brand-text mb-1">Company Profile</h1>
+      )}
       <p className="font-poppins text-sm text-brand-text/60 mb-6">
         Business details and the inbox that receives an email for every new order.
       </p>
