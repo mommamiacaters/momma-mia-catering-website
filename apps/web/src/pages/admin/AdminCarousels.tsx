@@ -310,6 +310,8 @@ const ServiceSection: React.FC<ServiceSectionProps> = ({
         className={`grid transition-all duration-200 ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
       >
         <div className="overflow-hidden">
+          {/* Mounted only while open — a closed section loads zero images. */}
+          {isOpen && (
           <div className="border-t border-brand-divider p-4">
             {images.length === 0 ? (
               <div className="rounded-lg border-2 border-dashed border-brand-divider px-4 py-8 text-center">
@@ -385,6 +387,7 @@ const ServiceSection: React.FC<ServiceSectionProps> = ({
               </>
             )}
           </div>
+          )}
         </div>
       </div>
     </section>
@@ -406,8 +409,12 @@ const AdminCarousels: React.FC = () => {
   // Announced to screen readers — the grid actions have no other confirmation.
   const [status, setStatus] = useState("");
   const [uploading, setUploading] = useState<Record<string, number>>({});
+  // Only the first section starts open: closed sections don't mount their
+  // <img>s at all (see ServiceSection), so first paint fetches one page of one
+  // service instead of every photo of every service. Transform-based
+  // thumbnails aren't available on this plan — not mounting IS the optimisation.
   const [openSlugs, setOpenSlugs] = useState<Set<string>>(
-    () => new Set(CAROUSEL_SERVICES.map((s) => s.slug)),
+    () => new Set(CAROUSEL_SERVICES.slice(0, 1).map((s) => s.slug)),
   );
   const [pendingDelete, setPendingDelete] = useState<{
     slug: string;

@@ -58,6 +58,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
       alt={alt}
       className={className}
       loading="lazy"
+      decoding="async"
       onError={() => {
         setFailed(true);
         statusRef.current?.(true);
