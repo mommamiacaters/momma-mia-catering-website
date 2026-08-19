@@ -22,7 +22,7 @@ const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
   getPrice,
 }) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
       {plans.map((plan) => {
         const type = plan.name;
         const order = mealPlanOrders.find((o) => o.type === type);
