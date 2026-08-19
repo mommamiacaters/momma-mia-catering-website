@@ -106,11 +106,14 @@ function shell(inner: string): string {
   return `<div style="font-family:Arial,Helvetica,sans-serif;color:${INK};max-width:560px;margin:0 auto;padding:8px">${inner}</div>`;
 }
 
-// A lunch-box order is a priced PLAN line plus the dishes that fill it. Under
-// fixed pricing those dishes cost ₱0, so a price column for them is noise —
-// they render indented beneath their plan instead. Grouping is by id
-// (meal_plan_id / plan_instance_id), never by name: under `range` pricing the
-// plan line is ₱0 and the dishes carry the money, so price can't identify a row.
+// A lunch-box order is a priced PLAN line plus the dishes that fill it, and a
+// real order is mostly IDENTICAL boxes — so the email groups them the way the
+// site's Overview does: one line per distinct build ("15× Standard Bento"),
+// its per-box dishes once underneath, and a muted per-box price. Grouping is
+// by id (meal_plan_id / plan_instance_id), never by name: under `range`
+// pricing the plan line is ₱0 and the dishes carry the money, so price can't
+// identify a row. The signature includes every component's name AND unit
+// price, so builds that differ in any way never collapse together.
 function itemRows(items: Item[]): string {
   const line = (label: string, price: string, sub = false) =>
     `<tr><td style="padding:${sub ? "2px 0 2px 20px" : "6px 0 2px"}${sub ? `;color:${MUTE};font-size:13px` : ""}">${label}</td>` +
@@ -127,11 +130,9 @@ function itemRows(items: Item[]): string {
     i.meal_plan_id == null && !!i.plan_instance_id && planned.has(i.plan_instance_id);
 
   // Group the components by box ONCE, then CONSUME each group as it's emitted.
-  // Re-filtering per plan line would render a box's dishes once per plan line
-  // pointing at that box, so two plan lines sharing a plan_instance_id would
-  // list every dish twice and the visible lines would sum to double the Total.
-  // create_order v5 rejects duplicate ids, but pre-v5 rows aren't covered by a
-  // constraint added afterwards — rendering shouldn't rely on that invariant.
+  // Two plan lines sharing a plan_instance_id (possible pre-create_order-v5)
+  // must not each count that box's dishes, or the visible lines would sum to
+  // more than the Total.
   const pending = new Map<string, Item[]>();
   for (const i of items) {
     if (!isComponent(i)) continue;
@@ -141,37 +142,84 @@ function itemRows(items: Item[]): string {
     pending.set(id, list);
   }
 
-  const componentsOf = (planInstanceId: string | null | undefined) => {
-    if (!planInstanceId) return [];
-    const list = pending.get(planInstanceId) ?? [];
-    pending.delete(planInstanceId); // consumed — never emit this box twice
-    return list;
-  };
+  interface Build {
+    label: string;
+    boxes: number;
+    totalCents: number;
+    comps: Array<{ name: string; qty: number }>;
+  }
+  const builds = new Map<string, Build>();
+  const emitOrder: Array<{ kind: "build"; key: string } | { kind: "row"; html: string }> = [];
+
+  for (const i of items) {
+    if (isComponent(i)) continue;
+
+    const qty = i.qty ?? 1;
+    const ownTotal = (i.unit_price_cents ?? 0) * (i.qty ?? 0);
+
+    // Not a plan-backed box (à la carte line, or a legacy orphan dish whose
+    // box has no plan row) — render it exactly as before, in place.
+    if (i.meal_plan_id == null || !i.plan_instance_id) {
+      const suffix = i.plan_type
+        ? ` <span style="color:${MUTE}">(${esc(i.plan_type)})</span>`
+        : "";
+      emitOrder.push({
+        kind: "row",
+        html: line(`${qty}× ${esc(i.item_name)}${suffix}`, ownTotal > 0 ? peso(ownTotal) : ""),
+      });
+      continue;
+    }
+
+    // Aggregate this box's dishes to one entry per distinct dish, keeping
+    // first-seen order (main → side → rice → dessert as the cart stored them).
+    const comps = pending.get(i.plan_instance_id) ?? [];
+    pending.delete(i.plan_instance_id); // consumed — never count this box twice
+    const compAgg = new Map<string, { name: string; qty: number; cents: number }>();
+    for (const c of comps) {
+      const k = `${c.item_name}|${c.unit_price_cents ?? 0}`;
+      const entry = compAgg.get(k) ?? { name: c.item_name, qty: 0, cents: 0 };
+      entry.qty += c.qty ?? 1;
+      entry.cents += (c.unit_price_cents ?? 0) * (c.qty ?? 0);
+      compAgg.set(k, entry);
+    }
+    const boxTotal = ownTotal + [...compAgg.values()].reduce((a, c) => a + c.cents, 0);
+
+    const sig = [
+      i.meal_plan_id,
+      i.item_name,
+      i.unit_price_cents ?? 0,
+      ...[...compAgg.keys()].sort().map((k) => `${k}|${compAgg.get(k)!.qty}`),
+    ].join("~");
+
+    const existing = builds.get(sig);
+    if (existing) {
+      existing.boxes += qty;
+      existing.totalCents += boxTotal;
+    } else {
+      builds.set(sig, {
+        label: i.item_name,
+        boxes: qty,
+        totalCents: boxTotal,
+        comps: [...compAgg.values()].map(({ name, qty: q }) => ({ name, qty: q })),
+      });
+      emitOrder.push({ kind: "build", key: sig });
+    }
+  }
 
   const out: string[] = [];
-  for (const i of items) {
-    if (isComponent(i)) continue; // emitted under its plan line below
-
-    const total = (i.unit_price_cents ?? 0) * (i.qty ?? 0);
-    const isPlan = i.meal_plan_id != null;
-    // The plan line's own name IS the plan name, so the "(Standard Bento)"
-    // suffix would just repeat itself.
-    const suffix =
-      !isPlan && i.plan_type ? ` <span style="color:${MUTE}">(${esc(i.plan_type)})</span>` : "";
-
-    out.push(
-      line(`${i.qty}× ${esc(i.item_name)}${suffix}`, total > 0 ? peso(total) : ""),
-    );
-
-    for (const c of componentsOf(i.plan_instance_id)) {
-      const cTotal = (c.unit_price_cents ?? 0) * (c.qty ?? 0);
-      out.push(
-        line(
-          `${(c.qty ?? 1) > 1 ? `${c.qty}× ` : ""}${esc(c.item_name)}`,
-          cTotal > 0 ? peso(cTotal) : "",
-          true,
-        ),
-      );
+  for (const e of emitOrder) {
+    if (e.kind === "row") {
+      out.push(e.html);
+      continue;
+    }
+    const b = builds.get(e.key)!;
+    out.push(line(`${b.boxes}× ${esc(b.label)}`, b.totalCents > 0 ? peso(b.totalCents) : ""));
+    for (const c of b.comps) {
+      out.push(line(`${c.qty > 1 ? `${c.qty}× ` : ""}${esc(c.name)}`, "", true));
+    }
+    // Identical builds by construction, so per-box price divides evenly.
+    if (b.boxes > 1 && b.totalCents > 0) {
+      out.push(line(`<em>${peso(b.totalCents / b.boxes)} per box</em>`, "", true));
     }
   }
   return out.join("");
