@@ -143,6 +143,33 @@ export function useOrderManagement(
           ? await menuService.getPlanMenuData(loaded[0].id)
           : null;
         if (!cancelled) setMenuData(data);
+
+        // Restored carts carry each dish's image/name/price frozen at the
+        // moment it was added — menu edits (or repaired image URLs) would
+        // never reach them. Re-stamp every assigned item from the fresh menu.
+        if (!cancelled && data) {
+          const freshById = new Map<string, MenuItem>();
+          for (const list of Object.values(data)) {
+            for (const it of list ?? []) freshById.set(it.id, it);
+          }
+          setPlanInstances((prev) =>
+            prev.map((pi) => ({
+              ...pi,
+              items: pi.items.map((item) => {
+                const fresh = freshById.get(item.menuItemId);
+                return fresh
+                  ? {
+                      ...item,
+                      name: fresh.name,
+                      description: fresh.description,
+                      price: fresh.price,
+                      image: fresh.image,
+                    }
+                  : item;
+              }),
+            }))
+          );
+        }
       } catch (err) {
         console.error("Error fetching menu data:", err);
         if (!cancelled) setError("Failed to load menu items. Please try again later.");

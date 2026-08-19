@@ -3,6 +3,13 @@ import React, { useState, useRef, useEffect, memo } from "react";
 export const FALLBACK_IMAGE =
   "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop";
 
+// Swap a dead URL for the fallback. For raw <img> sites that can't take the
+// whole component — `src={x || FALLBACK}` only guards empty URLs, not 404s.
+export const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const img = e.currentTarget;
+  if (img.src !== FALLBACK_IMAGE) img.src = FALLBACK_IMAGE;
+};
+
 // Global set tracking which URLs have already been loaded in this session
 const loadedImages = new Set<string>();
 
