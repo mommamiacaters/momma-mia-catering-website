@@ -319,7 +319,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   if (loading || error || !menuData) return null;
 
   return (
-    <div className="max-w-7xl mx-auto overflow-x-clip">
+    <div className="max-w-7xl mx-auto">
       {/* ─── Section Header ─── */}
       <div className="text-center mb-10">
         <span className="inline-block font-poppins text-xs font-semibold tracking-[0.2em] uppercase text-brand-primary mb-3">
