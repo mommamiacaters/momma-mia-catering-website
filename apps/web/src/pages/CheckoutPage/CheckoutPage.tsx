@@ -21,10 +21,13 @@ import {
   SETTING_KEYS,
 } from "../../services/settingsService";
 import { getCategoryDisplayName } from "../../constants";
-import { FALLBACK_IMAGE } from "../../components/CachedImage";
+import { FALLBACK_IMAGE, onImgError } from "../../components/CachedImage";
 import { generateSecureOrderRef } from "../../utils/validation";
 import { canSubmitOrder, recordSubmission, getSecondsUntilNext } from "../../utils/rateLimiter";
 import { PLAN_SLOTS } from "../../constants/planSlots";
+import { groupPlanInstances, aggregateDishes } from "../../utils/mealPlanUtils";
+import { SlotIcon } from "../../components/ui/SlotIcons";
+import SummaryViewToggle, { type SummaryView } from "../../components/ui/SummaryViewToggle";
 import StepIndicator from "./components/StepIndicator";
 import DeliveryStep from "./components/DeliveryStep";
 import PaymentStep from "./components/PaymentStep";
@@ -133,6 +136,10 @@ const CheckoutPage: React.FC = () => {
   // default. Until it loads, the default applies — verifyMinimum re-reads
   // everything live before any money moves either way.
   const [categoryMinBoxes, setCategoryMinBoxes] = useState<number | null>(null);
+  // Overview (default) collapses each build to one line per distinct dish so
+  // a 45-box order reads at a glance; Detailed keeps every dish slot as its
+  // own row. Purely presentational — same groupedBoxes data.
+  const [summaryView, setSummaryView] = useState<SummaryView>("overview");
   useEffect(() => {
     const ids = (effectiveState?.planInstances ?? []).map((pi) => pi.mealPlanId);
     if (ids.length === 0) return;
@@ -249,23 +256,7 @@ const CheckoutPage: React.FC = () => {
   // thirty near-identical cards. Same grouping the admin order view uses:
   // signature = plan + its dishes (by id, sorted so order can't split groups).
   const groupedBoxes = sortedPlanInstances
-    ? [
-        ...sortedPlanInstances
-          .reduce((map, pi) => {
-            const sig =
-              pi.type +
-              "|" +
-              pi.items
-                .map((i) => `${i.type}:${i.menuItemId}`)
-                .sort()
-                .join("|");
-            const existing = map.get(sig);
-            if (existing) existing.count += 1;
-            else map.set(sig, { type: pi.type, count: 1, sample: pi });
-            return map;
-          }, new Map<string, { type: string; count: number; sample: PlanInstance }>())
-          .values(),
-      ]
+    ? groupPlanInstances(sortedPlanInstances)
     : null;
 
   // ─── Step handlers ───
@@ -376,7 +367,64 @@ const CheckoutPage: React.FC = () => {
         )}
       </div>
 
-      {groupedBoxes && groupedBoxes.length > 0 ? (
+      {/* Overview (default) is the wide at-a-glance version; Detailed lists
+          every dish slot. */}
+      {groupedBoxes && groupedBoxes.length > 0 && (
+        <SummaryViewToggle
+          value={summaryView}
+          onChange={setSummaryView}
+          className="mb-4"
+        />
+      )}
+
+      {groupedBoxes && groupedBoxes.length > 0 && summaryView === "overview" ? (
+        /* ── Overview: one compact tile per build, one line per distinct
+              dish — no card per dish slot. Wide: tiles flow into columns. ── */
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-4">
+          {groupedBoxes.map((group) => (
+            <div
+              key={group.sample.id}
+              className="border border-brand-divider rounded-xl px-3 py-2.5"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="font-poppins text-sm font-semibold text-brand-text min-w-0 truncate">
+                  {group.type}
+                </span>
+                <span className="ml-auto shrink-0 rounded-full bg-brand-primary px-2 py-0.5 font-poppins text-xs font-bold text-white tabular-nums">
+                  &times;{group.count}
+                </span>
+              </div>
+              {aggregateDishes(group.sample.items).map((dish) => (
+                <div
+                  key={`${dish.type}-${dish.name}`}
+                  className="flex items-center gap-1.5 py-0.5 min-w-0"
+                >
+                  <SlotIcon slot={dish.type} size={11} className="shrink-0 text-brand-text/70" />
+                  <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-brand-divider/50">
+                    <img
+                      src={dish.image || FALLBACK_IMAGE}
+                      onError={onImgError}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <span className="font-poppins text-xs text-brand-text capitalize truncate">
+                    {dish.qty > 1 && (
+                      <span className="font-semibold tabular-nums">{dish.qty}&times; </span>
+                    )}
+                    {dish.name}
+                  </span>
+                </div>
+              ))}
+              {group.sample.items.length === 0 && (
+                <p className="font-poppins text-xs text-brand-text/30 italic py-1">
+                  No dishes selected
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : groupedBoxes && groupedBoxes.length > 0 ? (
         <div className="space-y-3 mb-4">
           {groupedBoxes.map((group) => (
             <div
@@ -408,6 +456,7 @@ const CheckoutPage: React.FC = () => {
                           <div className="w-7 h-7 rounded-md overflow-hidden shrink-0 border border-brand-divider/50">
                             <img
                               src={item.image || FALLBACK_IMAGE}
+                              onError={onImgError}
                               alt={item.name}
                               className="w-full h-full object-cover"
                             />
@@ -460,6 +509,7 @@ const CheckoutPage: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-brand-divider/50">
                       <img
                         src={item.image || FALLBACK_IMAGE}
+                        onError={onImgError}
                         alt={item.name}
                         className="w-full h-full object-cover"
                       />

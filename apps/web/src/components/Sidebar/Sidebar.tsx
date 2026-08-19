@@ -18,7 +18,7 @@ import type {
   MealPlanType,
   PlanInstance,
 } from "../../types";
-import { isPlanInstanceComplete } from "../../utils/mealPlanUtils";
+import { isPlanInstanceComplete, groupPlanInstances, aggregateDishes } from "../../utils/mealPlanUtils";
 import { PLAN_SLOT_META } from "../../constants/planSlots";
 import { CompositionIcons, SlotIcon } from "../ui/SlotIcons";
 import {
@@ -26,7 +26,8 @@ import {
   deriveMinimumState,
   useStoreSettings,
 } from "../../hooks/useStoreSettings";
-import { FALLBACK_IMAGE } from "../CachedImage";
+import { FALLBACK_IMAGE, onImgError } from "../CachedImage";
+import SummaryViewToggle, { type SummaryView } from "../ui/SummaryViewToggle";
 
 interface ShoppingBagSidebarProps {
   visible: boolean;
@@ -115,6 +116,11 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
     setIsTouch(window.matchMedia("(pointer: coarse)").matches);
   }, []);
 
+  // Overview (default) reads the order as builds; Detailed is the per-box
+  // editor. The toggle only renders on lg — below that, box editing belongs
+  // to the lunch-box sheet and the bag stays in overview.
+  const [view, setView] = useState<SummaryView>("overview");
+
   // Sort by displayOrder for rendering
   const sortedInstances = [...planInstances].sort(
     (a, b) => a.displayOrder - b.displayOrder
@@ -129,22 +135,24 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
     instanceNumbers.set(pi.id, n);
   }
 
-  // Escape key + body scroll lock
+  // Escape key + body scroll lock. Only the OPEN sidebar may touch body
+  // overflow — writing "" while closed stomps whichever other overlay
+  // (lightbox, modal, lunch-box sheet) is holding the lock.
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && visible) onHide();
     };
     document.addEventListener("keydown", handleEscape);
 
-    if (visible) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+    if (!visible) {
+      return () => document.removeEventListener("keydown", handleEscape);
     }
 
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "";
+      document.body.style.overflow = prevOverflow;
     };
   }, [visible, onHide]);
 
@@ -377,6 +385,13 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
           </div>
         )}
 
+        {/* ─── View toggle (lg only — mobile is always Overview) ─── */}
+        {!isCartEmpty && (
+          <div className="hidden lg:block px-5 pt-4">
+            <SummaryViewToggle value={view} onChange={setView} />
+          </div>
+        )}
+
         {/* ─── Content (scrollable) ─── */}
         <div
           className="flex-1 overflow-y-auto p-5 space-y-4"
@@ -400,8 +415,99 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
               </p>
             </div>
           ) : (
-            /* ─── Plan Instance Cards ─── */
-            sortedInstances.map((instance, index) => {
+            <>
+            {/* ─── Overview: one tile per distinct build ───
+                Always the mobile view (box editing lives in the lunch-box
+                sheet there); on lg it holds until Detailed is chosen. */}
+            <div
+              className={
+                view === "detailed" ? "lg:hidden space-y-3" : "space-y-3"
+              }
+            >
+              {groupPlanInstances(sortedInstances).map((group) => {
+                const limits = getMealPlanLimits(group.type);
+                const unitPrice = getMealPlanPrice(group.type);
+                const groupComplete = isPlanInstanceComplete(
+                  group.sample,
+                  limits
+                );
+                return (
+                  <div
+                    key={group.sample.id}
+                    className={`bg-white rounded-2xl border shadow-sm px-4 py-3 ${
+                      groupComplete ? "border-green-300" : "border-brand-divider"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      {groupComplete && (
+                        <Check
+                          size={13}
+                          strokeWidth={3}
+                          className="shrink-0 text-green-600"
+                        />
+                      )}
+                      <span className="font-arvo font-bold text-sm text-brand-text min-w-0 truncate">
+                        {group.type}
+                      </span>
+                      <span className="shrink-0 rounded-full bg-brand-primary px-2 py-0.5 font-poppins text-xs font-bold text-white tabular-nums">
+                        &times;{group.count}
+                      </span>
+                      <span className="ml-auto shrink-0 font-poppins text-sm font-semibold text-brand-primary tabular-nums">
+                        &#8369;{unitPrice * group.count}
+                      </span>
+                    </div>
+                    {aggregateDishes(group.sample.items).map((dish) => (
+                      <div
+                        key={`${dish.type}-${dish.name}`}
+                        className="flex items-center gap-1.5 py-0.5 min-w-0"
+                      >
+                        <SlotIcon
+                          slot={dish.type}
+                          size={11}
+                          className="shrink-0 text-brand-text/70"
+                        />
+                        <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-brand-divider/50">
+                          <img
+                            src={dish.image || FALLBACK_IMAGE}
+                            onError={onImgError}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="font-poppins text-xs text-brand-text capitalize truncate">
+                          {dish.qty > 1 && (
+                            <span className="font-semibold tabular-nums">
+                              {dish.qty}&times;{" "}
+                            </span>
+                          )}
+                          {dish.name}
+                        </span>
+                      </div>
+                    ))}
+                    {group.sample.items.length === 0 && (
+                      <p className="font-poppins text-xs text-brand-text/30 italic py-1">
+                        No dishes selected
+                      </p>
+                    )}
+                    <p className="mt-1.5 font-poppins text-[0.7rem] text-brand-text/70 tabular-nums">
+                      &#8369;{unitPrice} each
+                    </p>
+                  </div>
+                );
+              })}
+              <p className="lg:hidden font-poppins text-[0.7rem] text-brand-text/70 text-center pt-1">
+                Arrange dishes box-by-box in{" "}
+                <strong className="font-semibold">Your Lunch Boxes</strong>.
+              </p>
+            </div>
+
+            {/* ─── Per-box editor (Detailed, lg and up) ─── */}
+            <div
+              className={
+                view === "detailed" ? "hidden lg:block space-y-4" : "hidden"
+              }
+            >
+            {sortedInstances.map((instance, index) => {
               const limits = getMealPlanLimits(instance.type);
               const instanceItems = instance.items;
               const isActive = activePlanInstanceId === instance.id;
@@ -598,6 +704,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                                     <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-brand-divider/50 pointer-events-none">
                                       <img
                                         src={item.image || FALLBACK_IMAGE}
+                                        onError={onImgError}
                                         alt={item.name}
                                         className="w-full h-full object-cover"
                                       />
@@ -720,16 +827,18 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                   )}
                 </div>
               );
-            })
-          )}
+            })}
 
-          {/* Drag hint */}
-          {sortedInstances.length > 1 &&
-            sortedInstances.some((pi) => pi.items.length > 0) && (
-              <p className="font-poppins text-[0.6rem] text-brand-text/30 text-center mt-1 italic">
-                Drag dishes between boxes to rearrange
-              </p>
-            )}
+            {/* Drag hint */}
+            {sortedInstances.length > 1 &&
+              sortedInstances.some((pi) => pi.items.length > 0) && (
+                <p className="font-poppins text-[0.6rem] text-brand-text/30 text-center mt-1 italic">
+                  Drag dishes between boxes to rearrange
+                </p>
+              )}
+            </div>
+            </>
+          )}
         </div>
 
         {/* ─── Footer ─── */}

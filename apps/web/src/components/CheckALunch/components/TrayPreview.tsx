@@ -14,8 +14,9 @@ import {
   MealPlanType,
   AssignedItem,
 } from "../../../types";
-import { FALLBACK_IMAGE } from "../../CachedImage";
-import { isPlanInstanceComplete } from "../../../utils/mealPlanUtils";
+import { FALLBACK_IMAGE, onImgError } from "../../CachedImage";
+import { isPlanInstanceComplete, groupPlanInstances, aggregateDishes } from "../../../utils/mealPlanUtils";
+import SummaryViewToggle, { type SummaryView } from "../../ui/SummaryViewToggle";
 import {
   deriveDishMinimumState,
   useStoreSettings,
@@ -84,6 +85,11 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
       behavior: reduceMotion ? "auto" : "smooth",
     });
   }, [activePlanInstanceId]);
+
+  // Overview (default) reads the boxes as builds; Detailed lists every box
+  // for arranging. The scroll-follow effect above no-ops in overview — its
+  // card refs only exist while Detailed is mounted.
+  const [view, setView] = useState<SummaryView>("overview");
 
   // ─── Drag state ───
   const [dragState, setDragState] = useState<{
@@ -283,14 +289,97 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
         </span>
       </div>
 
-      {/* Plan instance cards — clickable to select. min-h-0 lets this flex
-          child shrink below its content so it can actually scroll. */}
+      <SummaryViewToggle
+        value={view}
+        onChange={setView}
+        className="mb-4 shrink-0"
+      />
+
+      {view === "overview" ? (
+        /* ─── Overview: one tile per distinct build ─── */
+        <div
+          className={`space-y-3 ${
+            compact ? "overflow-y-auto min-h-0 -mx-1 px-1" : ""
+          }`}
+        >
+          {groupPlanInstances(sortedInstances).map((group) => {
+            const limits = getMealPlanLimits(group.type);
+            const totalSlots = Object.values(limits).reduce(
+              (a: number, b) => a + (b as number),
+              0
+            );
+            const filledSlots = group.sample.items.length;
+            const groupComplete = isPlanInstanceComplete(group.sample, limits);
+            return (
+              <div
+                key={group.sample.id}
+                className={`bg-white rounded-xl border px-3.5 py-3 ${
+                  groupComplete ? "border-green-300" : "border-brand-divider"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="font-arvo font-bold text-sm text-brand-text min-w-0 truncate">
+                    {group.type}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-brand-primary px-2 py-0.5 font-poppins text-xs font-bold text-white tabular-nums">
+                    &times;{group.count}
+                  </span>
+                  <span
+                    className={`ml-auto shrink-0 font-poppins text-[0.7rem] font-semibold px-2 py-0.5 rounded-full tabular-nums ${
+                      groupComplete
+                        ? "bg-green-100 text-green-700"
+                        : "bg-brand-secondary text-brand-text/70"
+                    }`}
+                  >
+                    {filledSlots}/{totalSlots} dishes{groupComplete && " ✓"}
+                  </span>
+                </div>
+                {aggregateDishes(group.sample.items).map((dish) => (
+                  <div
+                    key={`${dish.type}-${dish.name}`}
+                    className="flex items-center gap-1.5 py-0.5 min-w-0"
+                  >
+                    <SlotIcon
+                      slot={dish.type}
+                      size={11}
+                      className="shrink-0 text-brand-text/70"
+                    />
+                    <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-brand-divider/50">
+                      <img
+                        src={dish.image || FALLBACK_IMAGE}
+                        onError={onImgError}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <span className="font-poppins text-xs text-brand-text capitalize truncate">
+                      {dish.qty > 1 && (
+                        <span className="font-semibold tabular-nums">
+                          {dish.qty}&times;{" "}
+                        </span>
+                      )}
+                      {dish.name}
+                    </span>
+                  </div>
+                ))}
+                {group.sample.items.length === 0 && (
+                  <p className="font-poppins text-xs text-brand-text/30 italic py-1">
+                    No dishes selected
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
       <div
         ref={listRef}
         className={`space-y-4 ${
           compact ? "overflow-y-auto min-h-0 -mx-1 px-1" : ""
         }`}
       >
+        {/* Plan instance cards — clickable to select. min-h-0 lets this flex
+            child shrink below its content so it can actually scroll. */}
         {sortedInstances.map((pi) => {
           const limits = getMealPlanLimits(pi.type);
           const totalSlots = Object.values(limits).reduce(
@@ -485,6 +574,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
                             >
                               <img
                                 src={item.image || FALLBACK_IMAGE}
+                                onError={onImgError}
                                 alt={item.name}
                                 className={`object-cover pointer-events-none ${
                                   compact
@@ -595,9 +685,11 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
           );
         })}
       </div>
+      )}
 
       {/* Drag hint — shown when multiple plans exist */}
-      {sortedInstances.length > 1 &&
+      {view === "detailed" &&
+        sortedInstances.length > 1 &&
         sortedInstances.some((pi) => pi.items.length > 0) && (
           <p className="font-poppins text-[0.6rem] text-brand-text/30 text-center mt-3 italic shrink-0">
             Drag items between boxes to rearrange
