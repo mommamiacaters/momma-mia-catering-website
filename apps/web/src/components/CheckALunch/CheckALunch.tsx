@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Check, ChevronRight, Zap, Info, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { Check, ChevronDown, ChevronRight, ChevronUp, Package, X, Zap, Info, Trash2 } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import {
   deriveDishMinimumState,
@@ -232,6 +232,90 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     };
   }, [activePlanInstanceId, sortedInstances, instanceNumbers]);
 
+  // Boxes grouped by plan. Listing all 30 boxes at once buries the dish picker
+  // they exist to fill, so only the picked plan's boxes are listed.
+  const planGroups = useMemo(() => {
+    const grouped = new Map<MealPlanType, PlanInstance[]>();
+    for (const pi of sortedInstances) {
+      const bucket = grouped.get(pi.type);
+      if (bucket) bucket.push(pi);
+      else grouped.set(pi.type, [pi]);
+    }
+    return Array.from(grouped, ([type, instances]) => ({
+      type,
+      instances,
+      filledBoxes: instances.filter((pi) =>
+        isPlanInstanceComplete(pi, getMealPlanLimits(pi.type))
+      ).length,
+    }));
+  }, [sortedInstances, getMealPlanLimits]);
+
+  const [expandedPlan, setExpandedPlan] = useState<MealPlanType | null>(null);
+  // The closing row still needs its chips, or they blink out before the slide
+  // finishes and the dish grid jumps up under them.
+  const lastExpandedPlan = useRef<MealPlanType | null>(null);
+  if (expandedPlan) lastExpandedPlan.current = expandedPlan;
+  const expandedInstances =
+    planGroups.find((g) => g.type === (expandedPlan ?? lastExpandedPlan.current))
+      ?.instances ?? [];
+
+  // One plan means nothing to choose between, so it opens itself; so does the
+  // plan holding the active box, which is how picking a box in the lunch box
+  // summary keeps that box visible here.
+  const soloPlanType = planGroups.length === 1 ? planGroups[0].type : null;
+  const activePlanType = activePlan?.type ?? null;
+  useEffect(() => {
+    const opening = soloPlanType ?? activePlanType;
+    if (opening) setExpandedPlan(opening);
+  }, [soloPlanType, activePlanType]);
+
+  // ── Mobile lunch-box drawer ──
+  // On phones the tray panel would sit below every dish card, so it lives in
+  // a bottom sheet instead, summarised by a fixed bar the thumb can reach.
+  const [trayOpen, setTrayOpen] = useState(false);
+  const trayCloseRef = useRef<HTMLButtonElement | null>(null);
+  const trayBarRef = useRef<HTMLButtonElement | null>(null);
+  const traySheetRef = useRef<HTMLDivElement | null>(null);
+
+  const { dishesPlaced, dishSlots, boxesDone } = useMemo(() => {
+    let placed = 0;
+    let slots = 0;
+    let done = 0;
+    for (const pi of planInstances) {
+      const limits = getMealPlanLimits(pi.type);
+      slots += Object.values(limits).reduce((a: number, b) => a + (b as number), 0);
+      placed += pi.items.length;
+      if (isPlanInstanceComplete(pi, limits)) done++;
+    }
+    return { dishesPlaced: placed, dishSlots: slots, boxesDone: done };
+  }, [planInstances, getMealPlanLimits]);
+
+  // The closed sheet is only translated off-screen, so it must also be inert —
+  // otherwise its box buttons stay in the tab order.
+  useEffect(() => {
+    const sheet = traySheetRef.current as
+      | (HTMLDivElement & { inert: boolean })
+      | null;
+    if (sheet) sheet.inert = !trayOpen;
+  }, [trayOpen]);
+
+  useEffect(() => {
+    if (!trayOpen) return;
+    const bar = trayBarRef.current;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    trayCloseRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTrayOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+      bar?.focus();
+    };
+  }, [trayOpen]);
+
   if (loading || error || !menuData) return null;
 
   return (
@@ -424,10 +508,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           full-height column can't scroll-stick. min-w-0 on the picker lets the
           card grid shrink instead of forcing the page wider. */}
       {hasMealPlan && (
+        <>
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 lg:items-start">
           {/* ── Lunch Box summary — sticky beside the dishes on desktop, below
                 them on mobile (where the floating bag button covers checkout) ── */}
-          <aside className="order-2 lg:order-1 mt-12 lg:mt-0 lg:sticky lg:top-24">
+          <aside className="hidden lg:block lg:order-1 lg:sticky lg:top-24">
             <TrayPreview
               compact
               planInstances={planInstances}
@@ -456,63 +541,126 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
             </div>
           </div>
 
-          {/* ── Plan Instance Selector ── */}
+          {/* ── Plan Instance Selector ──
+                A plan chip lists its own boxes underneath, one plan at a time,
+                the way the category tabs below swap their dish grid. */}
           {sortedInstances.length > 1 && (
-            <div className="flex flex-wrap gap-2 mb-6 pt-1 pb-1 -mx-1 px-1">
-              <button
-                onClick={() => onSetActivePlan(null)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border ${
-                  !activePlanInstanceId
-                    ? "bg-brand-primary text-white border-brand-primary shadow-md"
-                    : "bg-white text-brand-text/60 border-brand-divider hover:border-brand-primary/40"
+            <div className="mb-6">
+              <div className="flex flex-wrap gap-2 pt-1 pb-1 -mx-1 px-1">
+                <button
+                  onClick={() => onSetActivePlan(null)}
+                  className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${
+                    !activePlanInstanceId
+                      ? "bg-brand-primary text-white border-brand-primary shadow-md"
+                      : "bg-white text-brand-text/70 border-brand-divider hover:border-brand-primary/40"
+                  }`}
+                >
+                  <Zap size={12} />
+                  Auto-fill
+                </button>
+
+                {planGroups.map(({ type, instances, filledBoxes }) => {
+                  const isExpanded = expandedPlan === type;
+                  const allBoxesFilled = filledBoxes === instances.length;
+
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setExpandedPlan(isExpanded ? null : type)}
+                      aria-expanded={isExpanded}
+                      aria-controls="plan-box-chips"
+                      className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${
+                        isExpanded
+                          ? "bg-brand-primary/10 text-brand-primary border-brand-primary"
+                          : allBoxesFilled
+                            ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                            : "bg-white text-brand-text/70 border-brand-divider hover:border-brand-primary/40"
+                      }`}
+                    >
+                      {allBoxesFilled && <Check size={11} strokeWidth={3} />}
+                      <span className="truncate max-w-[8rem]">{type}</span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold ${
+                          isExpanded
+                            ? "bg-brand-primary/20 text-brand-primary"
+                            : allBoxesFilled
+                              ? "bg-green-200/60 text-green-700"
+                              : "bg-brand-secondary text-brand-text/70"
+                        }`}
+                        title={`${filledBoxes} of ${instances.length} boxes filled`}
+                      >
+                        {filledBoxes}/{instances.length}
+                      </span>
+                      <ChevronDown
+                        size={12}
+                        className={`transition-transform duration-200 ${
+                          isExpanded ? "rotate-180" : ""
+                        }`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 0fr→1fr slides the boxes in without measuring a height, so the
+                  dish grid below never jumps. */}
+              <div
+                className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
+                  expandedPlan ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                 }`}
               >
-                <Zap size={12} />
-                Auto-fill
-              </button>
-
-              {sortedInstances.map((pi) => {
-                const isActive = activePlanInstanceId === pi.id;
-                const limits = getMealPlanLimits(pi.type);
-                const isComplete = isPlanInstanceComplete(pi, limits);
-                const totalSlots = Object.values(limits).reduce(
-                  (a: number, b) => a + (b as number),
-                  0
-                );
-                const filledSlots = pi.items.length;
-                const instanceNum = instanceNumbers.get(pi.id) || 1;
-
-                return (
-                  <button
-                    key={pi.id}
-                    onClick={() => onSetActivePlan(pi.id)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border ${
-                      isActive
-                        ? "ring-2 ring-brand-primary bg-brand-primary/10 text-brand-primary border-brand-primary"
-                        : isComplete
-                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                          : "bg-white text-brand-text/60 border-brand-divider hover:border-brand-primary/40"
-                    }`}
+                <div className="overflow-hidden">
+                  <div
+                    id="plan-box-chips"
+                    aria-hidden={!expandedPlan}
+                    className="flex flex-wrap gap-2 pt-3 -mx-1 px-1"
                   >
-                    {isComplete && <Check size={11} strokeWidth={3} />}
-                    <span className="truncate max-w-[8rem]">
-                      #{instanceNum} {pi.type}
-                    </span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold ${
-                        isActive
-                          ? "bg-brand-primary/20 text-brand-primary"
-                          : isComplete
-                            ? "bg-green-200/60 text-green-700"
-                            : "bg-brand-secondary text-brand-text/40"
-                      }`}
-                      title={`${filledSlots} of ${totalSlots} dishes chosen for this box`}
-                    >
-                      {filledSlots}/{totalSlots}
-                    </span>
-                  </button>
-                );
-              })}
+                    {expandedInstances.map((pi) => {
+                      const isActive = activePlanInstanceId === pi.id;
+                      const limits = getMealPlanLimits(pi.type);
+                      const isComplete = isPlanInstanceComplete(pi, limits);
+                      const totalSlots = Object.values(limits).reduce(
+                        (a: number, b) => a + (b as number),
+                        0
+                      );
+                      const filledSlots = pi.items.length;
+                      const instanceNum = instanceNumbers.get(pi.id) || 1;
+
+                      return (
+                        <button
+                          key={pi.id}
+                          onClick={() => onSetActivePlan(pi.id)}
+                          tabIndex={expandedPlan ? undefined : -1}
+                          aria-label={`Fill box ${instanceNum} of ${pi.type}, ${filledSlots} of ${totalSlots} dishes chosen`}
+                          aria-current={isActive ? "true" : undefined}
+                          className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${
+                            isActive
+                              ? "ring-2 ring-brand-primary bg-brand-primary/10 text-brand-primary border-brand-primary"
+                              : isComplete
+                                ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                : "bg-white text-brand-text/70 border-brand-divider hover:border-brand-primary/40"
+                          }`}
+                        >
+                          {isComplete && <Check size={11} strokeWidth={3} />}
+                          <span>#{instanceNum}</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold ${
+                              isActive
+                                ? "bg-brand-primary/20 text-brand-primary"
+                                : isComplete
+                                  ? "bg-green-200/60 text-green-700"
+                                  : "bg-brand-secondary text-brand-text/70"
+                            }`}
+                          >
+                            {filledSlots}/{totalSlots}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -549,7 +697,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                 <button
                   key={type}
                   onClick={() => setActiveCategory(type)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-poppins text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
+                  className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-poppins text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
                     isActive
                       ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
                       : isComplete
@@ -672,7 +820,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   aria-hidden={!isActiveTab}
                 >
                   {items.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                       {items.map((item, index) => (
                         <FoodCard
                           key={`${item.name}-${index}`}
@@ -723,6 +871,109 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           )}
           </section>
         </div>
+
+        {/* ── Mobile: lunch-box drawer ──
+            The tray panel the aside shows on desktop, reachable from a fixed
+            bottom bar instead of a long scroll past every dish card. */}
+        <div className="lg:hidden">
+          {/* Keeps the last picker content scrollable above the fixed bar. */}
+          <div className="h-20" aria-hidden="true" />
+
+          <button
+            ref={trayBarRef}
+            type="button"
+            onClick={() => setTrayOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={trayOpen}
+            className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-brand-divider pb-[env(safe-area-inset-bottom)] text-left cursor-pointer"
+          >
+            {/* Fill progress, readable at a glance without opening anything */}
+            <div className="h-1 bg-brand-divider/60">
+              <div
+                className={`h-full transition-[width] duration-300 ${
+                  boxesDone === planInstances.length ? "bg-green-500" : "bg-brand-primary"
+                }`}
+                style={{ width: `${dishSlots ? Math.round((dishesPlaced / dishSlots) * 100) : 0}%` }}
+              />
+            </div>
+            <span className="flex items-center gap-3 px-4 py-2.5 pr-24 min-h-[56px]">
+              <span
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${
+                  boxesDone === planInstances.length
+                    ? "bg-green-100 text-green-700"
+                    : "bg-brand-primary/10 text-brand-primary"
+                }`}
+              >
+                {boxesDone === planInstances.length ? (
+                  <Check size={18} strokeWidth={3} />
+                ) : (
+                  <Package size={18} />
+                )}
+              </span>
+              <span className="min-w-0">
+                <span className="block font-arvo text-sm font-bold text-brand-text">
+                  {boxesDone === planInstances.length
+                    ? "All lunch boxes complete!"
+                    : "Your Lunch Boxes"}
+                </span>
+                <span className="block font-poppins text-xs text-brand-text/70 tabular-nums truncate">
+                  {dishesPlaced}/{dishSlots} dishes · {boxesDone}/{planInstances.length}{" "}
+                  {planInstances.length === 1 ? "box" : "boxes"} ready
+                </span>
+              </span>
+              <ChevronUp size={18} className="ml-auto shrink-0 text-brand-text/70" />
+            </span>
+          </button>
+
+          {/* Backdrop sits over the chat FAB (z-40) so nothing competes with
+              the open sheet. */}
+          <div
+            onClick={() => setTrayOpen(false)}
+            aria-hidden="true"
+            className={`fixed inset-0 z-[45] bg-black/40 transition-opacity duration-300 ${
+              trayOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+          />
+
+          <div
+            ref={traySheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Your lunch boxes"
+            className={`fixed inset-x-0 bottom-0 z-50 h-[85dvh] rounded-t-3xl bg-brand-secondary shadow-2xl flex flex-col transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${
+              trayOpen ? "translate-y-0" : "translate-y-full"
+            }`}
+          >
+            <div className="relative shrink-0 pt-2.5 pb-1">
+              <div className="mx-auto w-10 h-1 rounded-full bg-brand-divider" aria-hidden="true" />
+              <button
+                ref={trayCloseRef}
+                type="button"
+                onClick={() => setTrayOpen(false)}
+                aria-label="Close lunch boxes"
+                className="absolute right-2 top-1 flex items-center justify-center w-11 h-11 rounded-full text-brand-text/70 hover:text-brand-text hover:bg-brand-divider/40 transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-3 pb-8 pt-1">
+              <TrayPreview
+                compact
+                planInstances={planInstances}
+                activePlanInstanceId={activePlanInstanceId}
+                getMealPlanLimits={getMealPlanLimits}
+                onSetActivePlan={(id) => {
+                  // Picking a box here means "go fill it" — hand back to the
+                  // picker rather than leaving it buried under the sheet.
+                  onSetActivePlan(id);
+                  setTrayOpen(false);
+                }}
+                onMoveItem={onMoveItem}
+              />
+            </div>
+          </div>
+        </div>
+        </>
       )}
 
       <ConfirmDialog

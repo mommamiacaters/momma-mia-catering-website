@@ -60,26 +60,29 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
     >
       {/* Selection indicator */}
       {isSelected && (
-        <div className="absolute top-3 right-3 z-10 bg-brand-primary text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg animate-[scale-in_0.2s_ease-out]">
+        <div className="hidden sm:flex absolute top-3 right-3 z-10 bg-brand-primary text-white rounded-full w-7 h-7 items-center justify-center shadow-lg animate-[scale-in_0.2s_ease-out]">
           <Check size={14} strokeWidth={3} />
         </div>
       )}
 
       {/* Quantity badge (when more than 1) */}
       {currentQuantity > 1 && (
-        <div className="absolute top-3 left-3 z-10 bg-brand-accent text-white rounded-full min-w-[1.75rem] h-7 px-1.5 flex items-center justify-center shadow-lg">
+        <div className="hidden sm:flex absolute top-3 left-3 z-10 bg-brand-accent text-white rounded-full min-w-[1.75rem] h-7 px-1.5 items-center justify-center shadow-lg">
           <span className="text-xs font-bold font-poppins">
             x{currentQuantity}
           </span>
         </div>
       )}
 
+      {/* Phones get a list row (thumb left, text right) — the vertical card
+          only earns its height once the grid goes multi-column at sm. */}
+      <div className="flex items-start gap-3 p-3 sm:block sm:p-0">
       {/* Image — clicking opens the full-view photo with the description. */}
       <button
         type="button"
         onClick={() => setShowPhoto(true)}
         aria-label={`View a larger photo of ${item.name}`}
-        className="relative aspect-[4/3] overflow-hidden block w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
+        className="relative w-20 h-20 rounded-xl shrink-0 sm:w-full sm:h-auto sm:rounded-none sm:aspect-[4/3] overflow-hidden block cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
       >
         <CachedImage
           src={item.image}
@@ -90,7 +93,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
           }`}
         />
         {/* Subtle bottom gradient for text readability */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+        <div className="hidden sm:block absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
       </button>
 
       <ImageLightbox
@@ -102,12 +105,12 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
       />
 
       {/* Content */}
-      <div className="p-4">
+      <div className="min-w-0 flex-1 sm:px-4 sm:pt-4">
         <h3 className="font-arvo font-bold text-brand-text text-sm leading-tight mb-1 capitalize line-clamp-2">
           {item.name}
         </h3>
         {item.description && (
-          <p className="font-poppins text-xs text-brand-text/50 line-clamp-2 mb-3 leading-relaxed">
+          <p className="font-poppins text-xs text-brand-text/60 line-clamp-1 sm:line-clamp-2 mb-2 sm:mb-3 leading-relaxed">
             {item.description}
           </p>
         )}
@@ -167,11 +170,15 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             </button>
           )}
         </div>
+      </div>
+      </div>
 
+      <div className="px-3 pb-3 sm:px-4 sm:pb-4">
         {/* Bulk actions — a single order can run to 24 boxes / 72 picks, so
             one-at-a-time is not a realistic way to fill it. These act across
-            every box, which is why they survive `isDisabled`. */}
-        <div className="grid grid-cols-2 gap-1.5 mt-2">
+            every box, which is why they survive `isDisabled`. One row on
+            phones, 2x2 once the card goes vertical. */}
+        <div className="grid grid-cols-4 sm:grid-cols-2 gap-1.5">
           <button
             type="button"
             onClick={() => onRemoveMany(BULK_STEP)}
@@ -214,7 +221,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             type="button"
             onClick={() => onRemoveMany(Number.POSITIVE_INFINITY)}
             disabled={!canRemoveMore}
-            className={`${bulkBtn} border border-brand-divider text-brand-text/60 enabled:hover:border-red-300 enabled:hover:text-red-600`}
+            className={`${bulkBtn} border border-brand-divider text-brand-text/70 enabled:hover:border-red-300 enabled:hover:text-red-600`}
             title={
               canRemoveMore
                 ? `Take ${item.name} out of all ${placedCount} boxes it's in`
@@ -234,7 +241,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             dish is picked at all. Unselected cards state it up front;
             below-the-floor cards get a one-tap catch-up. */}
         {minFloor > 0 && placedCount === 0 && (
-          <p className="mt-2 font-poppins text-[0.7rem] text-brand-text/40 text-center tabular-nums">
+          <p className="mt-2 font-poppins text-[0.7rem] text-brand-text/70 text-center tabular-nums">
             Minimum {minFloor} per order
           </p>
         )}

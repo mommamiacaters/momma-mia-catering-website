@@ -41,7 +41,7 @@ const ServicePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-brand-secondary">
+    <div className="min-h-screen bg-brand-secondary overflow-x-clip">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 lg:px-16 pt-6 pb-12 md:pt-10 md:pb-16 lg:pt-12 lg:pb-20">
         {/* Back link */}
         <Link
