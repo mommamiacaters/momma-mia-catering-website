@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Check, ChevronDown, ChevronUp, Package, X, Zap, Info, Trash2 } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, ChevronUp, Package, X, Zap, Info, Trash2 } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import {
   deriveMinimumState,
@@ -917,29 +917,19 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
               onClick={jumpToNextSection}
               title={`Go to ${nextSection.label}`}
               aria-label={`Go to the next course, ${nextSection.label}`}
-              className="flex flex-col items-center gap-2 rounded-l-2xl sm:rounded-full bg-brand-primary px-2.5 py-4 text-white shadow-xl shadow-brand-primary/30 transition-[transform,background-color] duration-200 hover:bg-brand-primary/90 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary"
+              className="flex flex-col items-center gap-2.5 rounded-l-2xl sm:rounded-full bg-brand-primary px-2 py-4 text-white shadow-xl shadow-brand-primary/30 transition-[transform,background-color] duration-200 hover:bg-brand-primary/90 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary"
             >
               {/* Upright glyphs stacked downward — a rotated word makes the
                   reader tilt their head; this one just reads. */}
               <span className="[writing-mode:vertical-rl] [text-orientation:upright] font-poppins text-[0.7rem] font-bold uppercase tracking-[0.08em]">
                 {nextSection.label}
               </span>
-              {/* Curved sweep rather than a bare chevron: it reads as "carry on
-                  round to the next course" instead of "next slide". */}
-              <svg
-                viewBox="0 0 24 24"
-                className="h-7 w-7 shrink-0 motion-safe:animate-nudge-right"
+              <ArrowRight
+                size={16}
+                strokeWidth={2.5}
+                className="shrink-0 motion-safe:animate-nudge-right"
                 aria-hidden="true"
-              >
-                <path
-                  d="M6 4v6.5c0 3.6 2.4 5.9 6 6.4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.8"
-                  strokeLinecap="round"
-                />
-                <path d="M11 12.2 20 17l-9 4.6z" fill="currentColor" />
-              </svg>
+              />
             </button>
           )}
         </div>
