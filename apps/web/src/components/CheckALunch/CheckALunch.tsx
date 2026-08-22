@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Check, ChevronDown, ChevronRight, ChevronUp, Package, X, Zap, Info, Trash2 } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import {
-  deriveDishMinimumState,
   deriveMinimumState,
   useStoreSettings,
 } from "../../hooks/useStoreSettings";
@@ -115,20 +114,6 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     plans[0]?.categoryMinBoxes ?? minimumMealPlans,
     totalBoxes,
   );
-  // Per-dish floors — same shared-derivation contract as the box minimum.
-  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances);
-
-  // Violation chips need the full MenuItem back to call onItemAddMany with.
-  const itemById = useMemo(() => {
-    const map = new Map<string, MenuItem>();
-    if (menuData) {
-      for (const cat of CATEGORIES) {
-        for (const it of menuData[cat] ?? []) map.set(it.id, it);
-      }
-    }
-    return map;
-  }, [menuData]);
-
   // Preload ALL category images when menu data arrives
   useEffect(() => {
     if (!menuData) return;
@@ -450,109 +435,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           </div>
         </div>
 
-        {/* ── Order minimum ──
-            A persistent banner rather than a hover tooltip: this rule blocks
-            checkout, and hover doesn't exist on touch. Hidden when the minimum
-            is 1, where it would be pure noise. */}
-        {min.active && (
-          <div
-            role="status"
-            aria-live="polite"
-            className={`mb-6 rounded-xl border px-4 py-3 transition-colors ${
-              min.met
-                ? "bg-green-50 border-green-200"
-                : "bg-brand-primary/5 border-brand-primary/25"
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              {min.met ? (
-                <Check
-                  size={18}
-                  strokeWidth={3}
-                  className="text-green-600 shrink-0"
-                />
-              ) : (
-                <Info size={18} className="text-brand-primary shrink-0" />
-              )}
-              <p className="font-poppins text-sm text-brand-text">
-                <strong className="font-semibold">
-                  Minimum {min.minimum} lunch boxes per order.
-                </strong>{" "}
-                {min.met ? (
-                  <span className="text-green-700">
-                    You have {totalBoxes} — you&rsquo;re good to go.
-                  </span>
-                ) : (
-                  <span className="text-brand-text/60">
-                    You have {totalBoxes}; add {min.remaining} more to check
-                    out.
-                  </span>
-                )}
-              </p>
-              <span
-                className={`ml-auto shrink-0 font-poppins text-sm font-bold tabular-nums px-2.5 py-1 rounded-full ${
-                  min.met
-                    ? "bg-green-200/60 text-green-700"
-                    : "bg-brand-primary/10 text-brand-primary"
-                }`}
-              >
-                {totalBoxes}/{min.minimum}
-              </span>
-            </div>
-
-            <div className="mt-2.5 h-1.5 bg-white/70 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-[width] duration-500 ease-out ${
-                  min.met ? "bg-green-500" : "bg-brand-primary"
-                }`}
-                style={{
-                  width: `${Math.min(100, (totalBoxes / min.minimum) * 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ── Per-dish minimums ── every dish placed in the boxes must reach
-            its own floor (menu override, else the store default). Blocks
-            checkout exactly like the box minimum, so it gets the same
-            persistent-banner treatment. */}
-        {dishMin.violations.length > 0 && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3"
-          >
-            {/* No headline: each dish card now carries its own amber warning,
-                and every chip below already states the shortfall and the fix. */}
-            <div className="flex items-start gap-2.5">
-              <Info size={18} className="text-amber-600 shrink-0 mt-1" />
-              <div className="flex flex-wrap gap-2">
-              {dishMin.violations.map((v) => {
-                const item = itemById.get(v.menuItemId);
-                const canQuickAdd =
-                  !!item && getOpenSlotsForType(item.type) > 0;
-                return (
-                  <button
-                    key={v.menuItemId}
-                    type="button"
-                    onClick={() => item && onItemAddMany(item, v.remaining)}
-                    disabled={!canQuickAdd}
-                    className="rounded-full bg-white border border-amber-300 px-3 py-1.5 font-poppins text-xs font-semibold text-amber-800 tabular-nums transition-colors enabled:hover:bg-amber-100 enabled:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={
-                      canQuickAdd
-                        ? `Put ${v.name} in ${v.remaining} more open slots to reach ${v.required}`
-                        : `No open slots left for this course — swap other dishes out first, or remove ${v.name}`
-                    }
-                  >
-                    {v.name} · {v.current}/{v.required} — add {v.remaining}
-                  </button>
-                );
-              })}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* The order minimum and the per-dish shortfalls used to sit here as
+            two banners. Both are now said where they're acted on — the plan
+            cards start at the minimum, the bag and checkout gate on it, and a
+            short dish wears an amber ring in the picker — so step 1 goes
+            straight from its heading to the plans. */}
 
         {/* A settings outage must be visible here, not silently hide the notice
             while the cart quietly blocks checkout with no explanation. */}

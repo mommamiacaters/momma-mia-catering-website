@@ -224,9 +224,9 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
               onAddMany(belowMin ? toMinimum : Number.POSITIVE_INFINITY)
             }
             disabled={!canAddMore}
-            className={`${bulkBtn} ${
+            className={`${bulkBtn} whitespace-nowrap ${
               belowMin
-                ? "bg-amber-400 text-brand-text enabled:hover:bg-amber-300 enabled:shadow-sm enabled:shadow-amber-200"
+                ? "bg-amber-100 text-amber-800 border border-amber-300 enabled:hover:bg-amber-200"
                 : "bg-brand-primary text-white enabled:hover:bg-brand-primary/90 enabled:shadow-sm enabled:shadow-brand-primary/20"
             }`}
             title={
@@ -245,7 +245,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             }
           >
             {belowMin
-              ? `Fill Minimum (${requiredMin})`
+              ? `Fill min. ${requiredMin}`
               : `Fill all${canAddMore ? ` ${openSlots}` : ""}`}
           </button>
           <button
