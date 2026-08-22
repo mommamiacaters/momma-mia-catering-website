@@ -280,21 +280,24 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   // ── Section jumper ──
   // Only offer the jump while the dish list is actually on screen; anchored to
   // the viewport, it would otherwise hover over the plan cards and the summary.
-  const dishListRef = useRef<HTMLDivElement | null>(null);
   const sectionHeadRef = useRef<HTMLDivElement | null>(null);
   const [dishListInView, setDishListInView] = useState(false);
+  // A callback ref, not useRef: this component renders null until the menu
+  // loads, so an effect keyed on anything else can run while the node is still
+  // missing and then never see it appear — which left a restored cart with a
+  // dead observer and no jumper.
+  const [dishListEl, setDishListEl] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
-    const el = dishListRef.current;
-    if (!el) return;
+    if (!dishListEl) return;
     const io = new IntersectionObserver(
       ([entry]) => setDishListInView(entry.isIntersecting),
       // Trim the edges so the prompt appears once the list really owns the
       // screen, not when its last pixel scrolls past.
       { rootMargin: "-20% 0px -20% 0px" }
     );
-    io.observe(el);
+    io.observe(dishListEl);
     return () => io.disconnect();
-  }, [hasMealPlan]);
+  }, [dishListEl]);
 
   const tabStripRef = useRef<HTMLDivElement | null>(null);
 
@@ -520,15 +523,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
             aria-live="polite"
             className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3"
           >
-            <div className="flex items-center gap-2.5 mb-2.5">
-              <Info size={18} className="text-amber-600 shrink-0" />
-              <p className="font-poppins text-sm text-brand-text">
-                <strong className="font-semibold">
-                  Some dishes are below their per-order minimum.
-                </strong>
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+            {/* No headline: each dish card now carries its own amber warning,
+                and every chip below already states the shortfall and the fix. */}
+            <div className="flex items-start gap-2.5">
+              <Info size={18} className="text-amber-600 shrink-0 mt-1" />
+              <div className="flex flex-wrap gap-2">
               {dishMin.violations.map((v) => {
                 const item = itemById.get(v.menuItemId);
                 const canQuickAdd =
@@ -550,6 +549,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   </button>
                 );
               })}
+              </div>
             </div>
           </div>
         )}
@@ -892,7 +892,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           {/* ── Food Grids — opacity-based switching for instant compositor toggle ── */}
           <div
             className="relative"
-            ref={dishListRef}
+            ref={setDishListEl}
             onTouchStart={onDishTouchStart}
             onTouchEnd={onDishTouchEnd}
           >
@@ -980,13 +980,15 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
               aria-label={`Go to the next course, ${nextSection.label}`}
               className="flex flex-col items-center gap-2 rounded-l-2xl sm:rounded-full bg-brand-primary px-2.5 py-4 text-white shadow-xl shadow-brand-primary/30 transition-[transform,background-color] duration-200 hover:bg-brand-primary/90 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary"
             >
-              <span className="[writing-mode:vertical-rl] font-poppins text-[0.7rem] font-bold uppercase tracking-[0.15em]">
+              {/* Upright glyphs stacked downward — a rotated word makes the
+                  reader tilt their head; this one just reads. */}
+              <span className="[writing-mode:vertical-rl] [text-orientation:upright] font-poppins text-[0.7rem] font-bold uppercase tracking-[0.08em]">
                 {nextSection.label}
               </span>
-              <ChevronDown
+              <ChevronRight
                 size={20}
                 strokeWidth={2.5}
-                className="shrink-0 motion-safe:animate-nudge-down"
+                className="shrink-0 motion-safe:animate-nudge-right"
                 aria-hidden="true"
               />
             </button>

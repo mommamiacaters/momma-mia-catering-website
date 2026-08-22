@@ -43,6 +43,9 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   // Picked, but under this dish's per-order floor — the order can't be placed
   // like this, so the card says so instead of showing a reassuring tick.
   const belowMin = (requiredMin ?? 0) > 0 && placedCount > 0 && placedCount < (requiredMin ?? 0);
+  // Short of the floor, the useful bulk action isn't "every open slot" — it's
+  // "get me legal", so the button offers exactly the shortfall.
+  const toMinimum = belowMin ? (requiredMin ?? 0) - placedCount : 0;
   // Typing a quantity edits a DRAFT; it only reaches the order on blur/Enter,
   // so a half-typed "1" of an intended "15" never briefly strips 14 boxes.
   const [draft, setDraft] = useState<string | null>(null);
@@ -217,21 +220,33 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
         <div className="grid grid-cols-2 gap-1.5">
           <button
             type="button"
-            onClick={() => onAddMany(Number.POSITIVE_INFINITY)}
+            onClick={() =>
+              onAddMany(belowMin ? toMinimum : Number.POSITIVE_INFINITY)
+            }
             disabled={!canAddMore}
-            className={`${bulkBtn} bg-brand-primary text-white enabled:hover:bg-brand-primary/90 enabled:shadow-sm enabled:shadow-brand-primary/20`}
+            className={`${bulkBtn} ${
+              belowMin
+                ? "bg-amber-400 text-brand-text enabled:hover:bg-amber-300 enabled:shadow-sm enabled:shadow-amber-200"
+                : "bg-brand-primary text-white enabled:hover:bg-brand-primary/90 enabled:shadow-sm enabled:shadow-brand-primary/20"
+            }`}
             title={
-              canAddMore
-                ? `Put ${item.name} in all ${openSlots} boxes still missing this course`
-                : "Every box already has this course"
+              !canAddMore
+                ? "Every box already has this course"
+                : belowMin
+                  ? `Bring ${item.name} up to its per-order minimum of ${requiredMin}`
+                  : `Put ${item.name} in all ${openSlots} boxes still missing this course`
             }
             aria-label={
-              canAddMore
-                ? `Fill all ${openSlots} remaining slots with ${item.name}`
-                : "No open slots left for this course"
+              !canAddMore
+                ? "No open slots left for this course"
+                : belowMin
+                  ? `Add ${toMinimum} more ${item.name} to reach the minimum of ${requiredMin}`
+                  : `Fill all ${openSlots} remaining slots with ${item.name}`
             }
           >
-            Fill all{canAddMore ? ` ${openSlots}` : ""}
+            {belowMin
+              ? `Fill Minimum (${requiredMin})`
+              : `Fill all${canAddMore ? ` ${openSlots}` : ""}`}
           </button>
           <button
             type="button"

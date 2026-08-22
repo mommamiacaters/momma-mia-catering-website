@@ -22,9 +22,9 @@ export default {
         },
         // Section-jump arrow: a small repeating dip that reads as "keep going
         // down" without ever leaving its resting spot.
-        'nudge-down': {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(3px)' },
+        'nudge-right': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '50%': { transform: 'translateX(3px)' },
         },
         // Route-change enter: opacity + a 4px rise. Kept to transform/opacity only
         // so it stays on the compositor and never triggers layout.
@@ -35,7 +35,7 @@ export default {
       },
       animation: {
         shimmer: 'shimmer 1.5s infinite',
-        'nudge-down': 'nudge-down 2s ease-in-out infinite',
+        'nudge-right': 'nudge-right 2s ease-in-out infinite',
         // No fill mode: the end state IS the natural state, and a filling
         // transform would stay on the page wrapper forever — turning it into
         // the containing block for every `fixed` descendant (order drawer,
