@@ -72,6 +72,15 @@ export interface StoreSettings {
   minimumMealPlans: number | null;
   /** Store-default floor for every dish in a lunch-box order. Same null rule. */
   minimumQtyPerDish: number | null;
+  /**
+   * Whether dish cards show their bulk "Fill all" / "Clear" buttons.
+   *
+   * Presentation, not money, so it doesn't get the null-unknown treatment the
+   * minimums do — but it stays FALSE until a real value arrives. Defaulting to
+   * true while loading would flash both buttons onto every card and then snatch
+   * them away a moment later.
+   */
+  showBulkDishActions: boolean;
   loading: boolean;
   error: boolean;
   retry: () => void;
@@ -125,12 +134,23 @@ export function useStoreSettings(): StoreSettings {
   // coalesce(..., 0) exactly. A value that never arrived stays unknown.
   let minimumMealPlans: number | null = null;
   let minimumQtyPerDish: number | null = null;
+  // Absent key = the seed hasn't run yet, which is the pre-toggle world: show.
+  let showBulkDishActions = false;
   if (!loading && !error && settings) {
+    const raw = settings[SETTING_KEYS.showBulkDishActions];
+    showBulkDishActions = raw === undefined || raw === null ? true : raw === true;
     minimumMealPlans = parseSetting(settings[SETTING_KEYS.minimumMealPlans]);
     minimumQtyPerDish = parseSetting(settings[SETTING_KEYS.minimumQtyPerDish]);
   }
 
-  return { minimumMealPlans, minimumQtyPerDish, loading, error, retry };
+  return {
+    minimumMealPlans,
+    minimumQtyPerDish,
+    showBulkDishActions,
+    loading,
+    error,
+    retry,
+  };
 }
 
 function parseSetting(raw: Json | undefined): number {

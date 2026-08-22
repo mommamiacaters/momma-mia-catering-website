@@ -14,6 +14,8 @@ interface FoodCardProps {
   placedCount: number;
   /** Per-order floor once this dish is picked; null = unknown, 0 = none. */
   requiredMin: number | null;
+  /** Admin switch: the bulk "Fill all" / "Clear" pair under each card. */
+  showBulkActions: boolean;
   onAddMany: (count: number) => void;
   onRemoveMany: (count: number) => void;
 }
@@ -25,6 +27,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   openSlots,
   placedCount,
   requiredMin,
+  showBulkActions,
   onAddMany,
   onRemoveMany,
 }) => {
@@ -214,6 +217,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
       </div>
       </div>
 
+      {showBulkActions && (
       <div className="px-3 pb-3 pt-1 sm:px-4 sm:pb-4">
         {/* Bulk actions — these span every box, which is why they survive
             `isDisabled` (that only means the ACTIVE box is full). */}
@@ -268,6 +272,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }, (prev, next) =>
@@ -276,7 +281,8 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   prev.isDisabled === next.isDisabled &&
   prev.openSlots === next.openSlots &&
   prev.placedCount === next.placedCount &&
-  prev.requiredMin === next.requiredMin
+  prev.requiredMin === next.requiredMin &&
+  prev.showBulkActions === next.showBulkActions
 );
 
 FoodCard.displayName = "FoodCard";

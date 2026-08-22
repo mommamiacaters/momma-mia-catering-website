@@ -105,6 +105,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   const {
     minimumMealPlans,
     minimumQtyPerDish,
+    showBulkDishActions,
     error: settingsError,
     retry: retrySettings,
   } = useStoreSettings();
@@ -878,6 +879,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                               ? null
                               : (item.minQty ?? minimumQtyPerDish)
                           }
+                          showBulkActions={showBulkDishActions}
                           onAddMany={(n) => onItemAddMany(item, n, fillModeRef.current)}
                           onRemoveMany={(n) => onItemRemoveMany(item, n)}
                         />

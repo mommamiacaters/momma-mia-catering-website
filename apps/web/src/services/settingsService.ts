@@ -8,6 +8,7 @@ import type { Json } from "@momma-mia/db";
 export const SETTING_KEYS = {
   minimumMealPlans: "minimum_meal_plans",
   minimumQtyPerDish: "minimum_qty_per_dish",
+  showBulkDishActions: "show_bulk_dish_actions",
 } as const;
 
 /** Mirrors the app_settings_minimum_meal_plans_bounds CHECK constraint. */

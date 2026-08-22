@@ -6,6 +6,7 @@ import {
   MINIMUM_QTY_PER_DISH_BOUNDS,
   type AppSettingRow,
 } from "../../services/settingsService";
+import { SETTING_KEYS } from "../../services/settingsService";
 import type { Json } from "@momma-mia/db";
 import AdminCompanyProfile from "./AdminCompanyProfile";
 
@@ -186,6 +187,12 @@ const AdminSettings: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {row.key === SETTING_KEYS.showBulkDishActions && (
+                <BulkActionsPreview
+                  show={(drafts[row.key] ?? row.value) === true}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -202,6 +209,54 @@ const AdminSettings: React.FC = () => {
 };
 
 /** Renders the right control for a JSON setting value. */
+/**
+ * A dish card as the customer sees it, reflecting the UNSAVED toggle — a
+ * setting whose only effect is two buttons appearing or not is much easier to
+ * agree to when you can see the card it changes.
+ */
+const BulkActionsPreview: React.FC<{ show: boolean }> = ({ show }) => (
+  <div className="mt-4 border-t border-brand-divider pt-4">
+    <p className="font-poppins text-[0.7rem] font-semibold uppercase tracking-wider text-brand-text/50">
+      Preview
+    </p>
+    <div className="mt-2 w-56 rounded-2xl bg-white shadow-md ring-1 ring-brand-divider overflow-hidden">
+      <div className="flex items-center justify-center h-16 bg-brand-secondary/70">
+        <i className="pi pi-image text-xl text-brand-text/25" aria-hidden="true" />
+      </div>
+      <div className="px-3 pt-3">
+        <p className="font-arvo-bold text-xs text-brand-text">Pork Adobo</p>
+        <div className="mt-2 flex items-center justify-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-secondary font-poppins text-sm text-brand-text">
+            &minus;
+          </span>
+          <span className="flex h-8 w-12 items-center justify-center rounded-lg border border-brand-divider font-poppins text-xs font-bold tabular-nums">
+            15
+          </span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary font-poppins text-sm text-white">
+            +
+          </span>
+        </div>
+      </div>
+      <div className="px-3 pb-3 pt-2">
+        {show ? (
+          <div className="grid grid-cols-2 gap-1.5">
+            <span className="flex h-8 items-center justify-center rounded-lg bg-brand-primary font-poppins text-[0.7rem] font-bold text-white">
+              Fill all 30
+            </span>
+            <span className="flex h-8 items-center justify-center rounded-lg border border-brand-divider font-poppins text-[0.7rem] font-bold text-brand-text/70">
+              Clear 15
+            </span>
+          </div>
+        ) : (
+          <p className="text-center font-poppins text-[0.7rem] italic text-brand-text/40">
+            Bulk buttons hidden
+          </p>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
 const SettingInput: React.FC<{
   id: string;
   value: Json;
