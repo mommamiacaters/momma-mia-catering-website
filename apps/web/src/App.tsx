@@ -11,6 +11,7 @@ import Navigation from "./components/Navigation/Navigation";
 import Footer from "./components/Footer/Footer";
 import Chatbot from "./components/Chatbot/Chatbot";
 import MealsPage from "./pages/MealsPage/MealsPage";
+import OtherServicesPage from "./pages/OtherServicesPage/OtherServicesPage";
 import AboutPage from "./pages/AboutPage/AboutPage";
 import ContactPage from "./pages/ContactPage/ContactPage";
 import ServicePage from "./pages/ServicePage/ServicePage";
@@ -84,6 +85,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<MealsPage />} />
           <Route path="/meals" element={<MealsPage />} />
+          <Route path="/other-services" element={<OtherServicesPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
           {/* Fun Boxes became Merienda Meals; keep old links and bookmarks alive. */}

@@ -2,6 +2,7 @@
 
 export const NAV_LINKS = [
   { to: "/meals", label: "Your Meals & More" },
+  { to: "/other-services", label: "Other Services" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ] as const;
