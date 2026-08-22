@@ -706,10 +706,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
           <p className="font-poppins text-xs text-brand-text mb-1.5">
             <strong className="font-semibold">
               Some dishes are below their per-order minimum.
-            </strong>{" "}
-            <span className="text-brand-text/60">
-              Add more of each in the dish picker, or take them out.
-            </span>
+            </strong>
           </p>
           <ul className="space-y-0.5">
             {dishMin.violations.map((v) => (

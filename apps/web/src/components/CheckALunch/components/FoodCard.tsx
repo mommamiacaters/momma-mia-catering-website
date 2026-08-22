@@ -40,6 +40,9 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   // invalid order the shopper then had to be nagged about; stepping by the
   // floor makes the first click land on a valid order. No floor ⇒ step of 1.
   const step = Math.max(1, requiredMin ?? 0);
+  // Picked, but under this dish's per-order floor — the order can't be placed
+  // like this, so the card says so instead of showing a reassuring tick.
+  const belowMin = (requiredMin ?? 0) > 0 && placedCount > 0 && placedCount < (requiredMin ?? 0);
   // Typing a quantity edits a DRAFT; it only reaches the order on blur/Enter,
   // so a half-typed "1" of an intended "15" never briefly strips 14 boxes.
   const [draft, setDraft] = useState<string | null>(null);
@@ -59,19 +62,30 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   return (
     <div
       className={`group relative bg-white rounded-2xl overflow-hidden transition-[box-shadow,transform,opacity] duration-300 ${
-        isSelected
+        belowMin
+          ? "ring-2 ring-amber-400 shadow-lg shadow-amber-200/60"
+          : isSelected
           ? "ring-2 ring-brand-primary shadow-lg shadow-brand-primary/10"
           : isDisabled
             ? "opacity-50 shadow-sm"
             : "shadow-md hover:shadow-xl hover:-translate-y-1"
       }`}
     >
-      {/* Selection indicator */}
-      {isSelected && (
+      {/* Selection indicator — a warning outranks a tick, and unlike the tick
+          it shows on phones too, because it's a blocker rather than a receipt. */}
+      {belowMin ? (
+        <div
+          className="flex absolute top-3 right-3 z-10 bg-amber-500 text-white rounded-full w-7 h-7 items-center justify-center shadow-lg font-poppins text-base font-bold leading-none"
+          title={`Needs ${requiredMin} per order — ${placedCount} so far`}
+          aria-label={`Below the minimum of ${requiredMin} per order`}
+        >
+          !
+        </div>
+      ) : isSelected ? (
         <div className="hidden sm:flex absolute top-3 right-3 z-10 bg-brand-primary text-white rounded-full w-7 h-7 items-center justify-center shadow-lg animate-[scale-in_0.2s_ease-out]">
           <Check size={14} strokeWidth={3} />
         </div>
-      )}
+      ) : null}
 
       {/* Quantity badge (when more than 1) */}
       {placedCount > 1 && (

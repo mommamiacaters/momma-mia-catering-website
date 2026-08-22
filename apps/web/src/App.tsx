@@ -126,7 +126,13 @@ function AppContent() {
         </PageTransition>
       </main>
       {!isBarePage && <Footer />}
-      {!isBarePage && <Chatbot />}
+      {/* Desktop only: on phones and tablets the bottom of the screen belongs
+          to the lunch-box bar and the section jumper. */}
+      {!isBarePage && (
+        <div className="hidden lg:block">
+          <Chatbot />
+        </div>
+      )}
     </div>
   );
 }

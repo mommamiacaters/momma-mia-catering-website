@@ -296,18 +296,62 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     return () => io.disconnect();
   }, [hasMealPlan]);
 
-  const jumpToNextSection = () => {
-    if (!nextSection) return;
-    setActiveCategory(nextSection.type);
-    const head = sectionHeadRef.current;
-    if (!head) return;
+  const tabStripRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Switch course and bring it into view: the tab strip scrolls the new tab
+   * into the middle (only ~2.5 of them fit a phone), and the page lands on the
+   * section heading so the new list starts at the top of the screen.
+   */
+  const goToCategory = (cat: CategoryType) => {
+    setActiveCategory(cat);
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
-    window.scrollTo({
-      top: window.scrollY + head.getBoundingClientRect().top - 16,
-      behavior: reduceMotion ? "auto" : "smooth",
-    });
+    const behavior: ScrollBehavior = reduceMotion ? "auto" : "smooth";
+
+    const strip = tabStripRef.current;
+    const tab = strip?.querySelector<HTMLElement>(`[data-cat="${cat}"]`);
+    if (strip && tab) {
+      strip.scrollTo({
+        left: tab.offsetLeft - (strip.clientWidth - tab.offsetWidth) / 2,
+        behavior,
+      });
+    }
+    const head = sectionHeadRef.current;
+    if (head) {
+      window.scrollTo({
+        top: window.scrollY + head.getBoundingClientRect().top - 16,
+        behavior,
+      });
+    }
+  };
+
+  const jumpToNextSection = () => {
+    if (nextSection) goToCategory(nextSection.type);
+  };
+
+  // ── Swipe between courses (touch only) ──
+  // Reading a long dish list is a vertical gesture, so a swipe only counts as
+  // horizontal when it clearly beats the vertical drift; nothing is
+  // preventDefault-ed, so normal scrolling is untouched.
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const onDishTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onDishTouchEnd = (e: React.TouchEvent) => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const here = usableCategories.findIndex((c) => c.type === activeCategory);
+    // Swiping left pulls the next course in, like turning a page.
+    const target = usableCategories[here + (dx < 0 ? 1 : -1)];
+    if (target) goToCategory(target.type);
   };
 
   // ── Mobile lunch-box drawer ──
@@ -481,10 +525,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
               <p className="font-poppins text-sm text-brand-text">
                 <strong className="font-semibold">
                   Some dishes are below their per-order minimum.
-                </strong>{" "}
-                <span className="text-brand-text/60">
-                  Add more of each, or take the dish out of your boxes.
-                </span>
+                </strong>
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -728,7 +769,10 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           )}
 
           {/* ── Category Tabs ── */}
-          <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1">
+          <div
+            ref={tabStripRef}
+            className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1"
+          >
             {CATEGORY_CONFIG.map(({ type, label, icon: Icon }) => {
               const isActive = activeCategory === type;
               const isComplete = categoryFull[type];
@@ -738,6 +782,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
               return (
                 <button
                   key={type}
+                  data-cat={type}
                   onClick={() => setActiveCategory(type)}
                   className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-poppins text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
                     isActive
@@ -845,7 +890,12 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           </div>
 
           {/* ── Food Grids — opacity-based switching for instant compositor toggle ── */}
-          <div className="relative" ref={dishListRef}>
+          <div
+            className="relative"
+            ref={dishListRef}
+            onTouchStart={onDishTouchStart}
+            onTouchEnd={onDishTouchEnd}
+          >
             {CATEGORIES.map((cat) => {
               const items = getItemsByCategory(cat);
               const isActiveTab = activeCategory === cat;
