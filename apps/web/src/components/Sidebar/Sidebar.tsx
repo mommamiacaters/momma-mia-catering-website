@@ -461,11 +461,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                         key={`${dish.type}-${dish.name}`}
                         className="flex items-center gap-1.5 py-0.5 min-w-0"
                       >
-                        <SlotIcon
-                          slot={dish.type}
-                          size={11}
-                          className="shrink-0 text-brand-text/70"
-                        />
+                        <SlotIcon slot={dish.type} size={11} className="shrink-0" />
                         <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-brand-divider/50">
                           <img
                             src={dish.image || FALLBACK_IMAGE}
