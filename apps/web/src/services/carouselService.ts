@@ -75,8 +75,6 @@ const EXT_BY_TYPE: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
   "image/avif": "avif",
-  "image/heic": "heic",
-  "image/heif": "heif",
 };
 
 /** Upload a carousel photo to Storage and return its public URL + object key. */
@@ -85,7 +83,14 @@ export async function uploadCarouselImage(
   file: File,
 ): Promise<{ image_url: string; storage_path: string }> {
   const ext = EXT_BY_TYPE[file.type.toLowerCase()];
-  if (!ext) throw new Error("Use a photo — JPG, PNG, WebP, GIF, AVIF or HEIC.");
+  if (!ext) {
+    const heic = /hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
+    throw new Error(
+      heic
+        ? "iPhone HEIC photos can't be shown by most browsers. Export or share it as JPEG first, then upload."
+        : "Use a photo — JPG, PNG, WebP, GIF or AVIF.",
+    );
+  }
   const path = `carousel/${serviceSlug}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage
     .from(BUCKET)

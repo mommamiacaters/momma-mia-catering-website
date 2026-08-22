@@ -2,8 +2,8 @@
 //
 // It reports slides ONLY on a successful, non-empty response. Loading, a failed
 // request and "the admin has not uploaded anything yet" all resolve to an empty
-// array, which is the caller's signal to keep rendering the bundled images —
-// a broken fetch must never blank out the carousel.
+// array, which is the caller's signal to render no carousel — these pages have
+// no bundled photos behind them.
 import { useEffect, useState } from "react";
 import { listCarouselImages } from "../services/carouselService";
 
@@ -42,8 +42,7 @@ export function useCarouselImages(slug: string): CarouselSlide[] {
         const candidates = rows.map((row) => ({ src: row.image_url, alt: row.alt_text }));
         // Decode everything off-screen and drop what won't paint: a row whose
         // stored file is missing or corrupt must never surface as a blank
-        // slide. This also holds the bundled photos on screen until the
-        // replacements are actually paintable, so the swap can't flash empty.
+        // slide.
         const decodable = await Promise.all(candidates.map((s) => canDecode(s.src)));
         if (cancelled) return;
         const slides = candidates.filter((_, i) => decodable[i]);

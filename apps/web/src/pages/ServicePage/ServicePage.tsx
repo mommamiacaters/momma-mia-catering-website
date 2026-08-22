@@ -16,12 +16,13 @@ const ServicePage: React.FC = () => {
   const order = useOrderManagement(slug, serviceContent.hasMenu);
   const dbSlides = useCarouselImages(slug || "");
 
-  // Admin-uploaded photos replace the bundled set outright. While loading, on a
-  // failed request, and when nothing has been uploaded yet, the hook reports no
-  // slides and the page renders exactly what it always has.
+  // The carousel is exactly what the admin uploaded — nothing else. There is no
+  // bundled set behind it any more: a stale sample photo standing in for the
+  // real menu (and flashing before the real one loaded) was worse than showing
+  // no carousel at all.
   const carouselImages = useMemo(
-    () => (dbSlides.length > 0 ? dbSlides.map((s) => s.src) : serviceContent.images),
-    [dbSlides, serviceContent.images]
+    () => dbSlides.map((s) => s.src),
+    [dbSlides]
   );
   const carouselAlts = useMemo(
     () => (dbSlides.length > 0 ? dbSlides.map((s) => s.alt) : undefined),

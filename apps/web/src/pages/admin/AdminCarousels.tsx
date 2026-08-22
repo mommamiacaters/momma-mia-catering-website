@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import SafeImage from "../../components/ui/SafeImage";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import PaginationBar from "../../components/ui/PaginationBar";
-import { CAROUSEL_SERVICES, getServiceFallbackImages } from "../../constants/serviceContent";
+import { CAROUSEL_SERVICES } from "../../constants/serviceContent";
 import {
   addCarouselImage,
   deleteCarouselImage,
@@ -191,7 +191,6 @@ const ImageTile: React.FC<ImageTileProps> = ({
 // --------------------------------------------------------------- one service
 
 interface ServiceSectionProps {
-  slug: string;
   title: string;
   images: CarouselImage[];
   isOpen: boolean;
@@ -210,7 +209,6 @@ interface ServiceSectionProps {
 
 /** Collapsible card for one service page's carousel. */
 const ServiceSection: React.FC<ServiceSectionProps> = ({
-  slug,
   title,
   images,
   isOpen,
@@ -225,8 +223,7 @@ const ServiceSection: React.FC<ServiceSectionProps> = ({
   sectionRef,
 }) => {
   const uploading = uploadingCount > 0;
-  const fallbacks = getServiceFallbackImages(slug);
-  // The live page only sees active rows, so zero active means it falls back.
+  // The live page only sees active rows, so zero active means no carousel.
   const activeCount = images.filter((row) => row.is_active).length;
 
   const [page, setPage] = useState(1);
@@ -317,28 +314,12 @@ const ServiceSection: React.FC<ServiceSectionProps> = ({
               <div className="rounded-lg border-2 border-dashed border-brand-divider px-4 py-8 text-center">
                 <i className="pi pi-images text-2xl text-brand-text/30" aria-hidden="true" />
                 <p className="mt-2 font-arvo-bold text-sm text-brand-text">
-                  No custom photos yet — this page is showing the built-in ones.
+                  No photos yet — this page shows no carousel.
                 </p>
                 <p className="mt-1 font-poppins text-xs text-brand-text/60">
-                  Upload to replace them. Delete every photo here and the built-in ones come back.
+                  Upload photos to give it one. Delete them all and the carousel
+                  disappears again.
                 </p>
-                {fallbacks.length > 0 && (
-                  <ul className="mt-4 flex flex-wrap justify-center gap-2">
-                    {fallbacks.slice(0, 6).map((src) => (
-                      <li
-                        key={src}
-                        className="h-14 w-20 overflow-hidden rounded-md border border-brand-divider"
-                      >
-                        <img
-                          src={src}
-                          alt=""
-                          className="h-full w-full object-cover opacity-70"
-                          loading="lazy"
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             ) : (
               <>
@@ -653,7 +634,6 @@ const AdminCarousels: React.FC = () => {
           {CAROUSEL_SERVICES.map(({ slug, title }) => (
             <ServiceSection
               key={slug}
-              slug={slug}
               title={title}
               images={groups[slug] ?? []}
               isOpen={openSlugs.has(slug)}
