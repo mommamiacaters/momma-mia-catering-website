@@ -157,9 +157,7 @@ const ServicePage: React.FC = () => {
                 error={order.error}
                 onMealPlanSelect={order.handleMealPlanSelect}
                 onMealPlanQuantityChange={order.handleMealPlanQuantityChange}
-                onItemAdd={order.handleItemAdd}
                 onItemRemove={order.handleItemRemove}
-                onItemQuantityDecrease={order.handleItemQuantityDecrease}
                 onItemAddMany={order.handleItemAddMany}
                 onItemRemoveMany={order.handleItemRemoveMany}
                 clearCourse={order.clearCourse}
@@ -170,7 +168,6 @@ const ServicePage: React.FC = () => {
                 getItemsByCategory={order.getItemsByCategory}
                 getCategoryDisplayName={getCategoryDisplayName}
                 isItemSelected={order.isItemSelected}
-                getCurrentItemQuantity={order.getCurrentItemQuantity}
                 getMaxAllowedItemsByType={order.getMaxAllowedItemsByType}
                 getActivePlanMaxAllowed={order.getActivePlanMaxAllowed}
                 getActivePlanSelectedCount={order.getActivePlanSelectedCount}

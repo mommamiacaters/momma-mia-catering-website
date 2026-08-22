@@ -34,9 +34,7 @@ interface CheckALunchProps {
   error: string | null;
   onMealPlanSelect: (type: MealPlanType) => void;
   onMealPlanQuantityChange: (type: MealPlanType, quantity: number) => void;
-  onItemAdd: (item: MenuItem) => void;
   onItemRemove: (item: SelectedItemWithQuantity) => void;
-  onItemQuantityDecrease: (item: MenuItem) => void;
   /** Bulk fill/clear across every box — see useOrderManagement. */
   onItemAddMany: (item: MenuItem, count: number) => void;
   onItemRemoveMany: (item: MenuItem, count: number) => void;
@@ -50,7 +48,6 @@ interface CheckALunchProps {
   getItemsByCategory: (category: CategoryType) => MenuItem[];
   getCategoryDisplayName: (category: string) => string;
   isItemSelected: (item: MenuItem) => boolean;
-  getCurrentItemQuantity: (item: MenuItem) => number;
   getMaxAllowedItemsByType: () => Record<string, number>;
   getActivePlanMaxAllowed: () => Record<string, number>;
   getActivePlanSelectedCount: (itemType: string) => number;
@@ -83,8 +80,6 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   error,
   onMealPlanSelect,
   onMealPlanQuantityChange,
-  onItemAdd,
-  onItemQuantityDecrease,
   onItemAddMany,
   onItemRemoveMany,
   clearCourse,
@@ -96,7 +91,6 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   getItemsByCategory,
   getCategoryDisplayName,
   isItemSelected,
-  getCurrentItemQuantity,
   getActivePlanMaxAllowed,
   getActivePlanSelectedCount,
   onMoveItem,
@@ -259,15 +253,19 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     planGroups.find((g) => g.type === (expandedPlan ?? lastExpandedPlan.current))
       ?.instances ?? [];
 
-  // One plan means nothing to choose between, so it opens itself; so does the
-  // plan holding the active box, which is how picking a box in the lunch box
-  // summary keeps that box visible here.
-  const soloPlanType = planGroups.length === 1 ? planGroups[0].type : null;
+  // Every plan starts CLOSED — the row's job is to stay a short list of plans
+  // until the shopper asks for a box. The one exception is picking a box
+  // somewhere else (the lunch box panel), which has to reveal that box's chip
+  // here; skipping the first run keeps a restored cart from opening on load.
   const activePlanType = activePlan?.type ?? null;
+  const planExpandMounted = useRef(false);
   useEffect(() => {
-    const opening = soloPlanType ?? activePlanType;
-    if (opening) setExpandedPlan(opening);
-  }, [soloPlanType, activePlanType]);
+    if (!planExpandMounted.current) {
+      planExpandMounted.current = true;
+      return;
+    }
+    if (activePlanType) setExpandedPlan(activePlanType);
+  }, [activePlanType]);
 
   // ── Mobile lunch-box drawer ──
   // On phones the tray panel would sit below every dish card, so it lives in
@@ -827,17 +825,12 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                           item={item}
                           isSelected={isItemSelected(item)}
                           isDisabled={isCatFull}
-                          currentQuantity={getCurrentItemQuantity(item)}
                           openSlots={getOpenSlotsForType(item.type)}
                           placedCount={getTotalPlacedCount(item)}
                           requiredMin={
                             minimumQtyPerDish === null
                               ? null
                               : (item.minQty ?? minimumQtyPerDish)
-                          }
-                          onAdd={() => onItemAdd(item)}
-                          onDecrease={() =>
-                            onItemQuantityDecrease(item)
                           }
                           onAddMany={(n) => onItemAddMany(item, n)}
                           onRemoveMany={(n) => onItemRemoveMany(item, n)}

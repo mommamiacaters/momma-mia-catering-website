@@ -8,9 +8,6 @@ interface FoodCardProps {
   item: MenuItem;
   isSelected: boolean;
   isDisabled: boolean;
-  currentQuantity: number;
-  onAdd: () => void;
-  onDecrease: () => void;
   /** Open slots for this dish's type across EVERY box, not just the active one. */
   openSlots: number;
   /** Copies of this dish placed across every box. */
@@ -21,15 +18,10 @@ interface FoodCardProps {
   onRemoveMany: (count: number) => void;
 }
 
-const BULK_STEP = 10;
-
 const FoodCard: React.FC<FoodCardProps> = memo(({
   item,
   isSelected,
   isDisabled,
-  currentQuantity,
-  onAdd,
-  onDecrease,
   openSlots,
   placedCount,
   requiredMin,
@@ -43,11 +35,13 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   const canRemoveMore = placedCount > 0;
   // Internal state keeps the memo comparator honest — no new props involved.
   const [showPhoto, setShowPhoto] = useState(false);
-  const minFloor = requiredMin ?? 0;
-  const belowMin = minFloor > 0 && placedCount > 0 && placedCount < minFloor;
-  const toMin = minFloor - placedCount;
+  // One click = one order-minimum's worth. A dish with a floor of 15 can't be
+  // ordered in any smaller amount, so stepping by 1 only ever built up an
+  // invalid order the shopper then had to be nagged about; stepping by the
+  // floor makes the first click land on a valid order. No floor ⇒ step of 1.
+  const step = Math.max(1, requiredMin ?? 0);
   const bulkBtn =
-    "h-9 rounded-lg font-poppins text-xs font-bold tabular-nums transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer";
+    "h-11 rounded-lg font-poppins text-xs font-bold tabular-nums transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer";
   return (
     <div
       className={`group relative bg-white rounded-2xl overflow-hidden transition-[box-shadow,transform,opacity] duration-300 ${
@@ -66,10 +60,10 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
       )}
 
       {/* Quantity badge (when more than 1) */}
-      {currentQuantity > 1 && (
+      {placedCount > 1 && (
         <div className="hidden sm:flex absolute top-3 left-3 z-10 bg-brand-accent text-white rounded-full min-w-[1.75rem] h-7 px-1.5 items-center justify-center shadow-lg">
           <span className="text-xs font-bold font-poppins">
-            x{currentQuantity}
+            x{placedCount}
           </span>
         </div>
       )}
@@ -115,57 +109,57 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
           </p>
         )}
 
-        {/* Actions */}
-        <div className="flex items-center justify-end pt-1 min-h-[2.25rem]">
-          {isSelected ? (
+        {/* Actions — one centered stepper. Every press moves the whole order
+            by `step`, so the count shown is the order-wide one the Fill all /
+            Clear buttons below also speak to. */}
+        <div className="flex items-center justify-center pt-1 min-h-[2.75rem]">
+          {canRemoveMore ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={onDecrease}
-                className="w-9 h-9 rounded-full bg-brand-secondary hover:bg-brand-divider flex items-center justify-center transition-colors active:scale-95"
-                aria-label={
-                  currentQuantity <= 1
-                    ? `Remove ${item.name}`
-                    : `Decrease ${item.name} quantity`
-                }
+                onClick={() => onRemoveMany(step)}
+                className="w-11 h-11 rounded-full bg-brand-secondary hover:bg-brand-divider flex items-center justify-center transition-colors active:scale-95 cursor-pointer"
+                aria-label={`Remove ${step} ${item.name} from your order`}
+                title={`Remove ${step}`}
               >
-                <Minus size={14} className="text-brand-text" />
+                <Minus size={16} className="text-brand-text" />
               </button>
-              <span className="font-poppins text-sm font-bold text-brand-text w-7 text-center tabular-nums">
-                {currentQuantity}
+              <span className="font-poppins text-sm font-bold text-brand-text min-w-[2rem] text-center tabular-nums">
+                {placedCount}
               </span>
               <button
-                onClick={onAdd}
-                disabled={isDisabled}
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
-                  isDisabled
+                onClick={() => onAddMany(step)}
+                disabled={!canAddMore}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
+                  !canAddMore
                     ? "bg-brand-divider cursor-not-allowed text-brand-text/30"
-                    : "bg-brand-primary hover:bg-brand-primary/80 text-white shadow-sm shadow-brand-primary/20"
+                    : "bg-brand-primary hover:bg-brand-primary/80 text-white shadow-sm shadow-brand-primary/20 cursor-pointer"
                 }`}
                 aria-label={
-                  isDisabled
-                    ? "Maximum reached"
-                    : `Add another ${item.name}`
+                  canAddMore
+                    ? `Add ${step} more ${item.name}`
+                    : "Every box already has this course"
                 }
+                title={canAddMore ? `Add ${step}` : undefined}
               >
-                <Plus size={14} />
+                <Plus size={16} />
               </button>
             </div>
           ) : (
             <button
-              onClick={onAdd}
-              disabled={isDisabled}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-poppins text-sm font-medium transition-colors active:scale-95 ${
-                isDisabled
+              onClick={() => onAddMany(step)}
+              disabled={!canAddMore}
+              className={`flex items-center gap-1.5 px-5 min-h-[44px] rounded-full font-poppins text-sm font-medium transition-colors active:scale-95 ${
+                !canAddMore
                   ? "bg-brand-divider text-brand-text/30 cursor-not-allowed"
-                  : "bg-brand-primary hover:bg-brand-primary/90 text-white shadow-md shadow-brand-primary/20 hover:shadow-lg"
+                  : "bg-brand-primary hover:bg-brand-primary/90 text-white shadow-md shadow-brand-primary/20 hover:shadow-lg cursor-pointer"
               }`}
               aria-label={
-                isDisabled
-                  ? "Maximum reached for this category"
-                  : `Add ${item.name}`
+                canAddMore
+                  ? `Add ${step} ${item.name} to your order`
+                  : "No open slots left for this course"
               }
             >
-              <Plus size={14} />
+              <Plus size={16} />
               Add
             </button>
           )}
@@ -174,31 +168,9 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
       </div>
 
       <div className="px-3 pb-3 sm:px-4 sm:pb-4">
-        {/* Bulk actions — a single order can run to 24 boxes / 72 picks, so
-            one-at-a-time is not a realistic way to fill it. These act across
-            every box, which is why they survive `isDisabled`. One row on
-            phones, 2x2 once the card goes vertical. */}
-        <div className="grid grid-cols-4 sm:grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            onClick={() => onRemoveMany(BULK_STEP)}
-            disabled={!canRemoveMore}
-            className={`${bulkBtn} bg-brand-secondary text-brand-text/70 enabled:hover:bg-brand-divider`}
-            title={`Take ${item.name} out of the last ${BULK_STEP} boxes it was added to`}
-            aria-label={`Remove ${BULK_STEP} ${item.name} from your boxes`}
-          >
-            −{BULK_STEP}
-          </button>
-          <button
-            type="button"
-            onClick={() => onAddMany(BULK_STEP)}
-            disabled={!canAddMore}
-            className={`${bulkBtn} bg-brand-primary/10 text-brand-primary enabled:hover:bg-brand-primary/20`}
-            title={`Put ${item.name} in the next ${BULK_STEP} boxes that still need this course`}
-            aria-label={`Add ${item.name} to the next ${BULK_STEP} boxes`}
-          >
-            +{BULK_STEP}
-          </button>
+        {/* Bulk actions — these span every box, which is why they survive
+            `isDisabled` (that only means the ACTIVE box is full). */}
+        <div className="grid grid-cols-2 gap-1.5">
           <button
             type="button"
             onClick={() => onAddMany(Number.POSITIVE_INFINITY)}
@@ -236,31 +208,6 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
             Clear{canRemoveMore ? ` ${placedCount}` : ""}
           </button>
         </div>
-
-        {/* Per-dish minimum — a floor the whole order must reach once this
-            dish is picked at all. Unselected cards state it up front;
-            below-the-floor cards get a one-tap catch-up. */}
-        {minFloor > 0 && placedCount === 0 && (
-          <p className="mt-2 font-poppins text-[0.7rem] text-brand-text/70 text-center tabular-nums">
-            Minimum {minFloor} per order
-          </p>
-        )}
-        {belowMin && (
-          <button
-            type="button"
-            onClick={() => onAddMany(toMin)}
-            disabled={!canAddMore}
-            className="mt-2 w-full h-9 rounded-lg bg-amber-100 text-amber-800 font-poppins text-xs font-bold tabular-nums transition-colors enabled:hover:bg-amber-200 enabled:cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            title={
-              canAddMore
-                ? `Add ${toMin} more ${item.name} to reach the minimum of ${minFloor} per order`
-                : "No open slots left for this course — free some up first"
-            }
-            aria-label={`${item.name} is at ${placedCount} of its ${minFloor} minimum — add ${toMin} more`}
-          >
-            {placedCount} of {minFloor} min — add {toMin}
-          </button>
-        )}
       </div>
     </div>
   );
@@ -270,7 +217,6 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   prev.isDisabled === next.isDisabled &&
   prev.openSlots === next.openSlots &&
   prev.placedCount === next.placedCount &&
-  prev.currentQuantity === next.currentQuantity &&
   prev.requiredMin === next.requiredMin
 );
 
