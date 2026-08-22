@@ -16,6 +16,13 @@ export interface PaymentProof {
 /** A slot in a meal plan. Mirrors sub_categories.slot in the database. */
 export type PlanSlot = "main" | "side" | "rice" | "dessert";
 
+/**
+ * How a bulk add distributes across boxes.
+ * "even" gives every box one before any box gets two; "sequential" finishes a
+ * box before moving on.
+ */
+export type DishFillMode = "even" | "sequential";
+
 /** Item categories are plan slots now. Alias kept so callers need no rename. */
 export type CategoryType = PlanSlot;
 

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Check, ChevronDown, ChevronRight, ChevronUp, Package, X, Zap, Info, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Package, X, Zap, Info, Trash2 } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import {
   deriveMinimumState,
   useStoreSettings,
 } from "../../hooks/useStoreSettings";
 import {
+  DishFillMode,
   MealPlanType,
   MenuItem,
   MenuTypeData,
@@ -35,7 +36,7 @@ interface CheckALunchProps {
   onMealPlanQuantityChange: (type: MealPlanType, quantity: number) => void;
   onItemRemove: (item: SelectedItemWithQuantity) => void;
   /** Bulk fill/clear across every box — see useOrderManagement. */
-  onItemAddMany: (item: MenuItem, count: number) => void;
+  onItemAddMany: (item: MenuItem, count: number, spread?: DishFillMode) => void;
   onItemRemoveMany: (item: MenuItem, count: number) => void;
   /** Empty one course — a single box when given an id, every box when null. */
   clearCourse: (itemType: string, planInstanceId: string | null) => void;
@@ -188,13 +189,6 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
       usableCategories.findIndex((c) => c.type === activeCategory) + 1
     ] ?? null;
 
-  const nextIncompleteCategory = CATEGORIES.find(
-    (cat) =>
-      cat !== activeCategory &&
-      (maxAllowed[cat] || 0) > 0 &&
-      !categoryFull[cat]
-  );
-
   // Sorted plan instances + numbering (memoized)
   const { sortedInstances, instanceNumbers } = useMemo(() => {
     const sorted = [...planInstances].sort(
@@ -238,6 +232,17 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
       ).length,
     }));
   }, [sortedInstances, getMealPlanLimits]);
+
+  // Spreading evenly is the default: it's the difference between every meal
+  // having a protein and half the meals being finished while the rest are bare.
+  const [fillMode, setFillMode] = useState<DishFillMode>("even");
+  // Read through a ref at call time: FoodCard's memo comparator deliberately
+  // ignores onAddMany, so a card that doesn't re-render keeps the closure it
+  // was built with — and would go on filling with whichever mode was current
+  // when it last rendered.
+  const fillModeRef = useRef(fillMode);
+  fillModeRef.current = fillMode;
+  const [fillMenuOpen, setFillMenuOpen] = useState(false);
 
   const [expandedPlan, setExpandedPlan] = useState<MealPlanType | null>(null);
   // The closing row still needs its chips, or they blink out before the slide
@@ -518,7 +523,9 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
             <div className="mb-6">
               <div className="flex flex-wrap gap-2 pt-1 pb-1 -mx-1 px-1">
                 <button
-                  onClick={() => onSetActivePlan(null)}
+                  onClick={() => setFillMenuOpen((open) => !open)}
+                  aria-expanded={fillMenuOpen}
+                  aria-controls="auto-fill-modes"
                   className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${
                     !activePlanInstanceId
                       ? "bg-brand-primary text-white border-brand-primary shadow-md"
@@ -527,6 +534,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                 >
                   <Zap size={12} />
                   Auto-fill
+                  <ChevronDown
+                    size={12}
+                    className={`transition-transform duration-200 ${fillMenuOpen ? "rotate-180" : ""}`}
+                    aria-hidden="true"
+                  />
                 </button>
 
                 {planGroups.map(({ type, instances, filledBoxes }) => {
@@ -571,6 +583,59 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Auto-fill modes — closed by default; the choice only matters
+                  once someone wonders why box 8 is empty. */}
+              <div
+                className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
+                  fillMenuOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                }`}
+              >
+                <div className="overflow-hidden">
+                  <div
+                    id="auto-fill-modes"
+                    role="radiogroup"
+                    aria-label="How Auto-fill spreads dishes"
+                    aria-hidden={!fillMenuOpen}
+                    className="mt-2 grid gap-1.5 rounded-xl border border-brand-divider bg-white p-1.5 sm:grid-cols-2"
+                  >
+                    {(
+                      [
+                        ["even", "Spread evenly", "One dish per box, then round again"],
+                        ["sequential", "Fill in order", "Finish a box before the next"],
+                      ] as const
+                    ).map(([mode, label, hint]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={fillMode === mode}
+                        tabIndex={fillMenuOpen ? undefined : -1}
+                        onClick={() => {
+                          setFillMode(mode);
+                          onSetActivePlan(null);
+                        }}
+                        className={`rounded-lg px-3 py-2 text-left transition-colors cursor-pointer ${
+                          fillMode === mode
+                            ? "bg-brand-primary text-white"
+                            : "bg-white text-brand-text hover:bg-brand-secondary"
+                        }`}
+                      >
+                        <span className="block font-poppins text-xs font-semibold">
+                          {label}
+                        </span>
+                        <span
+                          className={`block font-poppins text-[0.7rem] ${
+                            fillMode === mode ? "text-white/80" : "text-brand-text/70"
+                          }`}
+                        >
+                          {hint}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* 0fr→1fr slides the boxes in without measuring a height, so the
@@ -813,7 +878,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                               ? null
                               : (item.minQty ?? minimumQtyPerDish)
                           }
-                          onAddMany={(n) => onItemAddMany(item, n)}
+                          onAddMany={(n) => onItemAddMany(item, n, fillModeRef.current)}
                           onRemoveMany={(n) => onItemRemoveMany(item, n)}
                         />
                       ))}
@@ -830,19 +895,6 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
             })}
           </div>
 
-          {/* ── Navigation Prompt ── */}
-          {isMaxReached && nextIncompleteCategory && (
-            <div className="mt-8 text-center">
-              <button
-                onClick={() => setActiveCategory(nextIncompleteCategory)}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-brand-primary/10 hover:bg-brand-primary/15 text-brand-primary font-poppins font-semibold rounded-xl transition-colors hover:gap-3"
-              >
-                Continue to{" "}
-                {getCategoryDisplayName(nextIncompleteCategory)}
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          )}
           </section>
         </div>
 
@@ -872,12 +924,22 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
               <span className="[writing-mode:vertical-rl] [text-orientation:upright] font-poppins text-[0.7rem] font-bold uppercase tracking-[0.08em]">
                 {nextSection.label}
               </span>
-              <ChevronRight
-                size={20}
-                strokeWidth={2.5}
-                className="shrink-0 motion-safe:animate-nudge-right"
+              {/* Curved sweep rather than a bare chevron: it reads as "carry on
+                  round to the next course" instead of "next slide". */}
+              <svg
+                viewBox="0 0 24 24"
+                className="h-7 w-7 shrink-0 motion-safe:animate-nudge-right"
                 aria-hidden="true"
-              />
+              >
+                <path
+                  d="M6 4v6.5c0 3.6 2.4 5.9 6 6.4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.8"
+                  strokeLinecap="round"
+                />
+                <path d="M11 12.2 20 17l-9 4.6z" fill="currentColor" />
+              </svg>
             </button>
           )}
         </div>

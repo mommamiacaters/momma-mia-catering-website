@@ -8,6 +8,7 @@ import type {
   PlanInstance,
   AssignedItem,
   PlanSlot,
+  DishFillMode,
 } from "../types";
 import { menuService, type MealPlan } from "../services/menuService";
 import { useStoreSettings } from "./useStoreSettings";
@@ -537,7 +538,11 @@ export function useOrderManagement(
    * across-all-boxes operation — that is the whole reason it exists when an
    * order runs to 24 boxes and 72 individual picks.
    */
-  const handleItemAddMany = useCallback((item: MenuItem, count: number) => {
+  const handleItemAddMany = useCallback((
+    item: MenuItem,
+    count: number,
+    spread: DishFillMode = "even",
+  ) => {
     if (count <= 0) return;
     setPlanInstances((prev) => {
       if (prev.length === 0) return prev;
@@ -545,28 +550,52 @@ export function useOrderManagement(
       const sorted = [...prev].sort((a, b) => a.displayOrder - b.displayOrder);
       const additions = new Map<string, AssignedItem[]>();
 
+      // Open slots of this course per box, decremented as we place.
+      const open = new Map<string, number>();
       for (const pi of sorted) {
-        if (remaining <= 0) break;
         const limits = limitsFor(pi.type);
         const used = pi.items.filter((ai) => ai.type === item.type).length;
-        let open = Math.max(0, (limits[item.type] || 0) - used);
-        while (open > 0 && remaining > 0) {
-          const list = additions.get(pi.id) ?? [];
-          list.push({
-            instanceId: generateItemId(item.name),
-            planInstanceId: pi.id,
-            menuItemId: item.id,
-            name: item.name,
-            description: item.description,
-            price: item.price,
-            category: item.category,
-            type: item.type,
-            image: item.image,
-            minQty: item.minQty ?? null,
-          });
-          additions.set(pi.id, list);
-          open--;
-          remaining--;
+        open.set(pi.id, Math.max(0, (limits[item.type] || 0) - used));
+      }
+
+      const place = (pi: PlanInstance) => {
+        const list = additions.get(pi.id) ?? [];
+        list.push({
+          instanceId: generateItemId(item.name),
+          planInstanceId: pi.id,
+          menuItemId: item.id,
+          name: item.name,
+          description: item.description,
+          price: item.price,
+          category: item.category,
+          type: item.type,
+          image: item.image,
+          minQty: item.minQty ?? null,
+        });
+        additions.set(pi.id, list);
+        open.set(pi.id, (open.get(pi.id) ?? 0) - 1);
+        remaining--;
+      };
+
+      if (spread === "even") {
+        // One slot per box per pass, so 15 mains across 15 boxes give every box
+        // a main before any box gets a second — the difference between "every
+        // meal has a protein" and "seven meals are finished and eight are bare".
+        let placedThisPass = 1;
+        while (remaining > 0 && placedThisPass > 0) {
+          placedThisPass = 0;
+          for (const pi of sorted) {
+            if (remaining <= 0) break;
+            if ((open.get(pi.id) ?? 0) <= 0) continue;
+            place(pi);
+            placedThisPass++;
+          }
+        }
+      } else {
+        // Finish a box before moving on — the original behaviour.
+        for (const pi of sorted) {
+          if (remaining <= 0) break;
+          while ((open.get(pi.id) ?? 0) > 0 && remaining > 0) place(pi);
         }
       }
 
