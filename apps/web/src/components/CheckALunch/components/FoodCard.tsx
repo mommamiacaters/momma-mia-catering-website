@@ -40,6 +40,20 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   // invalid order the shopper then had to be nagged about; stepping by the
   // floor makes the first click land on a valid order. No floor ⇒ step of 1.
   const step = Math.max(1, requiredMin ?? 0);
+  // Typing a quantity edits a DRAFT; it only reaches the order on blur/Enter,
+  // so a half-typed "1" of an intended "15" never briefly strips 14 boxes.
+  const [draft, setDraft] = useState<string | null>(null);
+  const maxQty = placedCount + openSlots;
+  const commitDraft = () => {
+    if (draft === null) return;
+    setDraft(null);
+    if (draft.trim() === "") return; // cleared then abandoned — leave it be
+    const parsed = Math.round(Number(draft));
+    if (!Number.isFinite(parsed)) return;
+    const delta = Math.max(0, Math.min(maxQty, parsed)) - placedCount;
+    if (delta > 0) onAddMany(delta);
+    else if (delta < 0) onRemoveMany(-delta);
+  };
   const bulkBtn =
     "h-11 rounded-lg font-poppins text-xs font-bold tabular-nums transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer";
   return (
@@ -112,7 +126,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
         {/* Actions — one centered stepper. Every press moves the whole order
             by `step`, so the count shown is the order-wide one the Fill all /
             Clear buttons below also speak to. */}
-        <div className="flex items-center justify-center pt-1 min-h-[2.75rem]">
+        <div className="flex items-center justify-center pt-1 pb-3 min-h-[2.75rem]">
           {canRemoveMore ? (
             <div className="flex items-center gap-2">
               <button
@@ -123,9 +137,25 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
               >
                 <Minus size={16} className="text-brand-text" />
               </button>
-              <span className="font-poppins text-sm font-bold text-brand-text min-w-[2rem] text-center tabular-nums">
-                {placedCount}
-              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={maxQty}
+                value={draft ?? String(placedCount)}
+                onChange={(e) => setDraft(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={commitDraft}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  else if (e.key === "Escape") {
+                    setDraft(null);
+                    e.currentTarget.blur();
+                  }
+                }}
+                aria-label={`How many ${item.name} in your order`}
+                className="w-14 h-11 rounded-lg border border-brand-divider bg-white text-center font-poppins text-sm font-bold text-brand-text tabular-nums transition-colors focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
               <button
                 onClick={() => onAddMany(step)}
                 disabled={!canAddMore}
@@ -167,7 +197,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
       </div>
       </div>
 
-      <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+      <div className="px-3 pb-3 pt-1 sm:px-4 sm:pb-4">
         {/* Bulk actions — these span every box, which is why they survive
             `isDisabled` (that only means the ACTIVE box is full). */}
         <div className="grid grid-cols-2 gap-1.5">

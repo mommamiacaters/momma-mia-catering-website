@@ -193,6 +193,16 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   const activeSelected = categoryCounts[activeCategory];
   const isMaxReached = categoryFull[activeCategory];
 
+  // The section after this one, skipping courses this order's plans don't use
+  // (a Dessert slot no plan asks for is not somewhere to send anyone).
+  const usableCategories = CATEGORY_CONFIG.filter(
+    (c) => (maxAllowed[c.type] || 0) > 0
+  );
+  const nextSection =
+    usableCategories[
+      usableCategories.findIndex((c) => c.type === activeCategory) + 1
+    ] ?? null;
+
   const nextIncompleteCategory = CATEGORIES.find(
     (cat) =>
       cat !== activeCategory &&
@@ -266,6 +276,39 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     }
     if (activePlanType) setExpandedPlan(activePlanType);
   }, [activePlanType]);
+
+  // ── Section jumper ──
+  // Only offer the jump while the dish list is actually on screen; anchored to
+  // the viewport, it would otherwise hover over the plan cards and the summary.
+  const dishListRef = useRef<HTMLDivElement | null>(null);
+  const sectionHeadRef = useRef<HTMLDivElement | null>(null);
+  const [dishListInView, setDishListInView] = useState(false);
+  useEffect(() => {
+    const el = dishListRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setDishListInView(entry.isIntersecting),
+      // Trim the edges so the prompt appears once the list really owns the
+      // screen, not when its last pixel scrolls past.
+      { rootMargin: "-20% 0px -20% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMealPlan]);
+
+  const jumpToNextSection = () => {
+    if (!nextSection) return;
+    setActiveCategory(nextSection.type);
+    const head = sectionHeadRef.current;
+    if (!head) return;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    window.scrollTo({
+      top: window.scrollY + head.getBoundingClientRect().top - 16,
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  };
 
   // ── Mobile lunch-box drawer ──
   // On phones the tray panel would sit below every dish card, so it lives in
@@ -493,6 +536,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
         )}
 
         <MealPlanSelector
+          bulkStep={min.minimum}
           plans={plans}
           mealPlanOrders={mealPlanOrders}
           onSelect={onMealPlanSelect}
@@ -732,7 +776,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           </div>
 
           {/* ── Active Category Header + Progress ── */}
-          <div className="mb-6">
+          <div className="mb-6" ref={sectionHeadRef}>
             {/* Wraps below sm: the title plus Clear plus the count badge do not
                 fit a 343px picker column on a phone. */}
             <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 mb-2">
@@ -801,7 +845,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           </div>
 
           {/* ── Food Grids — opacity-based switching for instant compositor toggle ── */}
-          <div className="relative">
+          <div className="relative" ref={dishListRef}>
             {CATEGORIES.map((cat) => {
               const items = getItemsByCategory(cat);
               const isActiveTab = activeCategory === cat;
@@ -818,7 +862,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   aria-hidden={!isActiveTab}
                 >
                   {items.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                       {items.map((item, index) => (
                         <FoodCard
                           key={`${item.name}-${index}`}
@@ -863,6 +907,40 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
             </div>
           )}
           </section>
+        </div>
+
+        {/* ── Section jumper ──
+            Pinned to the right edge beside the dishes so the next course is
+            always one tap away, mid-scroll, on any screen. Kept mounted so it
+            fades rather than pops, and parked at z-30 — under the chat button
+            and the lunch-box bar it must never cover. */}
+        <div
+          aria-hidden={!(nextSection && dishListInView && !trayOpen)}
+          className={`fixed right-0 sm:right-4 top-1/2 -translate-y-1/2 z-30 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none ${
+            nextSection && dishListInView && !trayOpen
+              ? "opacity-100 translate-x-0"
+              : "opacity-0 translate-x-6 pointer-events-none"
+          }`}
+        >
+          {nextSection && (
+            <button
+              type="button"
+              onClick={jumpToNextSection}
+              title={`Go to ${nextSection.label}`}
+              aria-label={`Go to the next course, ${nextSection.label}`}
+              className="flex flex-col items-center gap-2 rounded-l-2xl sm:rounded-full bg-brand-primary px-2.5 py-4 text-white shadow-xl shadow-brand-primary/30 transition-[transform,background-color] duration-200 hover:bg-brand-primary/90 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary"
+            >
+              <span className="[writing-mode:vertical-rl] font-poppins text-[0.7rem] font-bold uppercase tracking-[0.15em]">
+                {nextSection.label}
+              </span>
+              <ChevronDown
+                size={20}
+                strokeWidth={2.5}
+                className="shrink-0 motion-safe:animate-nudge-down"
+                aria-hidden="true"
+              />
+            </button>
+          )}
         </div>
 
         {/* ── Mobile: lunch-box drawer ──

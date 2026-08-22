@@ -10,6 +10,8 @@ interface MealPlanSelectorProps {
   onSelect: (type: MealPlanType) => void;
   onQuantityChange: (type: MealPlanType, quantity: number) => void;
   getPrice: (type: MealPlanType) => number;
+  /** Bulk step for the ± buttons — this service's order minimum. */
+  bulkStep?: number;
 }
 
 const peso = (n: number) => `₱${n.toFixed(0)}`;
@@ -20,7 +22,11 @@ const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
   onSelect,
   onQuantityChange,
   getPrice,
+  bulkStep = 10,
 }) => {
+  // One press = one order-minimum's worth of boxes, matching the quantity a
+  // fresh plan selection already starts at.
+  const step = Math.max(1, bulkStep);
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
       {plans.map((plan) => {
@@ -96,13 +102,13 @@ const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
                       Removal stays on the single − button. */}
                   <button
                     onClick={() =>
-                      onQuantityChange(type, Math.max(1, order!.quantity - 10))
+                      onQuantityChange(type, Math.max(1, order!.quantity - step))
                     }
                     disabled={order!.quantity <= 1}
                     className="h-10 px-2 rounded-lg bg-brand-secondary text-brand-text/70 font-poppins text-xs font-bold tabular-nums hover:bg-brand-divider disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer transition-colors"
-                    aria-label={`Remove 10 ${type} boxes`}
+                    aria-label={`Remove ${step} ${type} boxes`}
                   >
-                    −10
+                    −{step}
                   </button>
                   <button
                     onClick={() => onQuantityChange(type, order!.quantity - 1)}
@@ -122,11 +128,11 @@ const MealPlanSelector: React.FC<MealPlanSelectorProps> = ({
                     <Plus size={16} />
                   </button>
                   <button
-                    onClick={() => onQuantityChange(type, order!.quantity + 10)}
+                    onClick={() => onQuantityChange(type, order!.quantity + step)}
                     className="h-10 px-2 rounded-lg bg-brand-primary/10 text-brand-primary font-poppins text-xs font-bold tabular-nums hover:bg-brand-primary/20 transition-colors cursor-pointer"
-                    aria-label={`Add 10 more ${type} boxes`}
+                    aria-label={`Add ${step} more ${type} boxes`}
                   >
-                    +10
+                    +{step}
                   </button>
                 </div>
               ) : (
