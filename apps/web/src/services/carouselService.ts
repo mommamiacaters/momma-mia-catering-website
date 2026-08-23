@@ -3,6 +3,12 @@
 // the active rows for one slug; the admin console reads/writes every row.
 // Images live in the public `menu-images` bucket under carousel/<slug>/.
 import { supabase } from "../lib/supabase";
+import {
+  MAX_EDGE,
+  UPLOAD_CACHE_CONTROL,
+  prepareImageForUpload,
+  uploadExtension,
+} from "./imageUpload";
 
 const BUCKET = "menu-images";
 const COLUMNS = "id, service_slug, image_url, storage_path, alt_text, sort_order, is_active";
@@ -65,36 +71,24 @@ export async function listAllCarouselImages(): Promise<Record<string, CarouselIm
   return grouped;
 }
 
-// The object key's extension comes from the MIME type, never from the file name.
-// SVG is excluded on purpose: this bucket is public and served inline, so a
-// script-bearing SVG would execute on the storage origin.
-const EXT_BY_TYPE: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/jpg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "image/avif": "avif",
-};
-
 /** Upload a carousel photo to Storage and return its public URL + object key. */
 export async function uploadCarouselImage(
   serviceSlug: string,
   file: File,
 ): Promise<{ image_url: string; storage_path: string }> {
-  const ext = EXT_BY_TYPE[file.type.toLowerCase()];
-  if (!ext) {
-    const heic = /hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
-    throw new Error(
-      heic
-        ? "iPhone HEIC photos can't be shown by most browsers. Export or share it as JPEG first, then upload."
-        : "Use a photo — JPG, PNG, WebP, GIF or AVIF.",
-    );
-  }
-  const path = `carousel/${serviceSlug}/${crypto.randomUUID()}.${ext}`;
+  // Validate what the admin picked, then store what the downscaler returns:
+  // re-encoding means a JPEG in can be a WebP out, and the object key has to
+  // describe what is actually stored.
+  uploadExtension(file);
+  const upload = await prepareImageForUpload(file, MAX_EDGE.carousel);
+  const path = `carousel/${serviceSlug}/${crypto.randomUUID()}.${uploadExtension(upload)}`;
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, upload, {
+      contentType: upload.type,
+      cacheControl: UPLOAD_CACHE_CONTROL,
+      upsert: false,
+    });
   if (error) throw new Error(error.message);
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return { image_url: data.publicUrl, storage_path: path };
