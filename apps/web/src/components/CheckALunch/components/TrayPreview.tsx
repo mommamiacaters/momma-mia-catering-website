@@ -20,6 +20,7 @@ import SummaryViewToggle, { type SummaryView } from "../../ui/SummaryViewToggle"
 import {
   deriveDishMinimumState,
   useStoreSettings,
+  type DishMinimumViolation,
 } from "../../../hooks/useStoreSettings";
 import { PLAN_SLOT_META } from "../../../constants/planSlots";
 import { SlotIcon } from "../../ui/SlotIcons";
@@ -42,6 +43,16 @@ interface TrayPreviewProps {
    * this column, so the variant has to be passed in explicitly.
    */
   compact?: boolean;
+  /**
+   * Take the customer to the first dish that is short, instead of opening the
+   * bag. The bag can only restate the problem; the picker is where it's fixed.
+   */
+  onFixShortDish?: (violation: DishMinimumViolation) => void;
+  /**
+   * Open the bag. Supplied by the mobile sheet, which has to get out of the
+   * way first — otherwise the bag opens underneath it.
+   */
+  onOpenBag?: () => void;
 }
 
 const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label }) => ({
@@ -56,6 +67,8 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
   onSetActivePlan,
   onMoveItem,
   compact = false,
+  onFixShortDish,
+  onOpenBag,
 }) => {
   // ─── Follow the box you're filling ───
   // With 20+ boxes the panel scrolls independently of the picker, so choosing
@@ -728,7 +741,17 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
         }`}
       >
         <button
-          onClick={() => document.getElementById("bag-button")?.click()}
+          onClick={() => {
+            if (dishesShort && onFixShortDish) {
+              onFixShortDish(dishMin.violations[0]);
+              return;
+            }
+            if (onOpenBag) {
+              onOpenBag();
+              return;
+            }
+            document.getElementById("bag-button")?.click();
+          }}
           disabled={!allComplete}
           className={`w-full group flex items-center justify-center gap-3 py-4 rounded-xl font-arvo font-bold text-lg transition-[box-shadow,transform,background-color] ${
             !allComplete
@@ -745,7 +768,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
               : dishesShort
                 ? `${dishMin.violations.length} ${
                     dishMin.violations.length === 1 ? "dish is" : "dishes are"
-                  } below their per-order minimum — open the order to review`
+                  } below their per-order minimum — go to ${dishMin.violations[0]?.name ?? "the first one"}`
                 : "View your order in the shopping bag"
           }
         >

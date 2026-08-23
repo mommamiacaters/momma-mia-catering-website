@@ -67,6 +67,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
     "h-11 rounded-lg font-poppins text-xs font-bold tabular-nums transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer";
   return (
     <div
+      data-dish-id={item.id}
       className={`group relative bg-white rounded-2xl overflow-hidden transition-[box-shadow,transform,opacity] duration-300 ${
         belowMin
           ? "ring-2 ring-amber-400 shadow-lg shadow-amber-200/60"

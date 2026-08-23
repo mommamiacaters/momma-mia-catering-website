@@ -60,9 +60,10 @@ interface CheckALunchProps {
 }
 
 /** Icons now live in the shared meta too — see planSlots.ts. */
-const CATEGORY_CONFIG = PLAN_SLOT_META.map(({ slot, label, description, Icon }) => ({
+const CATEGORY_CONFIG = PLAN_SLOT_META.map(({ slot, label, short, description, Icon }) => ({
   type: slot,
   label,
+  short,
   description,
   icon: Icon,
 }));
@@ -185,6 +186,20 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   const usableCategories = CATEGORY_CONFIG.filter(
     (c) => (maxAllowed[c.type] || 0) > 0
   );
+  // Only the courses this order's plans actually use get a tab. With five
+  // slots defined, a plan that asks for one would otherwise show four dead
+  // "0/0" tabs. Falls back to the full set so the strip is never empty.
+  const tabCategories = usableCategories.length > 0 ? usableCategories : CATEGORY_CONFIG;
+
+  // Snap to a course the chosen plan actually uses. activeCategory starts at
+  // "main", so a Rice Bowl plan (which has no main) left the picker showing a
+  // course with no tab and no capacity.
+  useEffect(() => {
+    if (usableCategories.length === 0) return;
+    if (usableCategories.some((c) => c.type === activeCategory)) return;
+    setActiveCategory(usableCategories[0].type);
+  }, [usableCategories, activeCategory]);
+
   const nextSection =
     usableCategories[
       usableCategories.findIndex((c) => c.type === activeCategory) + 1
@@ -356,6 +371,42 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   const trayBarRef = useRef<HTMLButtonElement | null>(null);
   const traySheetRef = useRef<HTMLDivElement | null>(null);
 
+  /**
+   * "N dishes below minimum" used to open the bag, which could only restate the
+   * problem. Close the sheet, switch to the course the dish lives in, and put
+   * the customer on the card itself — the amber ring is already on it.
+   */
+  /**
+   * The sheet and the bag both hide body scroll and both restore what they
+   * captured on open, so opening the bag underneath the sheet leaves the page
+   * scrollable the moment the sheet closes. Close first, open on the next
+   * frame, and the locks hand over cleanly.
+   */
+  const openBagFromSheet = () => {
+    setTrayOpen(false);
+    requestAnimationFrame(() => document.getElementById("bag-button")?.click());
+  };
+
+  const goToShortDish = (v: { menuItemId: string }) => {
+    setTrayOpen(false);
+    const cat = CATEGORIES.find((c) =>
+      getItemsByCategory(c).some((i) => i.id === v.menuItemId),
+    );
+    if (cat) setActiveCategory(cat);
+    // Two frames: one for the tab swap to render the card, one for the sheet's
+    // scroll lock to come off so the window can actually move.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(
+          `[data-dish-id="${CSS.escape(v.menuItemId)}"]`,
+        );
+        if (!el) return;
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+      }),
+    );
+  };
+
   const { dishesPlaced, dishSlots, boxesDone } = useMemo(() => {
     let placed = 0;
     let slots = 0;
@@ -496,6 +547,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
               getMealPlanLimits={getMealPlanLimits}
               onSetActivePlan={onSetActivePlan}
               onMoveItem={onMoveItem}
+              onFixShortDish={goToShortDish}
             />
           </aside>
 
@@ -726,7 +778,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
             ref={tabStripRef}
             className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1"
           >
-            {CATEGORY_CONFIG.map(({ type, label, icon: Icon }) => {
+            {tabCategories.map(({ type, label, short, icon: Icon }) => {
               const isActive = activeCategory === type;
               const isComplete = categoryFull[type];
               const count = categoryCounts[type];
@@ -753,9 +805,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                     <Icon size={15} />
                   )}
                   <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">
-                    {label.split(" ")[0]}
-                  </span>
+                  <span className="sm:hidden">{short}</span>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                       isActive
@@ -1033,6 +1083,8 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   setTrayOpen(false);
                 }}
                 onMoveItem={onMoveItem}
+                onFixShortDish={goToShortDish}
+                onOpenBag={openBagFromSheet}
               />
             </div>
           </div>
