@@ -1,8 +1,8 @@
 // Shared constants used across the application
+import { slotLabel } from "./planSlots";
 
 export const NAV_LINKS = [
   { to: "/meals", label: "Your Meals & More" },
-  { to: "/other-services", label: "Other Services" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ] as const;
@@ -16,17 +16,13 @@ export const SOCIAL_LINKS = {
 // MEAL_PLAN_LIMITS / MEAL_PLAN_DESCRIPTIONS / CATEGORIES are gone: plans and
 // their slot counts now come from public.meal_plans.
 
+/**
+ * Customer-facing name for a plan slot.
+ *
+ * Delegates to the slot catalogue rather than keeping its own switch: the copy
+ * here fell through to a title-cased fallback and rendered "Rice_bowl" on the
+ * picker heading and the checkout summary the moment a fifth slot existed.
+ */
 export function getCategoryDisplayName(category: string): string {
-  switch (category) {
-    case "main":
-      return "Main Dish";
-    case "side":
-      return "Side Dish";
-    case "rice":
-      return "Rice";
-    case "dessert":
-      return "Dessert";
-    default:
-      return category.charAt(0).toUpperCase() + category.slice(1);
-  }
+  return slotLabel(category);
 }

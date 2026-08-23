@@ -1,4 +1,4 @@
-import { Cake, Leaf, UtensilsCrossed, Wheat, type LucideIcon } from "lucide-react";
+import { Cake, Leaf, Soup, UtensilsCrossed, Wheat, type LucideIcon } from "lucide-react";
 import type { PlanSlot } from "../types";
 
 /**
@@ -18,13 +18,23 @@ import type { PlanSlot } from "../types";
 export const PLAN_SLOT_META: {
   slot: PlanSlot;
   label: string;
+  /** Narrow-screen label. Explicit, because the first word of "Rice Bowl" is
+      "Rice", which is a different course. */
+  short: string;
   Icon: LucideIcon;
   description: string;
 }[] = [
-  { slot: "main", label: "Main Dish", Icon: UtensilsCrossed, description: "Choose your protein" },
-  { slot: "side", label: "Side Dish", Icon: Leaf, description: "Pick your greens & veggies" },
-  { slot: "rice", label: "Rice", Icon: Wheat, description: "Select your rice" },
-  { slot: "dessert", label: "Dessert", Icon: Cake, description: "Finish with something sweet" },
+  { slot: "main", label: "Main Dish", short: "Main", Icon: UtensilsCrossed, description: "Choose your protein" },
+  { slot: "side", label: "Side Dish", short: "Side", Icon: Leaf, description: "Pick your greens & veggies" },
+  { slot: "rice", label: "Rice", short: "Rice", Icon: Wheat, description: "Select your rice" },
+  {
+    slot: "rice_bowl",
+    label: "Rice Bowl",
+    short: "Bowl",
+    Icon: Soup,
+    description: "One bowl, rice and topping together",
+  },
+  { slot: "dessert", label: "Dessert", short: "Dessert", Icon: Cake, description: "Finish with something sweet" },
 ];
 
 export const PLAN_SLOTS: PlanSlot[] = PLAN_SLOT_META.map((m) => m.slot);

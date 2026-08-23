@@ -14,7 +14,7 @@ export interface PaymentProof {
 }
 
 /** A slot in a meal plan. Mirrors sub_categories.slot in the database. */
-export type PlanSlot = "main" | "side" | "rice" | "dessert";
+export type PlanSlot = "main" | "side" | "rice" | "rice_bowl" | "dessert";
 
 /**
  * How a bulk add distributes across boxes.

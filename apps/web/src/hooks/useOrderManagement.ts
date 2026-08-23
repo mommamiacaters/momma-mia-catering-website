@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { PLAN_SLOTS } from "../constants/planSlots";
 import type {
   MealPlanType,
   MealPlanOrder,
@@ -253,19 +254,28 @@ export function useOrderManagement(
 
   // ─── Core helpers ───
 
+  /**
+   * A zero for every slot that exists. Built from PLAN_SLOTS rather than
+   * written out: the literal `{ main, side, rice, dessert }` this replaces
+   * seeded the accumulator below, so a plan whose only slot was a newer one
+   * (rice_bowl) aggregated to zero and offered the customer nothing to pick.
+   */
+  const zeroLimits = (): Record<string, number> =>
+    Object.fromEntries(PLAN_SLOTS.map((slot) => [slot, 0]));
+
   const getMealPlanLimits = useCallback(
     (type: MealPlanType): Record<string, number> => {
       const plan = planByName.get(type);
       // An unknown plan grants nothing rather than throwing — a stale cart or a
       // plan hidden mid-session must not take the page down.
-      if (!plan) return { main: 0, side: 0, rice: 0, dessert: 0 };
+      if (!plan) return zeroLimits();
       return { ...plan.slots };
     },
     [planByName]
   );
 
   const getMaxAllowedItemsByType = useCallback((): Record<string, number> => {
-    const limits: Record<string, number> = { main: 0, side: 0, rice: 0, dessert: 0 };
+    const limits = zeroLimits();
     for (const pi of planInstances) {
       const planLimits = getMealPlanLimits(pi.type);
       for (const slot of Object.keys(limits)) {

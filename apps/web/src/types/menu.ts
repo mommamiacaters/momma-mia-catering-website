@@ -28,7 +28,8 @@ export interface MenuItemRecord {
 export type AvailabilityFilter = "all" | "showing" | "hidden";
 
 /** Which slot of a meal plan a sub-category can fill. */
-export type PlanSlot = "main" | "side" | "dessert" | "rice";
+export type { PlanSlot } from "../types";
+import type { PlanSlot } from "../types";
 
 export interface SubCategory {
   id: number;
@@ -57,6 +58,8 @@ export interface MealPlan {
   side_count: number;
   dessert_count: number;
   rice_count: number;
+  /** A rice bowl is one dish, not a main plus a rice. */
+  rice_bowl_count: number;
   sort_order: number;
   is_active: boolean;
   /** categories.id — which food service page sells this plan. */
@@ -73,9 +76,16 @@ export interface MealPlanPriceRange {
 }
 
 /** The slot columns, in the order they read on the printed menu. */
-export const PLAN_SLOTS: { key: keyof Pick<MealPlan, "main_count" | "side_count" | "dessert_count" | "rice_count">; label: string }[] = [
+export const PLAN_SLOTS: {
+  key: keyof Pick<
+    MealPlan,
+    "main_count" | "side_count" | "dessert_count" | "rice_count" | "rice_bowl_count"
+  >;
+  label: string;
+}[] = [
   { key: "main_count", label: "Main dishes" },
   { key: "side_count", label: "Side dishes" },
   { key: "rice_count", label: "Rice" },
+  { key: "rice_bowl_count", label: "Rice bowls" },
   { key: "dessert_count", label: "Desserts" },
 ];

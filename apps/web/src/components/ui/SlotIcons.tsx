@@ -16,6 +16,7 @@ const SLOT_CLASS: Record<PlanSlot, string> = {
   main: "text-brand-primary",
   side: "text-green-600",
   rice: "text-amber-600",
+  rice_bowl: "text-orange-700",
   dessert: "text-pink-500",
 };
 

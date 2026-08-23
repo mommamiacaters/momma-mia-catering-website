@@ -4,6 +4,7 @@
 // need no changes. getFullCatalog() exposes the richer catalog (all categories
 // and item types) for the new UI and the admin console.
 import { supabase } from '../lib/supabase';
+import type { PlanSlot } from '../types';
 
 export interface MenuItem {
   id: string;    // menu_items.id (UUID) — threaded through to order_items for server-side pricing
@@ -22,6 +23,7 @@ export interface MenuTypeData {
   main: MenuItem[];
   side: MenuItem[];
   rice: MenuItem[];
+  rice_bowl: MenuItem[];
   dessert: MenuItem[];
 }
 
@@ -44,13 +46,22 @@ export interface CatalogItem {
   isCatering: boolean;
 }
 
-/** A slot in a meal plan. Mirrors sub_categories.slot in the database. */
-export type PlanSlot = "main" | "side" | "dessert" | "rice";
+/**
+ * A slot in a meal plan. Mirrors sub_categories.slot in the database.
+ *
+ * Re-exported, not redefined: this file used to carry its own copy of the union
+ * and its own label map, which then disagreed with constants/planSlots.ts the
+ * moment a slot was added. Type-only, so the cycle back to ../types costs
+ * nothing at runtime.
+ */
+export type { PlanSlot } from "../types";
 
-export const PLAN_SLOT_LABELS: Record<PlanSlot, string> = {
+/** @deprecated Use `slotLabel` from constants/planSlots.ts. */
+export const PLAN_SLOT_LABELS: Record<string, string> = {
   main: "Main Dish",
   side: "Side Dish",
   rice: "Rice",
+  rice_bowl: "Rice Bowl",
   dessert: "Dessert",
 };
 
@@ -101,7 +112,13 @@ export interface MenuResponse {
 }
 
 const centsToPesos = (c: number | null): number => (c == null ? 0 : c / 100);
-const emptyTypeData = (): MenuTypeData => ({ main: [], side: [], rice: [], dessert: [] });
+const emptyTypeData = (): MenuTypeData => ({
+  main: [],
+  side: [],
+  rice: [],
+  rice_bowl: [],
+  dessert: [],
+});
 
 class MenuService {
   private cache: { items: CatalogItem[] | null; timestamp: number } = {
@@ -250,7 +267,7 @@ class MenuService {
       supabase
         .from("meal_plans")
         .select(
-          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, category:categories(slug, min_order_boxes)",
+          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, category:categories(slug, min_order_boxes)",
         )
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
@@ -280,6 +297,7 @@ class MenuService {
           side: p.side_count ?? 0,
           dessert: p.dessert_count ?? 0,
           rice: p.rice_count ?? 0,
+          rice_bowl: p.rice_bowl_count ?? 0,
         },
         minPrice: centsToPesos((r?.min_cents as number) ?? 0),
         maxPrice: centsToPesos((r?.max_cents as number) ?? 0),
@@ -305,6 +323,7 @@ class MenuService {
       side: [],
       dessert: [],
       rice: [],
+      rice_bowl: [],
     };
 
     const { data, error } = await supabase
@@ -363,6 +382,7 @@ class MenuService {
       main: opts.main.map(toMenuItem),
       side: opts.side.map(toMenuItem),
       rice: opts.rice.map(toMenuItem),
+      rice_bowl: opts.rice_bowl.map(toMenuItem),
       dessert: opts.dessert.map(toMenuItem),
     };
   }
