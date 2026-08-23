@@ -24,6 +24,7 @@ import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCarousels from "./pages/admin/AdminCarousels";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminMealPlans from "./pages/admin/AdminMealPlans";
+import AdminServiceDetail from "./pages/admin/AdminServiceDetail";
 import AdminSettings from "./pages/admin/AdminSettings";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
@@ -115,6 +116,7 @@ function AppContent() {
             }
           >
             <Route index element={<AdminOrders />} />
+            <Route path="services/:slug" element={<AdminServiceDetail />} />
             <Route path="plans" element={<AdminMealPlans />} />
             <Route path="menu" element={<AdminProducts />} />
             <Route path="carousels" element={<AdminCarousels />} />

@@ -12,6 +12,10 @@ interface MenuItemRowProps {
   onDelete: (item: MenuItemRecord) => void;
 }
 
+/** No photo at all — the storefront falls back to a generic placeholder. */
+export const needsPhoto = (item: MenuItemRecord): boolean =>
+  !item.image_url || item.image_url.trim() === "";
+
 /** A single editable dish row in the admin manage list. */
 const MenuItemRow: React.FC<MenuItemRowProps> = ({
   item,
@@ -19,9 +23,20 @@ const MenuItemRow: React.FC<MenuItemRowProps> = ({
   onToggle,
   onEdit,
   onDelete,
-}) => (
-  <li className={`flex items-center gap-4 px-4 py-3 ${!item.is_available ? "opacity-60" : ""}`}>
-    <div className="h-14 w-14 flex-shrink-0 rounded-lg bg-brand-secondary overflow-hidden flex items-center justify-center">
+}) => {
+  const missing = needsPhoto(item);
+
+  return (
+  <li
+    className={`flex items-center gap-4 border-l-4 px-4 py-3 ${
+      missing ? "border-amber-400 bg-amber-50/60" : "border-transparent"
+    } ${!item.is_available ? "opacity-60" : ""}`}
+  >
+    <div
+      className={`h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg flex items-center justify-center ${
+        missing ? "bg-amber-100 ring-1 ring-amber-300" : "bg-brand-secondary"
+      }`}
+    >
       <SafeImage src={item.image_url} alt="" className="h-full w-full object-cover" />
     </div>
 
@@ -34,6 +49,12 @@ const MenuItemRow: React.FC<MenuItemRowProps> = ({
         })()}
         {formatPeso(item.price_cents)}
       </p>
+      {missing && (
+        <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 font-poppins text-[11px] font-semibold text-amber-900">
+          <i className="pi pi-exclamation-triangle text-[9px]" aria-hidden="true" />
+          No photo
+        </p>
+      )}
     </div>
 
     <button
@@ -56,6 +77,7 @@ const MenuItemRow: React.FC<MenuItemRowProps> = ({
       <i className="pi pi-trash" aria-hidden="true" />
     </button>
   </li>
-);
+  );
+};
 
 export default MenuItemRow;

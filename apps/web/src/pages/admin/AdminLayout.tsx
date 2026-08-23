@@ -1,23 +1,44 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { PageTransition } from "../../components/ui/PageTransition";
+import { iconById } from "../../constants/serviceIcons";
+import { useServices } from "../../hooks/useServices";
 import { logo } from "../../images";
 
-// Orders lead: they are the time-sensitive surface. The menu changes weekly, an
-// order changes by the hour.
-const navItems = [
-  { to: "/admin", label: "Orders", icon: "pi-receipt", end: true },
-  { to: "/admin/plans", label: "Meal Plans", icon: "pi-th-large", end: false },
-  { to: "/admin/menu", label: "Products & Menu", icon: "pi-box", end: false },
-  { to: "/admin/carousels", label: "Page Carousels", icon: "pi-images", end: false },
-  { to: "/admin/settings", label: "Settings", icon: "pi-cog", end: false },
+// Orders lead: they are the time-sensitive surface. Everything else a service
+// page owns — its photos, plans and dishes — now lives under that service.
+const ordersItem = { to: "/admin", label: "Orders", icon: "pi-receipt", end: true };
+// Plans and dishes span every service, so they are peers of Services rather
+// than tabs inside one of them.
+const catalogItems = [
+  { to: "/admin/plans", label: "Meal Plans", icon: "pi-th-large" },
+  { to: "/admin/menu", label: "Dishes", icon: "pi-box" },
 ];
+const settingsItem = { to: "/admin/settings", label: "Settings", icon: "pi-cog", end: false };
+
+const serviceLink = (slug: string) => `/admin/services/${slug}`;
+
+const navChip =
+  "flex items-center gap-3 rounded-lg px-3 py-2.5 font-poppins text-sm whitespace-nowrap " +
+  "transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-accent";
+
+const chipState = (isActive: boolean) =>
+  isActive ? "bg-brand-primary text-white" : "text-white/70 hover:bg-white/10";
 
 const AdminLayout: React.FC = () => {
   const { profile, user, signOut } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { services } = useServices();
+  const orderable = services.filter((s) => s.kind === "orderable");
+  const quoteOnly = services.filter((s) => s.kind === "quote");
+
+  // Three of the six menu categories (cafe-menu, add-on, rice-bowls) are sold
+  // without a service page, so the group keeps a way through to the full menu.
+  const inServices = pathname.startsWith("/admin/services");
+  const [servicesOpen, setServicesOpen] = useState(inServices);
+  const showServices = servicesOpen || inServices;
 
   const handleSignOut = async () => {
     // Leave the guarded route BEFORE dropping the session. Signing out first lets
@@ -83,24 +104,101 @@ const AdminLayout: React.FC = () => {
       <div className="flex flex-1 min-h-0 flex-col md:flex-row">
         {/* sidebar — horizontal strip on mobile, rail on desktop */}
         <aside className="md:w-64 md:flex-shrink-0 bg-brand-text text-white">
-          {/* Scrollable tab strip on mobile; the native bar is hidden because the
-              cut-off pill already signals there is more to the right. */}
-          <nav className="flex md:flex-col gap-1 p-3 overflow-x-auto md:overflow-visible md:sticky md:top-20 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {navItems.map((item) => (
+          {/* One tree, two orientations: a scrollable strip on mobile where the
+              expanded services flow inline to the right, a rail from md up where
+              the same nodes stack under their parent. */}
+          <nav
+            aria-label="Admin sections"
+            className="flex md:flex-col gap-1 p-3 overflow-x-auto md:overflow-visible md:sticky md:top-20 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            <NavLink
+              to={ordersItem.to}
+              end={ordersItem.end}
+              className={({ isActive }) => `${navChip} ${chipState(isActive)}`}
+            >
+              <i className={`pi ${ordersItem.icon}`} aria-hidden="true" />
+              {ordersItem.label}
+            </NavLink>
+
+            <button
+              type="button"
+              onClick={() => setServicesOpen((v) => !v)}
+              aria-expanded={showServices}
+              aria-controls="admin-services-nav"
+              className={`${navChip} ${
+                inServices ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10"
+              }`}
+            >
+              <i className="pi pi-sitemap" aria-hidden="true" />
+              Services
+              <i
+                className={`pi pi-chevron-right ml-auto text-[10px] motion-safe:transition-transform motion-safe:duration-150 ${
+                  showServices ? "rotate-90" : ""
+                }`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {showServices && (
+              <div
+                id="admin-services-nav"
+                className="flex md:flex-col gap-1 md:ml-4 md:border-l md:border-white/15 md:pl-2"
+              >
+                {orderable.map((s) => {
+                  const Icon = iconById(s.icon);
+                  return (
+                    <NavLink
+                      key={s.slug}
+                      to={serviceLink(s.slug)}
+                      className={({ isActive }) => `${navChip} ${chipState(isActive)}`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {s.name}
+                    </NavLink>
+                  );
+                })}
+
+                <span
+                  aria-hidden="true"
+                  className="my-1 hidden md:block border-t border-white/10"
+                />
+
+                {quoteOnly.map((s) => {
+                  const Icon = iconById(s.icon);
+                  return (
+                    <NavLink
+                      key={s.slug}
+                      to={serviceLink(s.slug)}
+                      className={({ isActive }) => `${navChip} ${chipState(isActive)}`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {s.name}
+                    </NavLink>
+                  );
+                })}
+
+              </div>
+            )}
+
+            {catalogItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.end}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2.5 font-poppins text-sm whitespace-nowrap transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-accent ${
-                    isActive ? "bg-brand-primary text-white" : "text-white/70 hover:bg-white/10"
-                  }`
-                }
+                className={({ isActive }) => `${navChip} ${chipState(isActive)}`}
               >
                 <i className={`pi ${item.icon}`} aria-hidden="true" />
                 {item.label}
               </NavLink>
             ))}
+
+            <NavLink
+              to={settingsItem.to}
+              end={settingsItem.end}
+              className={({ isActive }) => `${navChip} ${chipState(isActive)}`}
+            >
+              <i className={`pi ${settingsItem.icon}`} aria-hidden="true" />
+              {settingsItem.label}
+            </NavLink>
           </nav>
         </aside>
 

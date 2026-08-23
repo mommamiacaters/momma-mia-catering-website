@@ -5,12 +5,19 @@ import MealPlanFormModal from "../../components/admin/MealPlanFormModal";
 import { peso } from "../../constants/orders";
 
 const SELECT =
-  "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, sort_order, is_active, category_id";
+  "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sort_order, is_active, category_id";
 
 /** The food-service categories that always get a section, even when empty. */
 const SERVICE_CATEGORY_SLUGS = ["check-a-lunch", "party-tray", "fun-boxes"];
 
-const AdminMealPlans: React.FC = () => {
+interface AdminMealPlansProps {
+  /** public.categories.slug to scope to. Omit for every service at once. */
+  categorySlug?: string;
+  /** Drop the page heading when another screen already supplies one. */
+  embedded?: boolean;
+}
+
+const AdminMealPlans: React.FC<AdminMealPlansProps> = ({ categorySlug, embedded }) => {
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [ranges, setRanges] = useState<Map<number, MealPlanPriceRange>>(new Map());
@@ -47,12 +54,17 @@ const AdminMealPlans: React.FC = () => {
   // One section per food service (always shown, so the admin can see where a
   // new plan will land), plus a section for any other category holding plans.
   const sections = categories
-    .filter(
-      (c) =>
-        SERVICE_CATEGORY_SLUGS.includes(c.slug) ||
-        plans.some((p) => p.category_id === c.id),
+    .filter((c) =>
+      categorySlug
+        ? c.slug === categorySlug
+        : SERVICE_CATEGORY_SLUGS.includes(c.slug) || plans.some((p) => p.category_id === c.id),
     )
     .map((c) => ({ category: c, plans: plans.filter((p) => p.category_id === c.id) }));
+
+  // Embedded under the service page's own <h2>, so the headings shift down a
+  // level to keep the outline valid.
+  const SectionHeading = embedded ? "h3" : "h2";
+  const CardHeading = embedded ? "h4" : "h3";
 
   // ---- per-service order minimum (categories.min_order_boxes) ---------------
   const [minDraft, setMinDraft] = useState<{ id: number; value: string } | null>(null);
@@ -108,20 +120,23 @@ const AdminMealPlans: React.FC = () => {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-arvo-bold text-2xl text-brand-text">Meal Plans</h1>
-          <p className="font-poppins text-sm text-brand-text/60 mt-0.5">
-            The boxes and trays customers can order, grouped by the service page that sells them.
-          </p>
+      {/* Scoped to one service, the section header already carries "Add to …". */}
+      {!embedded && (
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+          <div>
+            <h1 className="font-arvo-bold text-2xl text-brand-text">Meal Plans</h1>
+            <p className="font-poppins text-sm text-brand-text/60 mt-0.5">
+              The boxes and trays customers can order, grouped by the service page that sells them.
+            </p>
+          </div>
+          <button
+            onClick={() => setModal({ open: true, initial: null })}
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 font-arvo-bold text-sm text-white hover:bg-brand-primary/90 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
+          >
+            <i className="pi pi-plus" aria-hidden="true" /> Add plan
+          </button>
         </div>
-        <button
-          onClick={() => setModal({ open: true, initial: null })}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 font-arvo-bold text-sm text-white hover:bg-brand-primary/90 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
-        >
-          <i className="pi pi-plus" aria-hidden="true" /> Add plan
-        </button>
-      </div>
+      )}
 
       {error && (
         <div
@@ -144,7 +159,9 @@ const AdminMealPlans: React.FC = () => {
           {sections.map(({ category, plans: sectionPlans }) => (
             <section key={category.id} aria-label={`${category.name} plans`}>
               <div className="mb-3 flex items-center gap-3">
-                <h2 className="font-arvo-bold text-lg text-brand-text">{category.name}</h2>
+                <SectionHeading className="font-arvo-bold text-lg text-brand-text">
+                  {category.name}
+                </SectionHeading>
                 <span className="rounded-full bg-brand-accent/20 px-2 py-0.5 font-poppins text-xs text-brand-text/70">
                   {sectionPlans.length} {sectionPlans.length === 1 ? "plan" : "plans"}
                 </span>
@@ -234,7 +251,9 @@ const AdminMealPlans: React.FC = () => {
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <h2 className="font-arvo-bold text-lg text-brand-text">{plan.name}</h2>
+                <CardHeading className="font-arvo-bold text-lg text-brand-text">
+                  {plan.name}
+                </CardHeading>
                 <span className="shrink-0 text-right">
                   <span className="block font-arvo-bold text-xl text-brand-primary tabular-nums">
                     {plan.pricing_mode === "range"

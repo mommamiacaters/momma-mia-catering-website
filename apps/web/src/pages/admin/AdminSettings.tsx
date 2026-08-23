@@ -9,6 +9,7 @@ import {
 import { SETTING_KEYS } from "../../services/settingsService";
 import type { Json } from "@momma-mia/db";
 import AdminCompanyProfile from "./AdminCompanyProfile";
+import { ORDERABLE_SERVICES, OTHER_SERVICES } from "../../constants/services";
 
 /** Per-key limits, mirroring the DB CHECK constraints. */
 const NUMBER_BOUNDS: Record<string, { min: number; max: number }> = {
@@ -193,6 +194,12 @@ const AdminSettings: React.FC = () => {
                   show={(drafts[row.key] ?? row.value) === true}
                 />
               )}
+
+              {row.key === SETTING_KEYS.showOtherServices && (
+                <OtherServicesPreview
+                  show={(drafts[row.key] ?? row.value) === true}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -253,6 +260,62 @@ const BulkActionsPreview: React.FC<{ show: boolean }> = ({ show }) => (
           </p>
         )}
       </div>
+    </div>
+  </div>
+);
+
+/**
+ * The homepage in miniature, reflecting the UNSAVED toggle. The three orderable
+ * panels never move; only what sits under them changes, which is exactly the
+ * question the switch asks.
+ */
+const OtherServicesPreview: React.FC<{ show: boolean }> = ({ show }) => (
+  <div className="mt-4 border-t border-brand-divider pt-4">
+    <p className="font-poppins text-[0.7rem] font-semibold uppercase tracking-wider text-brand-text/50">
+      Preview
+    </p>
+    <div className="mt-2 w-64 overflow-hidden rounded-xl bg-brand-secondary shadow-md ring-1 ring-brand-divider">
+      <div className="h-3.5 bg-brand-primary" />
+
+      {/* the first screen: three full-height panels */}
+      <div className="grid h-24 grid-cols-3 gap-px">
+        {ORDERABLE_SERVICES.map((s) => (
+          <div key={s.slug} className="relative overflow-hidden">
+            <img src={s.image} alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-[#20140E]/45" />
+            <span className="absolute inset-0 grid place-items-center px-1 text-center font-arvo text-[0.5rem] leading-tight text-white">
+              {s.name}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {show ? (
+        <>
+          <p className="pt-2 text-center font-arvo-bold text-[0.6rem] text-brand-text">
+            Other Services
+          </p>
+          <div className="mt-1.5">
+            {OTHER_SERVICES.map((s) => (
+              <div key={s.slug} className="relative h-9 overflow-hidden">
+                <img src={s.image} alt="" className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-[#20140E]/60" />
+                <span className="absolute inset-0 grid place-items-center font-arvo text-[0.55rem] text-white">
+                  {s.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="px-3 py-5 text-center font-poppins text-[0.7rem] italic leading-relaxed text-brand-text/40">
+          Other Services hidden.
+          <br />
+          The homepage ends at the three panels.
+        </p>
+      )}
+
+      <div className="h-4 bg-brand-primary" />
     </div>
   </div>
 );

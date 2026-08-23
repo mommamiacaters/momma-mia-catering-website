@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import type { AvailabilityFilter, Category, MenuItemRecord, SubCategory } from "../../types/menu";
 import MenuToolbar from "../../components/admin/MenuToolbar";
@@ -7,6 +7,8 @@ import CategoryItemList from "../../components/admin/CategoryItemList";
 import ItemFormModal from "../../components/admin/ItemFormModal";
 import CategoryFormModal from "../../components/admin/CategoryFormModal";
 import CustomerPreview from "../../components/admin/CustomerPreview";
+import DishTypeFilter, { type DishTypeKey } from "../../components/admin/DishTypeFilter";
+import { getCategoryDisplayName } from "../../constants";
 
 const SELECT =
   "id, category_id, name, description, image_url, price_cents, item_type, sub_category_id, is_available, is_catering, sort_order, min_qty";
@@ -19,7 +21,14 @@ const CATEGORY_TO_SERVICE: Record<string, string> = {
   "fun-boxes": "merienda-meals",
 };
 
-const AdminProducts: React.FC = () => {
+interface AdminProductsProps {
+  /** public.categories.slug to scope to. Omit for the whole menu. */
+  categorySlug?: string;
+  /** Drop the page heading when another screen already supplies one. */
+  embedded?: boolean;
+}
+
+const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [items, setItems] = useState<MenuItemRecord[]>([]);
@@ -30,6 +39,7 @@ const AdminProducts: React.FC = () => {
   const [query, setQuery] = useState("");
   const [availability, setAvailability] = useState<AvailabilityFilter>("all");
   const [openCats, setOpenCats] = useState<Set<number>>(new Set());
+  const [types, setTypes] = useState<Set<DishTypeKey>>(new Set());
 
   const [itemModal, setItemModal] = useState<{ open: boolean; initial: MenuItemRecord | null; defaultCategoryId?: number }>({
     open: false,
@@ -59,6 +69,18 @@ const AdminProducts: React.FC = () => {
     void load();
   }, []);
 
+  const visibleCategories = categorySlug
+    ? categories.filter((c) => c.slug === categorySlug)
+    : categories;
+
+  // Scoped to one category there is nothing to choose between, so open it
+  // rather than making the admin click an accordion with one row in it.
+  useEffect(() => {
+    if (!categorySlug) return;
+    const only = categories.find((c) => c.slug === categorySlug);
+    if (only) setOpenCats(new Set([only.id]));
+  }, [categorySlug, categories]);
+
   const grouped = useMemo(() => {
     const byCat = new Map<number, MenuItemRecord[]>();
     for (const it of items) {
@@ -76,12 +98,56 @@ const AdminProducts: React.FC = () => {
     [subCategories],
   );
 
+  // A dish's type is its sub-category's slot. item_type is legacy and dirty
+  // ('packed meal', 'beef', 'vegetables', plenty of nulls), so it is not used
+  // here — only the sub-category carries a trustworthy slot.
+  const slotBySubCategory = useMemo(
+    () => new Map(subCategories.map((s) => [s.id, s.slot])),
+    [subCategories],
+  );
+
+  const typeOf = useCallback(
+    (it: MenuItemRecord): DishTypeKey =>
+      (it.sub_category_id ? slotBySubCategory.get(it.sub_category_id) : null) ?? "none",
+    [slotBySubCategory],
+  );
+
+  // Counts come from the categories on screen, so a scoped service page tallies
+  // only its own dishes. Chips with nothing behind them are not rendered.
+  const typeCounts = useMemo(() => {
+    const tally = new Map<DishTypeKey, number>();
+    const visibleIds = new Set(visibleCategories.map((c) => c.id));
+    for (const it of items) {
+      if (it.category_id === null || !visibleIds.has(it.category_id)) continue;
+      const key = typeOf(it);
+      tally.set(key, (tally.get(key) ?? 0) + 1);
+    }
+    const order: DishTypeKey[] = ["main", "side", "rice", "rice_bowl", "dessert", "none"];
+    return order
+      .filter((key) => (tally.get(key) ?? 0) > 0)
+      .map((key) => ({
+        key,
+        label: key === "none" ? "No type" : getCategoryDisplayName(key),
+        count: tally.get(key) ?? 0,
+      }));
+  }, [items, visibleCategories, typeOf]);
+
+  const toggleType = (key: DishTypeKey) =>
+    setTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   const normalizedQuery = query.trim().toLowerCase();
-  const isFiltering = normalizedQuery !== "" || availability !== "all";
+  const isFiltering = normalizedQuery !== "" || availability !== "all" || types.size > 0;
 
   const matches = (it: MenuItemRecord) => {
     if (availability === "showing" && !it.is_available) return false;
     if (availability === "hidden" && it.is_available) return false;
+    // No chip selected means no type restriction, not "match nothing".
+    if (types.size > 0 && !types.has(typeOf(it))) return false;
     if (normalizedQuery === "") return true;
     return (
       it.name.toLowerCase().includes(normalizedQuery) ||
@@ -118,13 +184,15 @@ const AdminProducts: React.FC = () => {
     <div>
       {/* header */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-arvo-bold text-2xl text-brand-text">Menu Manager</h1>
-          <p className="font-poppins text-sm text-brand-text/60 mt-0.5">
-            Add dishes, set prices and photos. Changes show on the website right away.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+        {!embedded && (
+          <div>
+            <h1 className="font-arvo-bold text-2xl text-brand-text">Menu Manager</h1>
+            <p className="font-poppins text-sm text-brand-text/60 mt-0.5">
+              Add dishes, set prices and photos. Changes show on the website right away.
+            </p>
+          </div>
+        )}
+        <div className="ml-auto flex items-center gap-3">
           <div className="inline-flex rounded-full bg-white border border-brand-divider p-1 shadow-sm">
             {(["manage", "preview"] as const).map((v) => (
               <button
@@ -141,7 +209,13 @@ const AdminProducts: React.FC = () => {
           </div>
           {view === "manage" && (
             <button
-              onClick={() => setItemModal({ open: true, initial: null })}
+              onClick={() =>
+                setItemModal({
+                  open: true,
+                  initial: null,
+                  defaultCategoryId: visibleCategories[0]?.id,
+                })
+              }
               className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 font-arvo-bold text-sm text-white hover:bg-brand-primary/90 cursor-pointer"
             >
               <i className="pi pi-plus" aria-hidden="true" /> Add dish
@@ -164,7 +238,7 @@ const AdminProducts: React.FC = () => {
           <div className="w-8 h-8 border-4 border-brand-primary/30 border-t-brand-primary rounded-full animate-spin" />
         </div>
       ) : view === "preview" ? (
-        <CustomerPreview categories={categories} grouped={grouped} />
+        <CustomerPreview categories={visibleCategories} grouped={grouped} />
       ) : (
         <>
           <MenuToolbar
@@ -176,8 +250,15 @@ const AdminProducts: React.FC = () => {
             onCollapseAll={() => setOpenCats(new Set())}
           />
 
+          <DishTypeFilter
+            counts={typeCounts}
+            selected={types}
+            onToggle={toggleType}
+            onClear={() => setTypes(new Set())}
+          />
+
           <div className="space-y-3">
-            {categories.map((cat) => {
+            {visibleCategories.map((cat) => {
               const all = grouped.get(cat.id) ?? [];
               const visible = isFiltering ? all.filter(matches) : all;
               if (isFiltering && visible.length === 0) return null;
@@ -192,7 +273,11 @@ const AdminProducts: React.FC = () => {
                   isOpen={isFiltering ? true : openCats.has(cat.id)}
                   onToggle={() => toggleCat(cat.id)}
                   onAdd={() => setItemModal({ open: true, initial: null, defaultCategoryId: cat.id })}
-                  carouselHref={serviceSlug ? `/admin/carousels?service=${serviceSlug}` : undefined}
+                  // Inside a service page the carousel is the next tab over,
+                  // so the cross-link would send the admin away for nothing.
+                  carouselHref={
+                    !embedded && serviceSlug ? `/admin/carousels?service=${serviceSlug}` : undefined
+                  }
                 >
                   <CategoryItemList
                     categoryName={cat.name}
@@ -209,13 +294,13 @@ const AdminProducts: React.FC = () => {
               );
             })}
 
-            {isFiltering && categories.every((c) => (grouped.get(c.id) ?? []).filter(matches).length === 0) && (
+            {isFiltering && visibleCategories.every((c) => (grouped.get(c.id) ?? []).filter(matches).length === 0) && (
               <div className="bg-white rounded-xl shadow-sm p-10 text-center font-poppins text-brand-text/60">
                 No dishes match your search.
               </div>
             )}
 
-            {!isFiltering && (
+            {!isFiltering && !embedded && (
               <button
                 onClick={() => setCatModalOpen(true)}
                 className="w-full rounded-xl border-2 border-dashed border-brand-divider py-5 font-arvo-bold text-sm text-brand-text/60 hover:border-brand-primary hover:text-brand-primary transition-colors cursor-pointer"

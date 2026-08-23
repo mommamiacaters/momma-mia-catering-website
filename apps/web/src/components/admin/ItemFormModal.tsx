@@ -256,10 +256,6 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
             <input type="checkbox" checked={form.is_available} onChange={(e) => setForm({ ...form, is_available: e.target.checked })} className="accent-brand-primary w-4 h-4" />
             Show on website
           </label>
-          <label className="flex items-center gap-2 font-poppins text-sm text-brand-text cursor-pointer">
-            <input type="checkbox" checked={form.is_catering} onChange={(e) => setForm({ ...form, is_catering: e.target.checked })} className="accent-brand-primary w-4 h-4" />
-            Catering / party tray
-          </label>
         </div>
 
       </form>

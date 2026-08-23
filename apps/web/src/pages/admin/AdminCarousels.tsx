@@ -377,7 +377,19 @@ const ServiceSection: React.FC<ServiceSectionProps> = ({
 
 // ---------------------------------------------------------------- the screen
 
-const AdminCarousels: React.FC = () => {
+interface AdminCarouselsProps {
+  /** Scope the screen to one service page. Omit for the all-services view. */
+  serviceSlug?: string;
+  /** Drop the page heading when another screen already supplies one. */
+  embedded?: boolean;
+}
+
+const AdminCarousels: React.FC<AdminCarouselsProps> = ({ serviceSlug, embedded }) => {
+  // Scoped to one service, or every service that has a carousel.
+  const visibleServices = serviceSlug
+    ? CAROUSEL_SERVICES.filter((s) => s.slug === serviceSlug)
+    : CAROUSEL_SERVICES;
+
   // `groups` is the DRAFT the admin edits; `savedGroups` mirrors the database.
   // Order, visibility and description changes stay in the draft until Save.
   // Uploads and deletes move files in Storage, so they commit immediately and
@@ -395,7 +407,7 @@ const AdminCarousels: React.FC = () => {
   // service instead of every photo of every service. Transform-based
   // thumbnails aren't available on this plan — not mounting IS the optimisation.
   const [openSlugs, setOpenSlugs] = useState<Set<string>>(
-    () => new Set(CAROUSEL_SERVICES.slice(0, 1).map((s) => s.slug)),
+    () => new Set(visibleServices.slice(0, 1).map((s) => s.slug)),
   );
   const [pendingDelete, setPendingDelete] = useState<{
     slug: string;
@@ -474,7 +486,9 @@ const AdminCarousels: React.FC = () => {
       ),
     }));
 
-  const dirty = CAROUSEL_SERVICES.map(({ slug }) => ({
+  // Only what's on screen can be dirty, so a scoped view never saves a service
+  // the admin can't see.
+  const dirty = visibleServices.map(({ slug }) => ({
     slug,
     ...diffFor(savedGroups[slug], groups[slug]),
   }));
@@ -602,15 +616,17 @@ const AdminCarousels: React.FC = () => {
   return (
     <div>
       {/* header */}
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-arvo-bold text-2xl text-brand-text">Page Carousels</h1>
-          <p className="font-poppins text-sm text-brand-text/60 mt-0.5">
-            The photos that slide across the top of each service page. Upload your own to replace
-            the built-in ones. Order, visibility and description changes go live when you save.
-          </p>
+      {!embedded && (
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+          <div>
+            <h1 className="font-arvo-bold text-2xl text-brand-text">Page Carousels</h1>
+            <p className="font-poppins text-sm text-brand-text/60 mt-0.5">
+              The photos that slide across the top of each service page. Upload your own to replace
+              the built-in ones. Order, visibility and description changes go live when you save.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {error && (
         <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm font-poppins text-red-700 flex items-center justify-between">
@@ -631,7 +647,7 @@ const AdminCarousels: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {CAROUSEL_SERVICES.map(({ slug, title }) => (
+          {visibleServices.map(({ slug, title }) => (
             <ServiceSection
               key={slug}
               title={title}

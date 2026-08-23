@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { MenuItemRecord } from "../../types/menu";
 import { usePagination } from "../../hooks/usePagination";
 import PaginationBar from "../ui/PaginationBar";
-import MenuItemRow from "./MenuItemRow";
+import MenuItemRow, { needsPhoto } from "./MenuItemRow";
 
 interface CategoryItemListProps {
   categoryName: string;
@@ -33,8 +33,17 @@ const CategoryItemList: React.FC<CategoryItemListProps> = ({
   onDelete,
   onAddFirst,
 }) => {
+  // Dishes with no photo lead the list, and paging follows: the whole point is
+  // that they surface without hunting through 14 pages. Array.sort is stable,
+  // so everything else keeps its sort_order.
+  const ordered = useMemo(
+    () => [...items].sort((a, b) => Number(needsPhoto(b)) - Number(needsPhoto(a))),
+    [items],
+  );
+  const missingCount = useMemo(() => ordered.filter(needsPhoto).length, [ordered]);
+
   const { slice, page, pageCount, setPage, rangeStart, rangeEnd, total } = usePagination(
-    items,
+    ordered,
     PAGE_SIZE,
   );
 
@@ -51,6 +60,17 @@ const CategoryItemList: React.FC<CategoryItemListProps> = ({
 
   return (
     <>
+      {missingCount > 0 && (
+        <p className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 font-poppins text-xs text-amber-900">
+          <i className="pi pi-exclamation-triangle text-[10px]" aria-hidden="true" />
+          <span>
+            <strong className="font-semibold">
+              {missingCount} {missingCount === 1 ? "dish has" : "dishes have"} no photo.
+            </strong>{" "}
+            They show a grey placeholder to customers, so they are listed first here.
+          </span>
+        </p>
+      )}
       <ul className="divide-y divide-brand-divider">
         {slice.map((item) => (
           <MenuItemRow
