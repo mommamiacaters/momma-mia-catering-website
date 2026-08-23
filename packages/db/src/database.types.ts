@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.15"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       app_settings: {
@@ -207,6 +182,7 @@ export type Database = {
           name: string
           price_cents: number
           pricing_mode: string
+          rice_bowl_count: number
           rice_count: number
           side_count: number
           sort_order: number
@@ -223,13 +199,14 @@ export type Database = {
           name: string
           price_cents: number
           pricing_mode?: string
+          rice_bowl_count?: number
           rice_count?: number
           side_count?: number
           sort_order?: number
           updated_at?: string
         }
         Update: {
-          category_id?: number | null
+          category_id?: number
           created_at?: string
           description?: string | null
           dessert_count?: number
@@ -239,6 +216,7 @@ export type Database = {
           name?: string
           price_cents?: number
           pricing_mode?: string
+          rice_bowl_count?: number
           rice_count?: number
           side_count?: number
           sort_order?: number
@@ -565,6 +543,48 @@ export type Database = {
         }
         Relationships: []
       }
+      services: {
+        Row: {
+          description: string
+          icon_id: string
+          image_url: string | null
+          is_active: boolean
+          kind: string
+          name: string
+          page_title: string
+          slug: string
+          sort_order: number
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          description?: string
+          icon_id?: string
+          image_url?: string | null
+          is_active?: boolean
+          kind?: string
+          name: string
+          page_title: string
+          slug: string
+          sort_order?: number
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          description?: string
+          icon_id?: string
+          image_url?: string | null
+          is_active?: boolean
+          kind?: string
+          name?: string
+          page_title?: string
+          slug?: string
+          sort_order?: number
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sub_categories: {
         Row: {
           created_at: string
@@ -825,9 +845,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["client", "driver", "admin"],
