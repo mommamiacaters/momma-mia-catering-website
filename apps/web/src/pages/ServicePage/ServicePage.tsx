@@ -8,11 +8,17 @@ import { getServiceContent, ORDERABLE_SERVICE_SLUGS } from "../../constants/serv
 import { getCategoryDisplayName, SOCIAL_LINKS } from "../../constants";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
 import { useCarouselImages } from "../../hooks/useCarouselImages";
+import { useServices } from "../../hooks/useServices";
 
 const ServicePage: React.FC = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const serviceContent = useMemo(() => getServiceContent(slug || ""), [slug]);
+  // The heading the admin edits. Falls back to the bundled copy so a failed
+  // fetch still renders a title rather than an empty <h1>.
+  const { services } = useServices();
+  const pageTitle =
+    services.find((s) => s.slug === slug)?.pageTitle || serviceContent.title;
   const order = useOrderManagement(slug, serviceContent.hasMenu);
   const dbSlides = useCarouselImages(slug || "");
 
@@ -77,25 +83,20 @@ const ServicePage: React.FC = () => {
         {/* Header Section */}
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-brand-text mb-4">
-            {serviceContent.title}
+            {pageTitle}
           </h1>
-          <div className="max-w-3xl mx-auto">
-            <p className="text-lg text-brand-text leading-relaxed">
-              {serviceContent.description}
-            </p>
-          </div>
         </div>
 
         {/* Carousel Section - Full Bleed */}
         {carouselImages.length > 0 && (
-          <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen">
+          <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen lg:left-auto lg:right-auto lg:mx-auto lg:w-full lg:max-w-4xl lg:overflow-hidden lg:rounded-2xl">
             {/* Keyed on the image set: swapping in DB photos remounts the
                 carousel so its internal slide index cannot point past the end. */}
             <Carousel
               key={carouselImages.join("|")}
               images={carouselImages}
               alts={carouselAlts}
-              title={serviceContent.title}
+              title={pageTitle}
             />
           </div>
         )}

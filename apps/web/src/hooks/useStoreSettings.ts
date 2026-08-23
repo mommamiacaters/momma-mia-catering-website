@@ -81,6 +81,17 @@ export interface StoreSettings {
    * them away a moment later.
    */
   showBulkDishActions: boolean;
+  /**
+   * Whether the homepage shows its Other Services band and serves the page it
+   * opens.
+   *
+   * Same presentation-not-money rule as the bulk actions, and it fails CLOSED
+   * for the same reason in reverse: the switch exists so the business can take
+   * the section down, so a failed read must not put it back up. The section
+   * lives below the fold, so arriving a moment after the settings do is
+   * invisible.
+   */
+  showOtherServices: boolean;
   loading: boolean;
   error: boolean;
   retry: () => void;
@@ -136,9 +147,12 @@ export function useStoreSettings(): StoreSettings {
   let minimumQtyPerDish: number | null = null;
   // Absent key = the seed hasn't run yet, which is the pre-toggle world: show.
   let showBulkDishActions = false;
+  let showOtherServices = false;
   if (!loading && !error && settings) {
     const raw = settings[SETTING_KEYS.showBulkDishActions];
     showBulkDishActions = raw === undefined || raw === null ? true : raw === true;
+    const other = settings[SETTING_KEYS.showOtherServices];
+    showOtherServices = other === undefined || other === null ? true : other === true;
     minimumMealPlans = parseSetting(settings[SETTING_KEYS.minimumMealPlans]);
     minimumQtyPerDish = parseSetting(settings[SETTING_KEYS.minimumQtyPerDish]);
   }
@@ -147,6 +161,7 @@ export function useStoreSettings(): StoreSettings {
     minimumMealPlans,
     minimumQtyPerDish,
     showBulkDishActions,
+    showOtherServices,
     loading,
     error,
     retry,

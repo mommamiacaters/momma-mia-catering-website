@@ -1,5 +1,4 @@
 import { catering, checkLunch, funBoxes, partyTrays, equipmentRental } from "../images";
-import type { MealPost } from "../types";
 
 /**
  * The three services you can order online. These are the homepage panels, so
@@ -40,23 +39,19 @@ export const ORDERABLE_SERVICES: HomeService[] = [
  * Quote-based services. They have no online ordering, so they live on their own
  * page rather than competing with the three that do.
  */
-export const OTHER_SERVICES: MealPost[] = [
+export const OTHER_SERVICES: HomeService[] = [
   {
-    id: 4,
-    title: "\u{1F37D}️ Catering",
+    name: "Catering",
     slug: "catering",
     description:
       "Full-service catering for any occasion. From small gatherings to big events, we bring the food, setup, and service so you can focus on hosting.",
     image: catering,
-    size: "large" as const,
   },
   {
-    id: 5,
-    title: "\u{1F6E0}️ Equipment Rental",
+    name: "Equipment Rental",
     slug: "equipment-rental",
     description:
       "Need chafing dishes, buffet tables, or utensils? Rent what you need—no frills, no fuss, no overcharging.",
     image: equipmentRental,
-    size: "large" as const,
   },
 ];

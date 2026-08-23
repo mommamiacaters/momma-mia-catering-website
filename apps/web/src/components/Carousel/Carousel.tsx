@@ -227,7 +227,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
           return (
             <div key={i} className="snap-start shrink-0 w-full">
               <div
-                className="relative overflow-hidden bg-brand-secondary h-[35vh] md:h-[40vh] lg:h-[45vh] xl:h-[50vh] max-h-[500px]"
+                className="relative overflow-hidden bg-brand-secondary aspect-[3/2] max-h-[560px]"
                 role="group"
                 aria-roledescription="slide"
                 aria-label={`${i + 1} of ${total}`}
