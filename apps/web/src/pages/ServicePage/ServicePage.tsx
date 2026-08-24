@@ -4,7 +4,11 @@ import Carousel from "../../components/Carousel/Carousel";
 import ContactSection from "../../components/ContactSection/ContactSection";
 import ShoppingBag from "../../components/ShoppingBag/ShoppingBag";
 import CheckALunch from "../../components/CheckALunch/CheckALunch";
-import { getServiceContent, ORDERABLE_SERVICE_SLUGS } from "../../constants/serviceContent";
+import {
+  getServiceContent,
+  ORDERABLE_SERVICE_SLUGS,
+  CAROUSEL_SERVICES,
+} from "../../constants/serviceContent";
 import { getCategoryDisplayName, SOCIAL_LINKS } from "../../constants";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
 import { useCarouselImages } from "../../hooks/useCarouselImages";
@@ -20,7 +24,7 @@ const ServicePage: React.FC = () => {
   const pageTitle =
     services.find((s) => s.slug === slug)?.pageTitle || serviceContent.title;
   const order = useOrderManagement(slug, serviceContent.hasMenu);
-  const dbSlides = useCarouselImages(slug || "");
+  const { slides: dbSlides, loading: carouselLoading } = useCarouselImages(slug || "");
 
   // The carousel is exactly what the admin uploaded — nothing else. There is no
   // bundled set behind it any more: a stale sample photo standing in for the
@@ -87,9 +91,49 @@ const ServicePage: React.FC = () => {
           </h1>
         </div>
 
-        {/* Carousel Section - Full Bleed */}
+        {/* Skeleton filmstrip while the photo ROWS are still on the wire.
+            Same geometry as the real strip, so the page reserves the space
+            up front instead of rendering nothing and then jumping. */}
+        {carouselLoading && carouselImages.length === 0 && (
+          <div
+            className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen"
+            aria-hidden="true"
+          >
+            <div className="flex justify-center gap-3 sm:gap-4 overflow-hidden">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="shrink-0 w-[86vw] sm:w-[74vw] md:w-[62vw] lg:w-[56rem] aspect-[3/2] max-h-[560px] rounded-xl sm:rounded-2xl bg-brand-divider/30 animate-pulse"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* A known service page with no menu and no photos yet must say so
+            rather than sit empty. No button of its own: the Start Your Order
+            section right below already carries the Message Us action. */}
+        {!carouselLoading &&
+          carouselImages.length === 0 &&
+          !serviceContent.hasMenu &&
+          CAROUSEL_SERVICES.some((s) => s.slug === slug) && (
+            <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-brand-divider bg-white/60 px-6 py-14 text-center">
+              <p className="font-arvo font-bold text-brand-text text-xl mb-2">
+                We&rsquo;re still setting this page up
+              </p>
+              <p className="font-poppins text-sm text-brand-text/60 leading-relaxed">
+                Photos and details for {serviceContent.title} are on their way.
+                In the meantime, send us a message below and we&rsquo;ll gladly
+                walk you through what&rsquo;s available.
+              </p>
+            </div>
+          )}
+
+        {/* Carousel Section - Full Bleed at every size. The strip fills the
+            viewport edge to edge with repeating photos; each slide carries its
+            own rounding now, so the old lg box constraint is gone. */}
         {carouselImages.length > 0 && (
-          <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen lg:left-auto lg:right-auto lg:mx-auto lg:w-full lg:max-w-4xl lg:overflow-hidden lg:rounded-2xl">
+          <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen">
             {/* Keyed on the image set: swapping in DB photos remounts the
                 carousel so its internal slide index cannot point past the end. */}
             <Carousel
