@@ -16,6 +16,8 @@ import {
 } from "../../types";
 import { isPlanInstanceComplete } from "../../utils/mealPlanUtils";
 import { PLAN_SLOT_META, PLAN_SLOTS } from "../../constants/planSlots";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { usePresence } from "../../hooks/usePresence";
 import type { MealPlan } from "../../services/menuService";
 import { preloadImages } from "../CachedImage";
 import MealPlanSelector from "./components/MealPlanSelector";
@@ -40,14 +42,11 @@ interface CheckALunchProps {
   onItemRemoveMany: (item: MenuItem, count: number) => void;
   /** Empty one course — a single box when given an id, every box when null. */
   clearCourse: (itemType: string, planInstanceId: string | null) => void;
-  getOpenSlotsForType: (itemType: string) => number;
-  getTotalPlacedCount: (item: MenuItem) => number;
   plans: MealPlan[];
   getMealPlanPrice: (type: MealPlanType, planInstanceId?: string) => number;
   getMealPlanLimits: (type: MealPlanType) => Record<string, number>;
   getItemsByCategory: (category: CategoryType) => MenuItem[];
   getCategoryDisplayName: (category: string) => string;
-  isItemSelected: (item: MenuItem) => boolean;
   getMaxAllowedItemsByType: () => Record<string, number>;
   getActivePlanMaxAllowed: () => Record<string, number>;
   getActivePlanSelectedCount: (itemType: string) => number;
@@ -84,14 +83,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   onItemAddMany,
   onItemRemoveMany,
   clearCourse,
-  getOpenSlotsForType,
-  getTotalPlacedCount,
   plans,
   getMealPlanPrice,
   getMealPlanLimits,
   getItemsByCategory,
   getCategoryDisplayName,
-  isItemSelected,
   getActivePlanMaxAllowed,
   getActivePlanSelectedCount,
   onMoveItem,
@@ -160,6 +156,35 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
       ) as Record<CategoryType, boolean>,
     [hasMealPlan, categoryCounts, maxAllowed]
   );
+
+  // Per-card figures in ONE pass over the boxes. The hook's per-item helpers
+  // (getOpenSlotsForType and friends) are O(boxes) EACH, and with every card
+  // in every course grid asking three of them per render, a 150-box order ran
+  // tens of thousands of filter/spread allocations per click — the bulk of the
+  // stepper's input lag. Semantics preserved: open slots and placed counts are
+  // order-wide; "selected" narrows to the active box while one is being filled.
+  const { openSlotsByType, placedByDish, selectedDishIds } = useMemo(() => {
+    const open: Record<string, number> = {};
+    const placed = new Map<string, number>();
+    const selected = new Set<string>();
+    for (const pi of planInstances) {
+      const limits = getMealPlanLimits(pi.type);
+      const usedByType: Record<string, number> = {};
+      for (const ai of pi.items) {
+        usedByType[ai.type] = (usedByType[ai.type] ?? 0) + 1;
+        placed.set(ai.menuItemId, (placed.get(ai.menuItemId) ?? 0) + 1);
+        if (!activePlanInstanceId || pi.id === activePlanInstanceId) {
+          selected.add(ai.menuItemId);
+        }
+      }
+      for (const slot of Object.keys(limits)) {
+        open[slot] =
+          (open[slot] ?? 0) +
+          Math.max(0, (limits[slot] || 0) - (usedByType[slot] ?? 0));
+      }
+    }
+    return { openSlotsByType: open, placedByDish: placed, selectedDishIds: selected };
+  }, [planInstances, activePlanInstanceId, getMealPlanLimits]);
 
   // What a Clear press would actually remove: this box's dishes for the current
   // course while filling one, or the whole order's while auto-filling.
@@ -367,6 +392,13 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   // On phones the tray panel would sit below every dish card, so it lives in
   // a bottom sheet instead, summarised by a fixed bar the thumb can reach.
   const [trayOpen, setTrayOpen] = useState(false);
+  // The desktop aside and this sheet each hold a full TrayPreview; only ONE is
+  // ever visible, but both used to be mounted — every click re-rendered the
+  // lunch-box panel twice. Mount only the layout the viewport can show, and
+  // keep the sheet's panel empty until it opens (held through the 300ms exit
+  // slide so it doesn't blank mid-animation).
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const sheetContentLive = usePresence(trayOpen, 300);
   const trayCloseRef = useRef<HTMLButtonElement | null>(null);
   const trayBarRef = useRef<HTMLButtonElement | null>(null);
   const traySheetRef = useRef<HTMLDivElement | null>(null);
@@ -427,7 +459,9 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
       | (HTMLDivElement & { inert: boolean })
       | null;
     if (sheet) sheet.inert = !trayOpen;
-  }, [trayOpen]);
+    // isDesktop: the sheet only exists below lg now, so re-stamp inert when a
+    // resize mounts it fresh.
+  }, [trayOpen, isDesktop]);
 
   useEffect(() => {
     if (!trayOpen) return;
@@ -539,17 +573,19 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 lg:items-start">
           {/* ── Lunch Box summary — sticky beside the dishes on desktop, below
                 them on mobile (where the floating bag button covers checkout) ── */}
-          <aside className="hidden lg:block lg:order-1 lg:sticky lg:top-24">
-            <TrayPreview
-              compact
-              planInstances={planInstances}
-              activePlanInstanceId={activePlanInstanceId}
-              getMealPlanLimits={getMealPlanLimits}
-              onSetActivePlan={onSetActivePlan}
-              onMoveItem={onMoveItem}
-              onFixShortDish={goToShortDish}
-            />
-          </aside>
+          {isDesktop && (
+            <aside className="hidden lg:block lg:order-1 lg:sticky lg:top-24">
+              <TrayPreview
+                compact
+                planInstances={planInstances}
+                activePlanInstanceId={activePlanInstanceId}
+                getMealPlanLimits={getMealPlanLimits}
+                onSetActivePlan={onSetActivePlan}
+                onMoveItem={onMoveItem}
+                onFixShortDish={goToShortDish}
+              />
+            </aside>
+          )}
 
           <section
             id="dish-picker-section"
@@ -920,10 +956,10 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                         <FoodCard
                           key={`${item.name}-${index}`}
                           item={item}
-                          isSelected={isItemSelected(item)}
+                          isSelected={selectedDishIds.has(item.id)}
                           isDisabled={isCatFull}
-                          openSlots={getOpenSlotsForType(item.type)}
-                          placedCount={getTotalPlacedCount(item)}
+                          openSlots={openSlotsByType[item.type] ?? 0}
+                          placedCount={placedByDish.get(item.id) ?? 0}
                           requiredMin={
                             minimumQtyPerDish === null
                               ? null
@@ -989,6 +1025,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
         {/* ── Mobile: lunch-box drawer ──
             The tray panel the aside shows on desktop, reachable from a fixed
             bottom bar instead of a long scroll past every dish card. */}
+        {!isDesktop && (
         <div className="lg:hidden">
           {/* Keeps the last picker content scrollable above the fixed bar. */}
           <div className="h-20" aria-hidden="true" />
@@ -1071,24 +1108,27 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
               </button>
             </div>
             <div className="flex-1 overflow-y-auto overscroll-contain px-3 pb-8 pt-1">
-              <TrayPreview
-                compact
-                planInstances={planInstances}
-                activePlanInstanceId={activePlanInstanceId}
-                getMealPlanLimits={getMealPlanLimits}
-                onSetActivePlan={(id) => {
-                  // Picking a box here means "go fill it" — hand back to the
-                  // picker rather than leaving it buried under the sheet.
-                  onSetActivePlan(id);
-                  setTrayOpen(false);
-                }}
-                onMoveItem={onMoveItem}
-                onFixShortDish={goToShortDish}
-                onOpenBag={openBagFromSheet}
-              />
+              {sheetContentLive && (
+                <TrayPreview
+                  compact
+                  planInstances={planInstances}
+                  activePlanInstanceId={activePlanInstanceId}
+                  getMealPlanLimits={getMealPlanLimits}
+                  onSetActivePlan={(id) => {
+                    // Picking a box here means "go fill it" — hand back to the
+                    // picker rather than leaving it buried under the sheet.
+                    onSetActivePlan(id);
+                    setTrayOpen(false);
+                  }}
+                  onMoveItem={onMoveItem}
+                  onFixShortDish={goToShortDish}
+                  onOpenBag={openBagFromSheet}
+                />
+              )}
             </div>
           </div>
         </div>
+        )}
         </>
       )}
 

@@ -28,6 +28,7 @@ import {
 } from "../../hooks/useStoreSettings";
 import { FALLBACK_IMAGE, onImgError } from "../CachedImage";
 import SummaryViewToggle, { type SummaryView } from "../ui/SummaryViewToggle";
+import { usePresence } from "../../hooks/usePresence";
 
 interface ShoppingBagSidebarProps {
   visible: boolean;
@@ -120,6 +121,12 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   // editor. The toggle only renders on lg — below that, box editing belongs
   // to the lunch-box sheet and the bag stays in overview.
   const [view, setView] = useState<SummaryView>("overview");
+
+  // The drawer is always mounted (the slide-out needs the shell), but its box
+  // lists used to render while CLOSED too — at a big order that reconciled
+  // hundreds of invisible cards on every picker click. Content mounts on open
+  // and survives the 200ms exit slide.
+  const contentLive = usePresence(visible, 250);
 
   // Sort by displayOrder for rendering
   const sortedInstances = [...planInstances].sort(
@@ -397,7 +404,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
           className="flex-1 overflow-y-auto p-5 space-y-4"
           style={{ scrollbarWidth: "none" }}
         >
-          {isCartEmpty ? (
+          {!contentLive ? null : isCartEmpty ? (
             /* ─── Empty State ─── */
             <div className="flex flex-col items-center justify-center h-full px-6 text-center">
               <div className="w-20 h-20 rounded-full bg-brand-primary/10 flex items-center justify-center mb-5">
@@ -433,7 +440,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                 );
                 return (
                   <div
-                    key={group.sample.id}
+                    key={group.sig}
                     className={`bg-white rounded-2xl border shadow-sm px-4 py-3 ${
                       groupComplete ? "border-green-300" : "border-brand-divider"
                     }`}
@@ -497,12 +504,12 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
               </p>
             </div>
 
-            {/* ─── Per-box editor (Detailed, lg and up) ─── */}
-            <div
-              className={
-                view === "detailed" ? "hidden lg:block space-y-4" : "hidden"
-              }
-            >
+            {/* ─── Per-box editor (Detailed, lg and up) ───
+                Skipped entirely in Overview — it was rendered with class
+                "hidden" there, which is never visible at ANY breakpoint but
+                still reconciled every box card on every change. */}
+            {view === "detailed" && (
+            <div className="hidden lg:block space-y-4">
             {sortedInstances.map((instance, index) => {
               const limits = getMealPlanLimits(instance.type);
               const instanceItems = instance.items;
@@ -833,6 +840,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                 </p>
               )}
             </div>
+            )}
             </>
           )}
         </div>

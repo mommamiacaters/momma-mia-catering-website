@@ -325,7 +325,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
             const groupComplete = isPlanInstanceComplete(group.sample, limits);
             return (
               <div
-                key={group.sample.id}
+                key={group.sig}
                 className={`bg-white rounded-xl border px-3.5 py-3 ${
                   groupComplete ? "border-green-300" : "border-brand-divider"
                 }`}

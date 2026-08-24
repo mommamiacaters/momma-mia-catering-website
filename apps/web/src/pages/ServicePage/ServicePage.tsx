@@ -163,13 +163,10 @@ const ServicePage: React.FC = () => {
                 onItemAddMany={order.handleItemAddMany}
                 onItemRemoveMany={order.handleItemRemoveMany}
                 clearCourse={order.clearCourse}
-                getOpenSlotsForType={order.getOpenSlotsForType}
-                getTotalPlacedCount={order.getTotalPlacedCount}
                 getMealPlanPrice={order.getMealPlanPrice}
                 getMealPlanLimits={order.getMealPlanLimits}
                 getItemsByCategory={order.getItemsByCategory}
                 getCategoryDisplayName={getCategoryDisplayName}
-                isItemSelected={order.isItemSelected}
                 getMaxAllowedItemsByType={order.getMaxAllowedItemsByType}
                 getActivePlanMaxAllowed={order.getActivePlanMaxAllowed}
                 getActivePlanSelectedCount={order.getActivePlanSelectedCount}

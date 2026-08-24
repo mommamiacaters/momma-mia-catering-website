@@ -27,6 +27,12 @@ export interface PlanInstanceGroup {
   type: string;
   count: number;
   sample: PlanInstance;
+  /**
+   * The group's signature — use it as the React key. sample.id belongs to
+   * whichever box happened to come first, so editing that box re-keyed (and
+   * remounted) tiles whose build hadn't changed.
+   */
+  sig: string;
 }
 
 /**
@@ -49,7 +55,7 @@ export function groupPlanInstances(
         .join("|");
     const existing = map.get(sig);
     if (existing) existing.count += 1;
-    else map.set(sig, { type: pi.type, count: 1, sample: pi });
+    else map.set(sig, { type: pi.type, count: 1, sample: pi, sig });
   }
   return [...map.values()];
 }

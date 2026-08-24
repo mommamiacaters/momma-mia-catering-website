@@ -112,6 +112,11 @@ export function useOrderManagement(
   const activePlanRef = useRef(activePlanInstanceId);
   activePlanRef.current = activePlanInstanceId;
 
+  // Debounced-persist plumbing — declared up here so clearSessionCart can
+  // cancel a queued write; the persist effects live near the bottom.
+  const persistTimer = useRef<number | null>(null);
+  const pendingWrite = useRef<(() => void) | null>(null);
+
   // Fetch menu data when slug changes. Every food service page runs the same
   // plan-based builder; the map translates its URL slug to the menu CATEGORY
   // slug (Merienda Meals kept the legacy 'fun-boxes' category, and the
@@ -186,6 +191,12 @@ export function useOrderManagement(
   }, [slug, hasMenu]);
 
   const clearSessionCart = useCallback(() => {
+    // A queued debounced write would re-create the cart right after clearing.
+    if (persistTimer.current !== null) {
+      window.clearTimeout(persistTimer.current);
+      persistTimer.current = null;
+    }
+    pendingWrite.current = null;
     if (slug) clearCart(slug);
   }, [slug]);
 
@@ -878,10 +889,40 @@ export function useOrderManagement(
   }, [planInstances, getMealPlanPrice]);
 
   // ─── Persist cart to sessionStorage ───
+  // Debounced: at a 150-box order the snapshot is hundreds of KB of JSON, and
+  // stringifying it synchronously on every click was a real slice of the
+  // picker's input lag. The trailing write lands once clicking pauses;
+  // pagehide/hidden and unmount flush so no navigation loses a snapshot.
+  const flushCartWrite = useCallback(() => {
+    if (persistTimer.current !== null) {
+      window.clearTimeout(persistTimer.current);
+      persistTimer.current = null;
+    }
+    pendingWrite.current?.();
+    pendingWrite.current = null;
+  }, []);
+
   useEffect(() => {
     if (!slug) return;
-    writeCart(slug, planInstances, activePlanInstanceId, calculateTotalPrice());
-  }, [slug, planInstances, activePlanInstanceId, calculateTotalPrice]);
+    pendingWrite.current = () =>
+      writeCart(slug, planInstances, activePlanInstanceId, calculateTotalPrice());
+    if (persistTimer.current !== null) window.clearTimeout(persistTimer.current);
+    persistTimer.current = window.setTimeout(flushCartWrite, 400);
+  }, [slug, planInstances, activePlanInstanceId, calculateTotalPrice, flushCartWrite]);
+
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") flushCartWrite();
+    };
+    window.addEventListener("pagehide", flushCartWrite);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", flushCartWrite);
+      document.removeEventListener("visibilitychange", onHidden);
+      // SPA navigation unmounts this hook — write the final state now.
+      flushCartWrite();
+    };
+  }, [flushCartWrite]);
 
   const getTotalItemsCount = useCallback((): number => {
     return (
