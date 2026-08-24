@@ -10,12 +10,17 @@ test.describe("Service Page Carousel", () => {
     const carousel = page.locator("[aria-roledescription='carousel']");
     await expect(carousel).toBeVisible();
 
-    // Should have multiple slides
-    const slides = carousel.locator("> div");
+    // Real slides carry aria-roledescription='slide'; the loop's edge clones
+    // are aria-hidden and unlabeled, so they are excluded here.
+    const slides = carousel.locator("[aria-roledescription='slide']");
     const count = await slides.count();
     expect(count).toBeGreaterThan(1);
 
-    // Should have matching dot indicators
+    // The strip is real slides plus CLONE_PAD copies on each side.
+    const allChildren = carousel.locator("> div");
+    await expect(allChildren).toHaveCount(count + 4);
+
+    // Dots match REAL images only, never the clones
     const dots = page.locator("button[aria-label^='Go to image']");
     await expect(dots).toHaveCount(count);
 
@@ -77,9 +82,21 @@ test.describe("Service Page Carousel", () => {
     await expect(dots.nth(1)).toHaveClass(/bg-brand-divider/);
   });
 
-  test("previous button is disabled on first slide", async ({ page }) => {
+  test("previous button wraps to the last image (infinite loop)", async ({ page }) => {
+    // The strip loops, so prev is never disabled — from the first image it
+    // slides onto the preceding clone and re-anchors on the LAST real image.
     const prevBtn = page.locator("button[aria-label='Previous image']");
-    await expect(prevBtn).toBeDisabled();
+    await expect(prevBtn).toBeEnabled();
+
+    const dots = page.locator("button[aria-label^='Go to image']");
+    const count = await dots.count();
+
+    await prevBtn.click();
+    // Smooth scroll + settle debounce + re-anchor need a moment
+    await page.waitForTimeout(900);
+
+    await expect(dots.nth(count - 1)).toHaveClass(/bg-brand-primary/);
+    await expect(dots.nth(0)).toHaveClass(/bg-brand-divider/);
   });
 
   test("image preview modal opens on keyboard Enter and closes on ESC", async ({ page }) => {

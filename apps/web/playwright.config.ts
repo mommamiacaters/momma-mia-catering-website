@@ -2,7 +2,9 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  timeout: 30000,
+  // Page load includes a live Supabase fetch for the carousel images, which
+  // regularly takes ~20s on a cold dev server — 30s made beforeEach flaky.
+  timeout: 60000,
   use: {
     baseURL: "http://localhost:5173",
     headless: true,

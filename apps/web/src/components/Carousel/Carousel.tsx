@@ -10,9 +10,25 @@ interface CarouselProps {
   autoPlay?: number;
 }
 
+/**
+ * Cloned slides on each side of the real set. Two is enough to fill the widest
+ * realistic viewport beside a centred slide; the settle handler re-anchors to
+ * the real copy before anyone can scroll past them.
+ */
+const CLONE_PAD = 2;
+
+/**
+ * Looping filmstrip: the active photo sits centred at its own size, and the
+ * strip runs edge to edge with the neighbouring photos (repeating A, B, A, B
+ * for a two-photo set) instead of leaving empty margins. The loop is clones +
+ * an instant re-anchor once scrolling settles: the copy under the viewport is
+ * pixel-identical to the real slide, so the jump cannot be seen.
+ */
 const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 5000 }) => {
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const [index, setIndex] = useState(0);
+  // Index into the EXTENDED strip (clones + real). The real photo number the
+  // dots and labels speak is realOf(index).
+  const [index, setIndex] = useState(CLONE_PAD);
   const [dragging, setDragging] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loadedSet, setLoadedSet] = useState<Set<number>>(() => new Set([0]));
@@ -20,50 +36,71 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
   const startXRef = useRef(0);
   const startScrollLeftRef = useRef(0);
   const draggedRef = useRef(false);
-  const indexRef = useRef(0);
+  const indexRef = useRef(CLONE_PAD);
   const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pausedRef = useRef(false);
 
   const total = images.length;
+  const extTotal = total > 0 ? total + CLONE_PAD * 2 : 0;
 
-  const clamp = useCallback(
-    (i: number) => Math.max(0, Math.min(total - 1, i)),
+  /** Real image index for a position in the extended strip. */
+  const realOf = useCallback(
+    (ext: number) => (total > 0 ? (((ext - CLONE_PAD) % total) + total) % total : 0),
     [total]
   );
 
-  // Mark adjacent slides for eager loading
+  const clampExt = useCallback(
+    (i: number) => Math.max(0, Math.min(extTotal - 1, i)),
+    [extTotal]
+  );
+
+  // Mark a real image and its neighbours (wrapping) for eager loading.
   const markLoaded = useCallback(
-    (i: number) => {
+    (real: number) => {
       setLoadedSet((prev) => {
+        if (total === 0) return prev;
         const next = new Set(prev);
-        // Current, prev, and next slides
         for (const offset of [-1, 0, 1]) {
-          const idx = clamp(i + offset);
-          next.add(idx);
+          next.add((((real + offset) % total) + total) % total);
         }
         return next.size === prev.size ? prev : next;
       });
     },
-    [clamp]
+    [total]
   );
+
+  const prefersReducedMotion = () =>
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /** Scroll position that centres a slide in the track. */
+  const centerLeft = (track: HTMLElement, slide: HTMLElement) =>
+    slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2;
 
   const goTo = useCallback(
     (i: number) => {
-      const next = clamp(i);
+      const next = clampExt(i);
       indexRef.current = next;
       setIndex(next);
-      markLoaded(next);
+      markLoaded(realOf(next));
       const track = trackRef.current;
       if (track) {
         const slide = track.children[next] as HTMLElement | undefined;
-        if (slide) track.scrollTo({ left: slide.offsetLeft, behavior: "smooth" });
+        if (slide) {
+          track.scrollTo({
+            left: centerLeft(track, slide),
+            behavior: prefersReducedMotion() ? "auto" : "smooth",
+          });
+        }
       }
     },
-    [clamp, markLoaded]
+    [clampExt, markLoaded, realOf]
   );
 
-  const goPrev = () => goTo(indexRef.current - 1);
-  const goNext = () => goTo(indexRef.current + 1);
+  // Manual navigation restarts the auto-play clock (startAutoPlay clears the
+  // old interval), so a tick can never fire right on the heels of a click and
+  // double-advance the strip.
+  const goPrev = () => { goTo(indexRef.current - 1); startAutoPlay(); };
+  const goNext = () => { goTo(indexRef.current + 1); startAutoPlay(); };
 
   // ─── Auto-play ───
   const startAutoPlay = useCallback(() => {
@@ -71,13 +108,9 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
     if (autoPlayRef.current) clearInterval(autoPlayRef.current);
     autoPlayRef.current = setInterval(() => {
       if (pausedRef.current) return;
-      const next = indexRef.current + 1;
-      if (next >= total) {
-        // Loop back to first
-        goTo(0);
-      } else {
-        goTo(next);
-      }
+      // Always forward — the loop re-anchor makes the wrap seamless, so there
+      // is no long rewind back to the first slide any more.
+      goTo(indexRef.current + 1);
     }, autoPlay);
   }, [autoPlay, total, goTo]);
 
@@ -112,30 +145,61 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewUrl]);
 
-  // ─── IntersectionObserver for dot sync ───
+  // ─── Initial position: anchor on the first REAL slide ───
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track || total === 0) return;
+    const slide = track.children[CLONE_PAD] as HTMLElement | undefined;
+    if (slide) track.scrollTo({ left: centerLeft(track, slide) });
+  }, [total]);
+
+  // ─── Settle handler: dot sync + loop re-anchor ───
+  // Nearest-to-centre beats an IntersectionObserver here: on a wide screen two
+  // slides can both be fully visible (ratio 1.0), which makes ratio-based
+  // picking arbitrary. Runs only after scrolling goes quiet, so the re-anchor
+  // never happens under a moving finger.
   useEffect(() => {
     const el = trackRef.current;
-    if (!el) return;
+    if (!el || total === 0) return;
+    let timer: number | null = null;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            const slideIndex = Array.from(el.children).indexOf(entry.target as HTMLElement);
-            if (slideIndex >= 0 && slideIndex !== indexRef.current) {
-              indexRef.current = slideIndex;
-              setIndex(slideIndex);
-              markLoaded(slideIndex);
-            }
-          }
+    const settle = () => {
+      if (isDownRef.current) return; // drag release does its own snap
+      const center = el.scrollLeft + el.clientWidth / 2;
+      let nearest = 0;
+      let best = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < el.children.length; i++) {
+        const child = el.children[i] as HTMLElement;
+        const dist = Math.abs(child.offsetLeft + child.offsetWidth / 2 - center);
+        if (dist < best) { best = dist; nearest = i; }
+      }
+      if (nearest !== indexRef.current) {
+        indexRef.current = nearest;
+        setIndex(nearest);
+        markLoaded(realOf(nearest));
+      }
+      // Settled on a clone — swap to the identical real slide, instantly.
+      if (nearest < CLONE_PAD || nearest >= total + CLONE_PAD) {
+        const home = CLONE_PAD + realOf(nearest);
+        const slide = el.children[home] as HTMLElement | undefined;
+        if (slide) {
+          indexRef.current = home;
+          setIndex(home);
+          el.scrollTo({ left: centerLeft(el, slide), behavior: "auto" });
         }
-      },
-      { root: el, threshold: 0.5 }
-    );
+      }
+    };
 
-    Array.from(el.children).forEach((child) => observer.observe(child));
-    return () => observer.disconnect();
-  }, [total, markLoaded]);
+    const onScroll = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(settle, 90);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [total, markLoaded, realOf]);
 
   // ─── Pointer drag-to-swipe ───
   useEffect(() => {
@@ -166,12 +230,13 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
       isDownRef.current = false;
       setDragging(false);
       pausedRef.current = false;
-      // Snap to nearest slide on release
+      // Snap to whichever slide is nearest the centre on release
+      const center = el.scrollLeft + el.clientWidth / 2;
       let nearest = 0;
       let minDist = Number.POSITIVE_INFINITY;
       for (let i = 0; i < el.children.length; i++) {
         const child = el.children[i] as HTMLElement;
-        const dist = Math.abs(el.scrollLeft - child.offsetLeft);
+        const dist = Math.abs(child.offsetLeft + child.offsetWidth / 2 - center);
         if (dist < minDist) {
           minDist = dist;
           nearest = i;
@@ -199,6 +264,8 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
 
   if (!images?.length) return null;
 
+  const realIndex = realOf(index);
+
   return (
     <div
       className="relative group/carousel"
@@ -213,32 +280,40 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
         .carousel-img-loaded { animation: carousel-fade-in 0.4s ease-out; }
       `}</style>
 
-      {/* Track */}
+      {/* Track — no scroll-smooth class: smooth is passed explicitly in goTo,
+          so the loop re-anchor's behavior:"auto" jump stays truly instant. */}
       <div
         ref={trackRef}
-        className={`carousel-track flex overflow-x-auto snap-x snap-mandatory scroll-smooth gap-0 select-none ${
+        className={`carousel-track flex overflow-x-auto snap-x snap-mandatory gap-3 sm:gap-4 select-none ${
           dragging ? "cursor-grabbing" : "cursor-grab"
         }`}
         aria-roledescription="carousel"
         aria-label={`${title} images`}
       >
-        {images.map((src, i) => {
-          const shouldLoad = loadedSet.has(i);
+        {Array.from({ length: extTotal }).map((_, ext) => {
+          const real = realOf(ext);
+          const isClone = ext < CLONE_PAD || ext >= total + CLONE_PAD;
+          const src = images[real];
+          const shouldLoad = loadedSet.has(real);
           return (
-            <div key={i} className="snap-start shrink-0 w-full">
+            <div
+              key={ext}
+              className="snap-center shrink-0 w-[86vw] sm:w-[74vw] md:w-[62vw] lg:w-[56rem]"
+              aria-hidden={isClone || undefined}
+            >
               <div
-                className="relative overflow-hidden bg-brand-secondary aspect-[3/2] max-h-[560px]"
-                role="group"
-                aria-roledescription="slide"
-                aria-label={`${i + 1} of ${total}`}
+                className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-brand-secondary aspect-[3/2] max-h-[560px]"
+                role={isClone ? undefined : "group"}
+                aria-roledescription={isClone ? undefined : "slide"}
+                aria-label={isClone ? undefined : `${real + 1} of ${total}`}
               >
                 {shouldLoad ? (
                   <img
                     src={src}
-                    alt={alts?.[i]?.trim() || `${title} ${i + 1}`}
+                    alt={isClone ? "" : alts?.[real]?.trim() || `${title} ${real + 1}`}
                     className="w-full h-full object-cover carousel-img-loaded"
-                    loading={i === 0 ? "eager" : "lazy"}
-                    decoding={i === 0 ? "sync" : "async"}
+                    loading={real === 0 ? "eager" : "lazy"}
+                    decoding={real === 0 && !isClone ? "sync" : "async"}
                     draggable={false}
                   />
                 ) : (
@@ -263,9 +338,11 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
                       setPreviewUrl(src);
                     }
                   }}
-                  tabIndex={i === index ? 0 : -1}
-                  role="button"
-                  aria-label={`View ${title} image ${i + 1} fullscreen`}
+                  tabIndex={!isClone && ext === index ? 0 : -1}
+                  role={isClone ? undefined : "button"}
+                  aria-label={
+                    isClone ? undefined : `View ${title} image ${real + 1} fullscreen`
+                  }
                 />
               </div>
             </div>
@@ -273,21 +350,13 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
         })}
       </div>
 
-      {/* Navigation arrows — appear on hover */}
+      {/* Navigation arrows — appear on hover. The strip loops, so neither
+          direction ever runs out; both stay enabled. */}
       {total > 1 && (
         <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between pointer-events-none">
           <button
             type="button"
-            className={`pointer-events-auto ml-3 sm:ml-5 rounded-full bg-white/90 hover:bg-white text-brand-text w-10 h-10 shadow-lg flex items-center justify-center transition-all duration-300 ${
-              index === 0
-                ? "opacity-0 pointer-events-none"
-                : "opacity-0 group-hover/carousel:opacity-100"
-            }`}
-            // opacity-0 + pointer-events-none hides it from sight and from the
-            // mouse, but a plain button stays in the tab order and is still
-            // announced as an available action. goTo() clamps, so activating it
-            // on the first slide silently does nothing.
-            disabled={index === 0}
+            className="pointer-events-auto ml-3 sm:ml-5 rounded-full bg-white/90 hover:bg-white text-brand-text w-10 h-10 shadow-lg flex items-center justify-center transition-opacity duration-300 opacity-0 group-hover/carousel:opacity-100"
             aria-label="Previous image"
             onClick={goPrev}
           >
@@ -295,12 +364,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
           </button>
           <button
             type="button"
-            className={`pointer-events-auto mr-3 sm:mr-5 rounded-full bg-white/90 hover:bg-white text-brand-text w-10 h-10 shadow-lg flex items-center justify-center transition-all duration-300 ${
-              index === total - 1
-                ? "opacity-0 pointer-events-none"
-                : "opacity-0 group-hover/carousel:opacity-100"
-            }`}
-            disabled={index === total - 1}
+            className="pointer-events-auto mr-3 sm:mr-5 rounded-full bg-white/90 hover:bg-white text-brand-text w-10 h-10 shadow-lg flex items-center justify-center transition-opacity duration-300 opacity-0 group-hover/carousel:opacity-100"
             aria-label="Next image"
             onClick={goNext}
           >
@@ -319,11 +383,11 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
                 type="button"
                 aria-label={`Go to image ${i + 1}`}
                 className={`rounded-full transition-all duration-300 ${
-                  i === index
+                  i === realIndex
                     ? "bg-brand-primary w-6 h-2"
                     : "bg-brand-divider hover:bg-brand-primary/40 w-2 h-2"
                 }`}
-                onClick={() => goTo(i)}
+                onClick={() => { goTo(CLONE_PAD + i); startAutoPlay(); }}
               />
             ))}
           </div>
