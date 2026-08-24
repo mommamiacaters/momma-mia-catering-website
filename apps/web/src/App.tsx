@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -19,14 +19,18 @@ import CheckoutPage from "./pages/CheckoutPage/CheckoutPage";
 import LoginPage from "./pages/LoginPage/LoginPage";
 import RegisterPage from "./pages/RegisterPage/RegisterPage";
 import AccountPage from "./pages/AccountPage/AccountPage";
-import AdminLayout from "./pages/admin/AdminLayout";
-import AdminProducts from "./pages/admin/AdminProducts";
-import AdminCarousels from "./pages/admin/AdminCarousels";
-import AdminOrders from "./pages/admin/AdminOrders";
-import AdminMealPlans from "./pages/admin/AdminMealPlans";
-import AdminServiceDetail from "./pages/admin/AdminServiceDetail";
-import AdminSettings from "./pages/admin/AdminSettings";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+
+// The admin console is role-gated and never part of a customer's visit, yet it
+// shipped in the storefront bundle. Lazy chunks keep it off the first load;
+// admins pay one short fetch on entry instead.
+const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
+const AdminProducts = lazy(() => import("./pages/admin/AdminProducts"));
+const AdminCarousels = lazy(() => import("./pages/admin/AdminCarousels"));
+const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
+const AdminMealPlans = lazy(() => import("./pages/admin/AdminMealPlans"));
+const AdminServiceDetail = lazy(() => import("./pages/admin/AdminServiceDetail"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 
 function AppContent() {
   const location = useLocation();
@@ -83,6 +87,7 @@ function AppContent() {
       {!isServicePage && !isBarePage && <Navigation isVisible={showNavbar} />}
       <main className={!isServicePage && !isBarePage ? 'pt-16 md:pt-20' : ''}>
         <PageTransition transitionKey={routeGroup}>
+        <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<MealsPage />} />
           <Route path="/meals" element={<MealsPage />} />
@@ -127,6 +132,7 @@ function AppContent() {
             <Route path="orders" element={<Navigate to="/admin" replace />} />
           </Route>
         </Routes>
+        </Suspense>
         </PageTransition>
       </main>
       {!isBarePage && <Footer />}
