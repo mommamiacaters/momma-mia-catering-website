@@ -18,6 +18,51 @@ interface CarouselProps {
 const CLONE_PAD = 2;
 
 /**
+ * One slide photo: skeleton until the bytes actually ARRIVE, then a fade-in.
+ * Mounting the <img> is not "loaded" — on a slow connection the browser paints
+ * its alt text into the empty box, which is exactly the flash this prevents.
+ * A broken file keeps the skeleton (never the broken-image glyph); the
+ * carousel hook prunes it moments later.
+ */
+const SlideImage: React.FC<{
+  src: string;
+  alt: string;
+  loading: "eager" | "lazy";
+  decoding: "sync" | "async";
+}> = ({ src, alt, loading, decoding }) => {
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [ready, setReady] = useState(false);
+  // Cache hits can complete before onLoad is wired — same belt CachedImage wears.
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setReady(true);
+    }
+  }, [src]);
+  return (
+    <>
+      {!ready && (
+        <div
+          className="absolute inset-0 bg-brand-divider/30 animate-pulse"
+          aria-hidden="true"
+        />
+      )}
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        onLoad={() => setReady(true)}
+        className={`w-full h-full object-cover transition-opacity duration-300 ${
+          ready ? "opacity-100" : "opacity-0"
+        }`}
+        loading={loading}
+        decoding={decoding}
+        draggable={false}
+      />
+    </>
+  );
+};
+
+/**
  * Looping filmstrip: the active photo sits centred at its own size, and the
  * strip runs edge to edge with the neighbouring photos (repeating A, B, A, B
  * for a two-photo set) instead of leaving empty margins. The loop is clones +
@@ -276,8 +321,6 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
       <style>{`
         .carousel-track { -ms-overflow-style: none; scrollbar-width: none; }
         .carousel-track::-webkit-scrollbar { display: none; }
-        @keyframes carousel-fade-in { from { opacity: 0; } to { opacity: 1; } }
-        .carousel-img-loaded { animation: carousel-fade-in 0.4s ease-out; }
       `}</style>
 
       {/* Track — no scroll-smooth class: smooth is passed explicitly in goTo,
@@ -308,13 +351,11 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
                 aria-label={isClone ? undefined : `${real + 1} of ${total}`}
               >
                 {shouldLoad ? (
-                  <img
+                  <SlideImage
                     src={src}
                     alt={isClone ? "" : alts?.[real]?.trim() || `${title} ${real + 1}`}
-                    className="w-full h-full object-cover carousel-img-loaded"
                     loading={real === 0 ? "eager" : "lazy"}
                     decoding={real === 0 && !isClone ? "sync" : "async"}
-                    draggable={false}
                   />
                 ) : (
                   // Skeleton placeholder until slide enters viewport range

@@ -10,6 +10,12 @@
       name="description"
       content="Discover exceptional catering services and delicious meals with Momma Mia Catering. A food knowledge sharing community."
     />
+    <!-- Every photo on the site comes from Supabase Storage; warming the
+         connection here saves the DNS + TLS round trips off the first image. -->
+    <link rel="preconnect" href="https://fbzwicfvhrtyfqjounvo.supabase.co" crossorigin />
+    <!-- Twice on purpose: the crossorigin one warms the connection the REST
+         calls reuse; plain <img> fetches are no-cors and need their own. -->
+    <link rel="preconnect" href="https://fbzwicfvhrtyfqjounvo.supabase.co" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
