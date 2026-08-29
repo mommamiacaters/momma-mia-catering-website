@@ -133,18 +133,34 @@ const PaymentStep: React.FC<Props> = ({
   };
 
   // ── PayPal: load the SDK the first time the tab is opened ──
+  // startedRef, not sdkState, guards the one-shot: gating on state we set
+  // INSIDE the effect re-runs the effect (sdkState is how React knows), and
+  // the re-run's cleanup cancelled the very load it had just started — the
+  // SDK resolved into a dead closure and the buttons never rendered.
+  const startedRef = useRef(false);
+  const mountedRef = useRef(true);
   useEffect(() => {
-    if (method !== "paypal" || sdkState !== "idle") return;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // close() rejects if the buttons never finished rendering; that is fine.
+      buttonsRef.current?.close().catch(() => {});
+      buttonsRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (method !== "paypal" || startedRef.current) return;
+    startedRef.current = true;
     if (!PAYPAL_CLIENT_ID) {
       setSdkState("failed");
       return;
     }
-    let cancelled = false;
     setSdkState("loading");
 
     loadPayPal()
       .then((paypal) => {
-        if (cancelled || !containerRef.current) return;
+        if (!mountedRef.current || !containerRef.current) return;
 
         const buttons = paypal.Buttons({
           style: { layout: "vertical", color: "gold", shape: "pill", label: "pay", height: 48 },
@@ -206,28 +222,23 @@ const PaymentStep: React.FC<Props> = ({
         buttons
           .render(containerRef.current)
           .then(() => {
-            if (!cancelled) setSdkState("ready");
+            if (mountedRef.current) setSdkState("ready");
           })
           .catch((e) => {
             // A render abort during unmount is expected, not a failure.
-            if (cancelled) return;
+            if (!mountedRef.current) return;
             console.error("PayPal buttons failed to render:", e);
             setSdkState("failed");
           });
       })
       .catch((e) => {
-        if (cancelled) return;
+        if (!mountedRef.current) return;
         console.error("PayPal SDK failed to load:", e);
         setSdkState("failed");
       });
-
-    return () => {
-      cancelled = true;
-      // close() rejects if the buttons never finished rendering; that is fine.
-      buttonsRef.current?.close().catch(() => {});
-      buttonsRef.current = null;
-    };
-  }, [method, sdkState]);
+    // No cleanup here: tab switches only CSS-hide the panel, and the rendered
+    // buttons must survive them. Teardown lives in the unmount effect above.
+  }, [method]);
 
   const busy = isSubmitting || paypalBusy;
 
