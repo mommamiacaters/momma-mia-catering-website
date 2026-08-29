@@ -1,5 +1,6 @@
 import type { OrderSubmission } from "../types";
 import { supabase } from "../lib/supabase";
+import { PAYPAL_MODE, PAYPAL_SANDBOX_KEY } from "../lib/paypal";
 
 /**
  * Map a raw create_order error to customer copy. The patterns are taken
@@ -151,12 +152,22 @@ export async function createPendingOrder(
   };
 }
 
-/** Call one of the PayPal Edge Functions with the anon key. */
+/**
+ * Call one of the PayPal Edge Functions with the anon key. In sandbox mode
+ * (local dev only) the -sandbox slugs are used, unlocked by the test key —
+ * the live slugs and the sandbox slugs are the same handler code with the
+ * PayPal environment fixed server-side.
+ */
 async function callPayPalFn<T>(
   fn: "paypal-create-order" | "paypal-capture-order",
   body: Record<string, unknown>,
 ): Promise<T> {
-  const { data, error } = await supabase.functions.invoke<T>(fn, { body });
+  const slug = PAYPAL_MODE === "sandbox" ? `${fn}-sandbox` : fn;
+  const { data, error } = await supabase.functions.invoke<T>(slug, {
+    body,
+    headers:
+      PAYPAL_MODE === "sandbox" ? { "x-sandbox-key": PAYPAL_SANDBOX_KEY } : undefined,
+  });
 
   if (error) {
     // FunctionsHttpError carries the response; the body holds our own message,
@@ -171,7 +182,7 @@ async function callPayPalFn<T>(
         /* non-JSON body — fall through to the generic message */
       }
     }
-    console.error(`${fn} failed:`, error.message, detail);
+    console.error(`${slug} failed:`, error.message, detail);
     throw new Error(detail ?? "We couldn't reach PayPal. Please try again.");
   }
   if (!data) throw new Error("PayPal returned an empty response. Please try again.");

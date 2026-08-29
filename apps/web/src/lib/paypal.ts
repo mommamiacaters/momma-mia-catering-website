@@ -43,6 +43,17 @@ declare global {
 
 export const PAYPAL_CLIENT_ID = (import.meta.env.VITE_PAYPAL_CLIENT_ID as string) || "";
 
+/**
+ * "sandbox" routes the checkout at the -sandbox Edge Functions and expects a
+ * sandbox client id above. Set ONLY in a developer's local .env — the deploy
+ * workflow pins the live values, so the public site can never flip modes.
+ */
+export const PAYPAL_MODE: "live" | "sandbox" =
+  (import.meta.env.VITE_PAYPAL_ENV as string) === "sandbox" ? "sandbox" : "live";
+
+/** Unlocks the -sandbox Edge Functions; local .env only, never committed. */
+export const PAYPAL_SANDBOX_KEY = (import.meta.env.VITE_PAYPAL_SANDBOX_KEY as string) || "";
+
 /** PH merchant accounts settle in PHP, and the catalogue is priced in PHP. */
 const CURRENCY = "PHP";
 

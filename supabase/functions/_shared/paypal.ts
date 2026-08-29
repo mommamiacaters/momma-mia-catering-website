@@ -4,21 +4,37 @@
 // paypal-create-order, paypal-capture-order and paypal-webhook cannot drift
 // apart on any of the three.
 //
-// Secrets (set with `supabase secrets set` or the Management API):
-//   PAYPAL_CLIENT_ID      – from the app in the PayPal developer dashboard
-//   PAYPAL_CLIENT_SECRET  – same app
-//   PAYPAL_ENV            – 'sandbox' (default) or 'live'
-//   PAYPAL_WEBHOOK_ID     – from the webhook you register (webhook fn only)
+// Secrets (set via the Management API):
+//   PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET                  – LIVE app
+//   PAYPAL_SANDBOX_CLIENT_ID / PAYPAL_SANDBOX_CLIENT_SECRET  – sandbox app
+//   PAYPAL_SANDBOX_TEST_KEY  – gates the -sandbox slugs (local testing only)
+//   PAYPAL_WEBHOOK_ID        – from the webhook you register (webhook fn only)
 // -----------------------------------------------------------------------------
 
-export const PAYPAL_ENV = (Deno.env.get("PAYPAL_ENV") ?? "sandbox").toLowerCase();
+/**
+ * Which PayPal to talk to. The mode is HARDCODED per deployed function slug
+ * (paypal-create-order = live, paypal-create-order-sandbox = sandbox), never
+ * taken from the request: a caller who could pick "sandbox" against the live
+ * site could mark a real order paid with sandbox play-money.
+ */
+export type PayPalMode = "live" | "sandbox";
 
-/** Live money only when someone has said so out loud. */
-export const PAYPAL_API =
-  PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+export interface PayPalConfig {
+  mode: PayPalMode;
+  api: string;
+  clientId: string;
+  clientSecret: string;
+}
 
-const CLIENT_ID = Deno.env.get("PAYPAL_CLIENT_ID") ?? "";
-const CLIENT_SECRET = Deno.env.get("PAYPAL_CLIENT_SECRET") ?? "";
+export function getPayPalConfig(mode: PayPalMode): PayPalConfig {
+  const prefix = mode === "sandbox" ? "PAYPAL_SANDBOX" : "PAYPAL";
+  return {
+    mode,
+    api: mode === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com",
+    clientId: Deno.env.get(`${prefix}_CLIENT_ID`) ?? "",
+    clientSecret: Deno.env.get(`${prefix}_CLIENT_SECRET`) ?? "",
+  };
+}
 
 /** PH PayPal business accounts settle in PHP, which is what the catalogue is in. */
 export const CURRENCY = "PHP";
@@ -26,7 +42,7 @@ export const CURRENCY = "PHP";
 export const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-sandbox-key",
 };
 
 export const json = (body: unknown, status = 200) =>
@@ -35,9 +51,9 @@ export const json = (body: unknown, status = 200) =>
     headers: { ...CORS, "Content-Type": "application/json" },
   });
 
-export function assertConfigured(): void {
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    throw new Error("PayPal is not configured: set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET");
+export function assertConfigured(cfg: PayPalConfig): void {
+  if (!cfg.clientId || !cfg.clientSecret) {
+    throw new Error(`PayPal ${cfg.mode} is not configured: set the client id/secret secrets`);
   }
 }
 
@@ -66,12 +82,12 @@ export function amountToCents(amount: string): number {
  * Edge workers are short-lived and recycled unpredictably, so a module-level
  * cache buys little and risks serving a token that expired mid-request.
  */
-export async function getAccessToken(): Promise<string> {
-  assertConfigured();
-  const res = await fetch(`${PAYPAL_API}/v1/oauth2/token`, {
+export async function getAccessToken(cfg: PayPalConfig): Promise<string> {
+  assertConfigured(cfg);
+  const res = await fetch(`${cfg.api}/v1/oauth2/token`, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${btoa(`${CLIENT_ID}:${CLIENT_SECRET}`)}`,
+      Authorization: `Basic ${btoa(`${cfg.clientId}:${cfg.clientSecret}`)}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
@@ -86,12 +102,13 @@ export async function getAccessToken(): Promise<string> {
 }
 
 export async function paypalFetch(
+  cfg: PayPalConfig,
   token: string,
   path: string,
   init: RequestInit & { requestId?: string } = {},
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const { requestId, ...rest } = init;
-  const res = await fetch(`${PAYPAL_API}${path}`, {
+  const res = await fetch(`${cfg.api}${path}`, {
     ...rest,
     headers: {
       Authorization: `Bearer ${token}`,

@@ -387,6 +387,15 @@ verify_jwt = false
 [functions.paypal-capture-order]
 verify_jwt = false
 
+# Sandbox twins of the two above — same handler code, PayPal sandbox fixed at
+# deploy time, and additionally locked behind the PAYPAL_SANDBOX_TEST_KEY
+# header so only a developer's local .env can reach them.
+[functions.paypal-create-order-sandbox]
+verify_jwt = false
+
+[functions.paypal-capture-order-sandbox]
+verify_jwt = false
+
 # Called by PayPal itself, which cannot carry a Supabase JWT. Authenticated by
 # verifying the event signature against PAYPAL_WEBHOOK_ID instead.
 [functions.paypal-webhook]

@@ -3,4 +3,4 @@
 // from the request.
 import { createOrderHandler } from "../_shared/checkout-handlers.ts";
 
-Deno.serve(createOrderHandler("live"));
+Deno.serve(createOrderHandler("sandbox"));

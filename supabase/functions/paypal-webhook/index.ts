@@ -24,10 +24,15 @@ import {
   CORS,
   amountToCents,
   getAccessToken,
+  getPayPalConfig,
   json,
   paypalFetch,
   rpc,
 } from "../_shared/paypal.ts";
+
+// Webhooks are only registered for the LIVE app; sandbox testing goes through
+// the capture endpoint alone.
+const cfg = getPayPalConfig("live");
 
 const WEBHOOK_ID = Deno.env.get("PAYPAL_WEBHOOK_ID") ?? "";
 
@@ -64,8 +69,9 @@ Deno.serve(async (req) => {
       headers[h] = v;
     }
 
-    const token = await getAccessToken();
+    const token = await getAccessToken(cfg);
     const { status, body: verdict } = await paypalFetch(
+      cfg,
       token,
       "/v1/notifications/verify-webhook-signature",
       {
