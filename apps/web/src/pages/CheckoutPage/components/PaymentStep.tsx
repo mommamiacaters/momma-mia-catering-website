@@ -485,8 +485,11 @@ const PaymentStep: React.FC<Props> = ({
                     Loading secure payment&hellip;
                   </div>
                 )}
-                {/* Kept mounted: the SDK renders into this node. */}
-                <div ref={containerRef} className={sdkState === "ready" ? "" : "hidden"} />
+                {/* Always visible, never display:none — the SDK's render()
+                    WAITS for its container to be visible before completing,
+                    and completing is what would have unhidden it. An empty
+                    div has no height, so nothing shifts while loading. */}
+                <div ref={containerRef} />
               </>
             )}
           </div>
