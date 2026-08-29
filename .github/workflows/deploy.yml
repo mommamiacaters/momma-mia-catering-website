@@ -44,6 +44,11 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # PayPal's CLIENT ID only. It identifies the merchant to PayPal and is
+          # meant to be public — it ships in the SDK's script URL either way.
+          # The SECRET never comes near this build; it lives in the Edge
+          # Function secrets.
+          VITE_PAYPAL_CLIENT_ID: AXXM2gQIHYOZopIMiqMDfvsrR8hh7GvSPC2h9PmI7g_NAtA5LOV-JdjB1eHKzGjdiWEaPfkWW4bvtHsL
         run: pnpm web:build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

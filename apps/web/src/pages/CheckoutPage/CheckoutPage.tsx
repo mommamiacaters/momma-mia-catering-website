@@ -9,7 +9,13 @@ import type {
   CheckoutStep,
   PaymentProof,
 } from "../../types";
-import { submitOrder } from "../../services/orderService";
+import {
+  capturePayPalPayment,
+  createPendingOrder,
+  startPayPalPayment,
+  submitOrder,
+  type PendingOrder,
+} from "../../services/orderService";
 import { menuService } from "../../services/menuService";
 import {
   deriveDishMinimumState,
@@ -114,7 +120,12 @@ const CheckoutPage: React.FC = () => {
     deliveryAddress: "",
     specialRequests: "",
   });
+  // QR path: the uploaded receipt screenshot.
   const [paymentProof, setPaymentProof] = useState<PaymentProof | null>(null);
+  // PayPal path: the order row, created and priced server-side the moment
+  // PayPal is opened. Held so a cancelled payment can be retried against the
+  // SAME order instead of creating a second one for the same cart.
+  const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [orderRef, setOrderRef] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -271,9 +282,21 @@ const CheckoutPage: React.FC = () => {
 
   const handleBackToDelivery = () => {
     setCurrentStep("delivery");
+    // Going back can change the cart or the delivery details, so the priced
+    // order that was created for the previous state must not be paid against.
+    // It stays in the database as an abandoned awaiting_payment row, which is
+    // exactly what it is.
+    setPendingOrder(null);
+    setSubmitError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  /**
+   * QR-path submit: the customer says they have already transferred the money
+   * and uploaded the receipt. Same flow as before PayPal existed — the order is
+   * created as manual_proof, emails fire on creation, the admin verifies the
+   * receipt by eye.
+   */
   const handleSubmit = async () => {
     // Honeypot check — silently fake success if filled
     if (honeypot) {
@@ -340,15 +363,102 @@ const CheckoutPage: React.FC = () => {
       }
     } catch (e) {
       // Bind the error — a bare catch made a correctly-firing server rejection
-      // indistinguishable from a network failure, so the customer was told
-      // nothing useful after having already paid. submitOrder has already
-      // mapped this to customer-safe copy via mapOrderError.
+      // indistinguishable from a network failure. submitOrder has already
+      // mapped this to customer-safe copy (which allows for the possibility
+      // that the customer paid by QR before submitting).
       setStatus("error");
       setSubmitError(
         e instanceof Error
           ? e.message
-          : "Something went wrong and your order was not placed. Nothing was charged — please try again or contact us.",
+          : "Something went wrong and your order was not placed. Please contact us.",
       );
+    }
+  };
+
+  /**
+   * PayPal's createOrder. Prices and creates the order server-side, then opens
+   * a PayPal order against the total the DATABASE computed.
+   *
+   * Every cart rejection lands here, before the buyer reaches PayPal — the
+   * opposite of the old QR flow, where a minimum could be enforced after
+   * someone had already transferred money.
+   */
+  const handleCreatePayPalOrder = async (): Promise<string> => {
+    // Honeypot: pretend to succeed without touching PayPal or the database.
+    if (honeypot) {
+      throw new Error("We couldn't start the payment. Please try again.");
+    }
+
+    if (!canSubmitOrder()) {
+      throw new Error(
+        `Please wait ${getSecondsUntilNext()}s before trying again.`,
+      );
+    }
+
+    // Re-check the order minimum against live settings before anything is
+    // created — the admin may have changed it while this tab sat open.
+    if (!(await verifyMinimum())) {
+      throw new Error(gateError ?? "Your order doesn't meet the minimum yet.");
+    }
+
+    setSubmitError(null);
+
+    // Reuse the order from a cancelled attempt: same cart, same row, and the
+    // Edge Function returns the same PayPal order for it.
+    let pending = pendingOrder;
+    if (!pending) {
+      pending = await createPendingOrder({
+        customer: formData,
+        order: {
+          mealPlans: mealPlanOrders,
+          items: selectedItems.map((i) => ({
+            menuItemId: i.menuItemId,
+            name: i.name,
+            type: i.type,
+            image: i.image,
+          })),
+          subtotal,
+          planInstances: planInstances || undefined,
+        },
+        orderRef: generateSecureOrderRef(),
+      });
+      setPendingOrder(pending);
+      setOrderRef(pending.orderRef);
+    }
+
+    return startPayPalPayment(pending);
+  };
+
+  /**
+   * PayPal's onApprove. Captures the payment; the Edge Function verifies the
+   * captured amount against the stored total before marking the order paid,
+   * and that stamp is what releases the confirmation emails.
+   */
+  const handlePayPalApproved = async (): Promise<void> => {
+    if (!pendingOrder) {
+      throw new Error(
+        "We lost track of your order. Please contact us before paying again.",
+      );
+    }
+
+    setStatus("submitting");
+    try {
+      const { orderRef: ref } = await capturePayPalPayment(pendingOrder);
+      setOrderRef(ref);
+      setStatus("success");
+      setCurrentStep("confirmation");
+      recordSubmission();
+
+      // Clear all cart entries from sessionStorage
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key?.startsWith("cart:")) sessionStorage.removeItem(key);
+      }
+    } catch (e) {
+      setStatus("error");
+      // Re-thrown so PaymentStep can show it next to the buttons; the copy is
+      // already customer-safe (capturePayPalPayment maps it).
+      throw e;
     }
   };
 
@@ -699,9 +809,11 @@ const CheckoutPage: React.FC = () => {
                     subtotal={subtotal}
                     paymentProof={paymentProof}
                     onProofChange={setPaymentProof}
-                    onBack={handleBackToDelivery}
                     onSubmit={handleSubmit}
                     isSubmitting={status === "submitting" || checking}
+                    onBack={handleBackToDelivery}
+                    onCreateOrder={handleCreatePayPalOrder}
+                    onApprove={handlePayPalApproved}
                     error={
                       submitError ? (
                         <span>

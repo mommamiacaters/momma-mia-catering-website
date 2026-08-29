@@ -6,6 +6,9 @@ export type { MenuItem, MenuTypeData, MenuData, MenuResponse } from '../services
 // ─── Checkout Flow ───
 export type CheckoutStep = "delivery" | "payment" | "confirmation";
 
+/** How the customer chose to pay. Mirrors create_order's p_payment_provider. */
+export type PaymentMethod = "qr" | "paypal";
+
 export interface PaymentProof {
   base64: string;     // data URI
   mimeType: string;
@@ -105,6 +108,6 @@ export interface OrderSubmission {
     planInstances?: PlanInstance[];
   };
   orderRef: string;
-  // QR screenshot flow — omitted when Maya Checkout API is used
+  // QR/receipt flow only — the PayPal flow carries no proof.
   paymentProof?: { base64: string; mimeType: string; fileName: string };
 }
