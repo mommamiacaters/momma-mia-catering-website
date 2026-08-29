@@ -378,6 +378,20 @@ verify_jwt = false
 [functions.chat]
 verify_jwt = false
 
+# PayPal checkout — called from the storefront browser during guest checkout, so
+# there is no session to verify. Both act only on an order that is already
+# awaiting payment and read the amount from the DB, never from the request.
+[functions.paypal-create-order]
+verify_jwt = false
+
+[functions.paypal-capture-order]
+verify_jwt = false
+
+# Called by PayPal itself, which cannot carry a Supabase JWT. Authenticated by
+# verifying the event signature against PAYPAL_WEBHOOK_ID instead.
+[functions.paypal-webhook]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
