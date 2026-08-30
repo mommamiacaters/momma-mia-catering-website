@@ -16,12 +16,14 @@ interface CategoryFormModalProps {
 
 const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ open, onClose, nextSortOrder, onSaved }) => {
   const [name, setName] = useState("");
+  const [isUniversal, setIsUniversal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setName("");
+      setIsUniversal(false);
       setError(null);
     }
   }, [open]);
@@ -34,7 +36,12 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ open, onClose, ne
     setError(null);
     const { error } = await supabase
       .from("categories")
-      .insert({ name: trimmed, slug: slugify(trimmed), sort_order: nextSortOrder });
+      .insert({
+        name: trimmed,
+        slug: slugify(trimmed),
+        sort_order: nextSortOrder,
+        is_universal: isUniversal,
+      });
     setSaving(false);
     if (error) {
       setError(error.message);
@@ -77,6 +84,43 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ open, onClose, ne
             onChange={(e) => setName(e.target.value)}
           />
         </div>
+
+        {/* Where it appears — the two groups behave very differently, so the
+            choice is explicit rather than a checkbox afterthought. */}
+        <fieldset>
+          <legend className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
+            Where does it appear?
+          </legend>
+          <div className="space-y-2">
+            {(
+              [
+                [false, "Main category", "Has its own service and meal plans (like Check-a-Lunch)."],
+                [true, "In every service", "Extras offered alongside all orders (like Add-ons and Café Menu)."],
+              ] as const
+            ).map(([value, label, hint]) => (
+              <label
+                key={String(value)}
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+                  isUniversal === value
+                    ? "border-brand-primary bg-brand-primary/5"
+                    : "border-brand-divider hover:border-brand-primary/40"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="category-kind"
+                  checked={isUniversal === value}
+                  onChange={() => setIsUniversal(value)}
+                  className="mt-0.5 accent-[var(--brand-primary,#D96C2C)]"
+                />
+                <span>
+                  <span className="block font-poppins text-sm font-semibold text-brand-text">{label}</span>
+                  <span className="block font-poppins text-xs text-brand-text/60">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </form>
     </Modal>
   );

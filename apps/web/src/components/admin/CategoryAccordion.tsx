@@ -9,6 +9,8 @@ interface CategoryAccordionProps {
   isOpen: boolean;
   onToggle: () => void;
   onAdd: () => void;
+  /** Offered only where archiving makes sense (the all-menu view). */
+  onArchive?: () => void;
   /** carousel editor link; omitted for categories with no service page */
   carouselHref?: string;
   children: React.ReactNode;
@@ -23,6 +25,7 @@ const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
   isOpen,
   onToggle,
   onAdd,
+  onArchive,
   carouselHref,
   children,
 }) => {
@@ -57,6 +60,15 @@ const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
             <span className="hidden sm:inline">Edit carousel</span>
           </Link>
         )}
+        {onArchive && (
+          <button
+            onClick={onArchive}
+            className="inline-flex min-h-[44px] items-center gap-1.5 px-2 font-poppins text-sm text-brand-text/40 transition-colors hover:text-red-600 cursor-pointer"
+            title="Archive this category"
+          >
+            <i className="pi pi-inbox text-xs" aria-hidden="true" /> Archive
+          </button>
+          )}
         <button
           onClick={onAdd}
           className="mr-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-arvo-bold text-brand-primary hover:bg-brand-primary/10 cursor-pointer"

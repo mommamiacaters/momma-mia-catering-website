@@ -13,14 +13,6 @@ import { getCategoryDisplayName } from "../../constants";
 const SELECT =
   "id, category_id, name, description, image_url, price_cents, item_type, sub_category_id, is_available, is_catering, sort_order, min_qty";
 
-// Menu category slug → service-page slug. Keep this explicit: the slugs are NOT
-// equal ('party-tray' is singular, its service page 'party-trays' is plural).
-const CATEGORY_TO_SERVICE: Record<string, string> = {
-  "check-a-lunch": "check-a-lunch",
-  "party-tray": "party-trays",
-  "fun-boxes": "merienda-meals",
-};
-
 interface AdminProductsProps {
   /** public.categories.slug to scope to. Omit for the whole menu. */
   categorySlug?: string;
@@ -46,11 +38,18 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
     initial: null,
   });
   const [catModalOpen, setCatModalOpen] = useState(false);
+  // Archive is deliberately strict: the admin types the category's name.
+  const [archiveTarget, setArchiveTarget] = useState<Category | null>(null);
+  const [archiveTyped, setArchiveTyped] = useState("");
+  const [archiving, setArchiving] = useState(false);
 
   const load = async () => {
     setLoading(true);
     const [{ data: cats }, { data: subs }, { data: its, error: itErr }] = await Promise.all([
-      supabase.from("categories").select("id, slug, name, sort_order").order("sort_order"),
+      supabase
+        .from("categories")
+        .select("id, slug, name, sort_order, is_universal, is_active")
+        .order("sort_order"),
       supabase
         .from("sub_categories")
         .select("id, slug, name, slot, sort_order, is_active")
@@ -69,9 +68,17 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
     void load();
   }, []);
 
+  const activeCategories = categories.filter((c) => c.is_active !== false);
   const visibleCategories = categorySlug
-    ? categories.filter((c) => c.slug === categorySlug)
-    : categories;
+    ? activeCategories.filter((c) => c.slug === categorySlug)
+    : activeCategories;
+  // Main categories each feed one service; universal ones (Add-ons, Café Menu)
+  // ride along with every service. Shown as two groups so the difference reads.
+  const mainCategories = visibleCategories.filter((c) => !c.is_universal);
+  const universalCategories = visibleCategories.filter((c) => c.is_universal);
+  const archivedCategories = categorySlug
+    ? []
+    : categories.filter((c) => c.is_active === false);
 
   // Scoped to one category there is nothing to choose between, so open it
   // rather than making the admin click an accordion with one row in it.
@@ -172,6 +179,32 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
     await load();
   };
 
+  const archiveCategory = async () => {
+    if (!archiveTarget) return;
+    setArchiving(true);
+    const { error } = await supabase
+      .from("categories")
+      .update({ is_active: false })
+      .eq("id", archiveTarget.id);
+    setArchiving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setArchiveTarget(null);
+    setArchiveTyped("");
+    await load();
+  };
+
+  const restoreCategory = async (cat: Category) => {
+    const { error } = await supabase
+      .from("categories")
+      .update({ is_active: true })
+      .eq("id", cat.id);
+    if (error) setError(error.message);
+    await load();
+  };
+
   const toggleCat = (id: number) =>
     setOpenCats((prev) => {
       const next = new Set(prev);
@@ -258,41 +291,96 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
           />
 
           <div className="space-y-3">
-            {visibleCategories.map((cat) => {
-              const all = grouped.get(cat.id) ?? [];
-              const visible = isFiltering ? all.filter(matches) : all;
-              if (isFiltering && visible.length === 0) return null;
-              const serviceSlug = CATEGORY_TO_SERVICE[cat.slug];
-
+            {(
+              [
+                {
+                  key: "main",
+                  cats: mainCategories,
+                  heading: "Main categories",
+                  hint: "Each one is a service with its own meal plans.",
+                },
+                {
+                  key: "universal",
+                  cats: universalCategories,
+                  heading: "In every service",
+                  hint: "Extras offered alongside all orders, whatever the plan.",
+                },
+              ] as const
+            ).map(({ key, cats, heading, hint }) => {
+              const rows = cats
+                .map((cat) => {
+                  const all = grouped.get(cat.id) ?? [];
+                  const visible = isFiltering ? all.filter(matches) : all;
+                  return { cat, all, visible };
+                })
+                .filter((r) => !(isFiltering && r.visible.length === 0));
+              if (rows.length === 0) return null;
               return (
-                <CategoryAccordion
-                  key={cat.id}
-                  name={cat.name}
-                  count={visible.length}
-                  totalCount={isFiltering ? all.length : undefined}
-                  isOpen={isFiltering ? true : openCats.has(cat.id)}
-                  onToggle={() => toggleCat(cat.id)}
-                  onAdd={() => setItemModal({ open: true, initial: null, defaultCategoryId: cat.id })}
-                  // Inside a service page the carousel is the next tab over,
-                  // so the cross-link would send the admin away for nothing.
-                  carouselHref={
-                    !embedded && serviceSlug ? `/admin/carousels?service=${serviceSlug}` : undefined
-                  }
-                >
-                  <CategoryItemList
-                    categoryName={cat.name}
-                    items={visible}
-                    subCategoryNames={subCategoryNames}
-                    onToggle={toggleAvailable}
-                    onEdit={(item) => setItemModal({ open: true, initial: item })}
-                    onDelete={remove}
-                    onAddFirst={() =>
-                      setItemModal({ open: true, initial: null, defaultCategoryId: cat.id })
-                    }
-                  />
-                </CategoryAccordion>
+                <section key={key} aria-label={heading}>
+                  {/* Group headings only in the all-menu view; a scoped service
+                      page shows a single known category. */}
+                  {!categorySlug && (
+                    <div className="mt-5 mb-2 first:mt-0">
+                      <h2 className="font-arvo-bold text-sm text-brand-text">{heading}</h2>
+                      <p className="font-poppins text-xs text-brand-text/50">{hint}</p>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    {rows.map(({ cat, all, visible }) => (
+                      <CategoryAccordion
+                        key={cat.id}
+                        name={cat.name}
+                        count={visible.length}
+                        totalCount={isFiltering ? all.length : undefined}
+                        isOpen={isFiltering ? true : openCats.has(cat.id)}
+                        onToggle={() => toggleCat(cat.id)}
+                        onAdd={() => setItemModal({ open: true, initial: null, defaultCategoryId: cat.id })}
+                        onArchive={
+                          embedded ? undefined : () => { setArchiveTyped(""); setArchiveTarget(cat); }
+                        }
+                      >
+                        <CategoryItemList
+                          categoryName={cat.name}
+                          items={visible}
+                          subCategoryNames={subCategoryNames}
+                          onToggle={toggleAvailable}
+                          onEdit={(item) => setItemModal({ open: true, initial: item })}
+                          onDelete={remove}
+                          onAddFirst={() =>
+                            setItemModal({ open: true, initial: null, defaultCategoryId: cat.id })
+                          }
+                        />
+                      </CategoryAccordion>
+                    ))}
+                  </div>
+                </section>
               );
             })}
+
+            {/* Archived — parked, restorable, never deleted */}
+            {!isFiltering && archivedCategories.length > 0 && (
+              <details className="rounded-xl border border-dashed border-brand-divider bg-white/60 px-4 py-3">
+                <summary className="cursor-pointer font-poppins text-sm text-brand-text/60">
+                  Archived categories ({archivedCategories.length})
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {archivedCategories.map((cat) => (
+                    <div key={cat.id} className="flex items-center gap-3 py-1.5">
+                      <span className="font-poppins text-sm text-brand-text/70">{cat.name}</span>
+                      <span className="font-poppins text-xs text-brand-text/40 tabular-nums">
+                        {(grouped.get(cat.id) ?? []).length} dishes
+                      </span>
+                      <button
+                        onClick={() => void restoreCategory(cat)}
+                        className="ml-auto font-poppins text-sm font-semibold text-brand-primary hover:underline cursor-pointer"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
 
             {isFiltering && visibleCategories.every((c) => (grouped.get(c.id) ?? []).filter(matches).length === 0) && (
               <div className="bg-white rounded-xl shadow-sm p-10 text-center font-poppins text-brand-text/60">
@@ -321,6 +409,61 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
         defaultCategoryId={itemModal.defaultCategoryId}
         onSaved={load}
       />
+      {/* Archive — strict confirmation: the admin types the category's name.
+          Archiving hides it from the storefront AND this list; dishes and
+          plans under it are kept and it can be restored below. */}
+      {archiveTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Archive ${archiveTarget.name}`}
+          onClick={() => !archiving && setArchiveTarget(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-arvo-bold text-lg text-brand-text">
+              Archive &ldquo;{archiveTarget.name}&rdquo;?
+            </h2>
+            <p className="mt-2 font-poppins text-sm text-brand-text/70">
+              It disappears from the website and from this list. Its{" "}
+              <strong>{(grouped.get(archiveTarget.id) ?? []).length} dishes</strong>{" "}
+              are kept, and you can restore it any time from the Archived
+              section — nothing is deleted.
+            </p>
+            <label className="mt-4 block">
+              <span className="mb-1.5 block font-poppins text-xs font-semibold uppercase tracking-wide text-brand-text/60">
+                Type <span className="normal-case font-bold">{archiveTarget.name}</span> to confirm
+              </span>
+              <input
+                autoFocus
+                value={archiveTyped}
+                onChange={(e) => setArchiveTyped(e.target.value)}
+                className="w-full rounded-lg border border-brand-divider px-3 py-2.5 font-poppins text-sm focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setArchiveTarget(null)}
+                disabled={archiving}
+                className="min-h-[44px] rounded-lg border border-brand-divider px-4 font-poppins text-sm font-medium text-brand-text hover:bg-brand-secondary cursor-pointer disabled:opacity-50"
+              >
+                Keep it
+              </button>
+              <button
+                onClick={() => void archiveCategory()}
+                disabled={archiving || archiveTyped.trim() !== archiveTarget.name}
+                className="min-h-[44px] rounded-lg bg-red-600 px-4 font-arvo-bold text-sm text-white hover:bg-red-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {archiving ? "Archiving…" : "Archive category"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <CategoryFormModal
         open={catModalOpen}
         onClose={() => setCatModalOpen(false)}
