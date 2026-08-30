@@ -86,6 +86,8 @@ export interface MealPlan {
   categorySlug: string | null;
   /** The service's own order minimum; null = the store default applies. */
   categoryMinBoxes: number | null;
+  /** This service's floor for EACH dish; null = use the store default. */
+  categoryMinDishQty: number | null;
 }
 
 /** An extras group (Add-ons, Café Menu) offered alongside every service. */
@@ -280,7 +282,7 @@ class MenuService {
       supabase
         .from("meal_plans")
         .select(
-          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sandwich_count, pasta_count, category:categories(slug, min_order_boxes)",
+          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sandwich_count, pasta_count, category:categories(slug, min_order_boxes, min_qty_per_dish)",
         )
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
@@ -319,6 +321,8 @@ class MenuService {
         categorySlug: (cat as { slug: string } | null)?.slug ?? null,
         categoryMinBoxes:
           (cat as { min_order_boxes: number | null } | null)?.min_order_boxes ?? null,
+        categoryMinDishQty:
+          (cat as { min_qty_per_dish: number | null } | null)?.min_qty_per_dish ?? null,
       };
     });
 
@@ -463,25 +467,33 @@ class MenuService {
   }
 
   /**
-   * Live, uncached read of the per-service order floor for the checkout gate:
-   * the categories behind the given plans, reduced to the strictest defined
-   * floor (carts are single-service in practice). null = every category uses
-   * the store default. Throws on failure so the caller fails closed.
+   * Live, uncached read of the per-service floors for the checkout gate: the
+   * categories behind the given plans, each reduced to the strictest defined
+   * value. A cart belongs to exactly one service (useOrderManagement keys it
+   * by slug), so the reduction never mixes services. null = that floor falls
+   * back to the store default. Throws on failure so the caller fails closed.
    */
-  async fetchPlanCategoryMinimum(mealPlanIds: number[]): Promise<number | null> {
-    if (mealPlanIds.length === 0) return null;
+  async fetchPlanCategoryMinimum(
+    mealPlanIds: number[],
+  ): Promise<{ minBoxes: number | null; minDishQty: number | null }> {
+    if (mealPlanIds.length === 0) return { minBoxes: null, minDishQty: null };
     const { data, error } = await supabase
       .from("meal_plans")
-      .select("category:categories(min_order_boxes)")
+      .select("category:categories(min_order_boxes, min_qty_per_dish)")
       .in("id", [...new Set(mealPlanIds)]);
     if (error) throw new Error(error.message);
-    const defined = (data ?? [])
-      .map((row) => {
-        const cat = Array.isArray(row.category) ? row.category[0] : row.category;
-        return (cat as { min_order_boxes: number | null } | null)?.min_order_boxes ?? null;
-      })
-      .filter((m): m is number => m !== null);
-    return defined.length ? Math.max(...defined) : null;
+    const cats = (data ?? []).map((row) => {
+      const cat = Array.isArray(row.category) ? row.category[0] : row.category;
+      return cat as { min_order_boxes: number | null; min_qty_per_dish: number | null } | null;
+    });
+    const strictest = (values: (number | null | undefined)[]): number | null => {
+      const defined = values.filter((m): m is number => m != null);
+      return defined.length ? Math.max(...defined) : null;
+    };
+    return {
+      minBoxes: strictest(cats.map((c) => c?.min_order_boxes)),
+      minDishQty: strictest(cats.map((c) => c?.min_qty_per_dish)),
+    };
   }
 
   async refreshMenuData(): Promise<void> {

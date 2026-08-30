@@ -130,6 +130,10 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     plans[0]?.categoryMinBoxes ?? minimumMealPlans,
     totalBoxes,
   );
+  // Same override, applied to the per-dish floor: Party Trays sells by the
+  // piece, so one tray of one dish must not be flagged as under the store's
+  // 15-per-dish default. Mirrors create_order v11's coalesce.
+  const effectiveMinQtyPerDish = plans[0]?.categoryMinDishQty ?? minimumQtyPerDish;
   // Preload ALL category images when menu data arrives
   useEffect(() => {
     if (!menuData) return;
@@ -641,6 +645,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                 compact
                 planInstances={planInstances}
                 extras={extras}
+                categoryMinDishQty={plans[0]?.categoryMinDishQty ?? null}
                 activePlanInstanceId={activePlanInstanceId}
                 getMealPlanLimits={getMealPlanLimits}
                 onSetActivePlan={onSetActivePlan}
@@ -1052,9 +1057,9 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                           openSlots={openSlotsByType[item.type] ?? 0}
                           placedCount={placedByDish.get(item.id) ?? 0}
                           requiredMin={
-                            minimumQtyPerDish === null
+                            effectiveMinQtyPerDish === null
                               ? null
-                              : (item.minQty ?? minimumQtyPerDish)
+                              : (item.minQty ?? effectiveMinQtyPerDish)
                           }
                           showBulkActions={showBulkDishActions}
                           onAddMany={(n) => onItemAddMany(item, n, fillModeRef.current)}
@@ -1099,10 +1104,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                           openSlots={999}
                           placedCount={extrasQtyByItem.get(item.id) ?? 0}
                           requiredMin={
-                            minimumQtyPerDish === null
+                            effectiveMinQtyPerDish === null
                               ? null
-                              : (item.minQty ?? minimumQtyPerDish)
+                              : (item.minQty ?? effectiveMinQtyPerDish)
                           }
+                          unitPrice={item.price}
                           showBulkActions={false}
                           onAddMany={(n) => onExtraAdd(item, n)}
                           onRemoveMany={(n) => onExtraRemove(item, n)}
@@ -1251,6 +1257,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   compact
                   planInstances={planInstances}
                   extras={extras}
+                  categoryMinDishQty={plans[0]?.categoryMinDishQty ?? null}
                   activePlanInstanceId={activePlanInstanceId}
                   getMealPlanLimits={getMealPlanLimits}
                   onSetActivePlan={(id) => {

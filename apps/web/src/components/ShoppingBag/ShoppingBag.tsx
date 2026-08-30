@@ -29,6 +29,7 @@ interface ShoppingBagProps {
   onCheckout?: () => void;
   /** This service's own order minimum; null = the store default applies. */
   categoryMinBoxes?: number | null;
+  categoryMinDishQty?: number | null;
 }
 
 const ShoppingBag: React.FC<ShoppingBagProps> = ({
@@ -47,6 +48,7 @@ const ShoppingBag: React.FC<ShoppingBagProps> = ({
   onMoveItem,
   onCheckout,
   categoryMinBoxes = null,
+  categoryMinDishQty = null,
 }) => {
   const [isShoppingBagOpen, setIsShoppingBagOpen] = useState(false);
 
@@ -93,6 +95,7 @@ const ShoppingBag: React.FC<ShoppingBagProps> = ({
         onMoveItem={onMoveItem}
         onCheckout={onCheckout}
         categoryMinBoxes={categoryMinBoxes}
+        categoryMinDishQty={categoryMinDishQty}
       />
     </>
   );

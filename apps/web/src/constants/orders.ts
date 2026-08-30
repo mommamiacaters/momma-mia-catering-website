@@ -40,6 +40,17 @@ export const orderStatusLabel = (status: string): string => status.replace(/_/g,
 /** Money is stored in centavos, so never divide anywhere but here. */
 export const peso = (cents: number): string => `₱${(cents / 100).toFixed(2)}`;
 
+/**
+ * An amount the storefront already holds in pesos. Groups thousands and shows
+ * decimals only when there are any, so a whole-peso price stays "₱850" while
+ * a fractional one cannot leak float noise like "₱60.300000000000004".
+ */
+export const pesoAmount = (amount: number): string =>
+  `₱${amount.toLocaleString("en-PH", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
+
 export const orderDate = (iso: string): string =>
   new Date(iso).toLocaleDateString("en-PH", {
     year: "numeric",

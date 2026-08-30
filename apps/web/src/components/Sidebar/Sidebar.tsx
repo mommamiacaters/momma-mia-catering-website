@@ -14,6 +14,7 @@ import {
   Crosshair,
   Loader2,
 } from "lucide-react";
+import { pesoAmount } from "../../constants/orders";
 import type {
   ExtraSelection,
   MealPlanType,
@@ -55,6 +56,8 @@ interface ShoppingBagSidebarProps {
   onCheckout?: () => void;
   /** This service's own order minimum; null = the store default applies. */
   categoryMinBoxes?: number | null;
+  /** This service's per-dish floor; null = the store default applies. */
+  categoryMinDishQty?: number | null;
 }
 
 const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label }) => ({
@@ -79,6 +82,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   onMoveItem,
   onCheckout,
   categoryMinBoxes = null,
+  categoryMinDishQty = null,
 }) => {
   const {
     minimumMealPlans,
@@ -92,7 +96,12 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   // load-window flash nor a load-window bypass. The service's own floor beats
   // the store default.
   const min = deriveMinimumState(categoryMinBoxes ?? minimumMealPlans, totalMealPlans);
-  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances, extras);
+  // The service's own per-dish floor beats the store default, as in v11.
+  const dishMin = deriveDishMinimumState(
+    categoryMinDishQty ?? minimumQtyPerDish,
+    planInstances,
+    extras,
+  );
   const allBoxesFilled =
     planInstances.length > 0 &&
     planInstances.every((pi) => isPlanInstanceComplete(pi, getMealPlanLimits(pi.type)));
@@ -854,7 +863,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                     Extras
                   </span>
                   <span className="ml-auto shrink-0 font-poppins text-sm font-semibold text-brand-primary tabular-nums">
-                    &#8369;{extras.reduce((sum, e) => sum + e.price * e.qty, 0)}
+                    {pesoAmount(extras.reduce((sum, e) => sum + e.price * e.qty, 0))}
                   </span>
                 </div>
                 {extras.map((e) => (
@@ -870,9 +879,10 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                     <span className="font-poppins text-xs text-brand-text truncate">
                       <span className="font-semibold tabular-nums">{e.qty}&times; </span>
                       {e.name}
+                      <span className="text-brand-text/40"> @ {pesoAmount(e.price)}</span>
                     </span>
                     <span className="ml-auto shrink-0 font-poppins text-xs text-brand-text/60 tabular-nums">
-                      &#8369;{e.price * e.qty}
+                      {pesoAmount(e.price * e.qty)}
                     </span>
                   </div>
                 ))}

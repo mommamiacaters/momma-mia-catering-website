@@ -89,6 +89,7 @@ const ServicePage: React.FC = () => {
         <ShoppingBag
           isVisible={serviceContent.hasMenu && order.plans.length > 0}
           categoryMinBoxes={order.plans[0]?.categoryMinBoxes ?? null}
+          categoryMinDishQty={order.plans[0]?.categoryMinDishQty ?? null}
           planInstances={order.planInstances}
           extras={order.extras}
           activePlanInstanceId={order.activePlanInstanceId}

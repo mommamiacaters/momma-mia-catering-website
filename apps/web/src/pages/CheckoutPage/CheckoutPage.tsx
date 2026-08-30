@@ -32,6 +32,7 @@ import { FALLBACK_IMAGE, onImgError } from "../../components/CachedImage";
 import { generateSecureOrderRef } from "../../utils/validation";
 import { canSubmitOrder, recordSubmission, getSecondsUntilNext } from "../../utils/rateLimiter";
 import { PLAN_SLOTS } from "../../constants/planSlots";
+import { pesoAmount } from "../../constants/orders";
 import { groupPlanInstances, aggregateDishes } from "../../utils/mealPlanUtils";
 import { SlotIcon } from "../../components/ui/SlotIcons";
 import SummaryViewToggle, { type SummaryView } from "../../components/ui/SummaryViewToggle";
@@ -150,6 +151,7 @@ const CheckoutPage: React.FC = () => {
   // default. Until it loads, the default applies — verifyMinimum re-reads
   // everything live before any money moves either way.
   const [categoryMinBoxes, setCategoryMinBoxes] = useState<number | null>(null);
+  const [categoryMinDishQty, setCategoryMinDishQty] = useState<number | null>(null);
   // Overview (default) collapses each build to one line per distinct dish so
   // a 45-box order reads at a glance; Detailed keeps every dish slot as its
   // own row. Purely presentational — same groupedBoxes data.
@@ -161,7 +163,9 @@ const CheckoutPage: React.FC = () => {
     menuService
       .fetchPlanCategoryMinimum(ids)
       .then((m) => {
-        if (active) setCategoryMinBoxes(m);
+        if (!active) return;
+        setCategoryMinBoxes(m.minBoxes);
+        setCategoryMinDishQty(m.minDishQty);
       })
       .catch(() => undefined);
     return () => {
@@ -172,7 +176,7 @@ const CheckoutPage: React.FC = () => {
   }, []);
   const min = deriveMinimumState(categoryMinBoxes ?? minimumMealPlans, boxes);
   const dishMin = deriveDishMinimumState(
-    minimumQtyPerDish,
+    categoryMinDishQty ?? minimumQtyPerDish,
     effectiveState?.planInstances ?? [],
     effectiveState?.extras ?? [],
   );
@@ -195,7 +199,7 @@ const CheckoutPage: React.FC = () => {
       const liveCatMin = await menuService.fetchPlanCategoryMinimum(
         (effectiveState?.planInstances ?? []).map((pi) => pi.mealPlanId),
       );
-      const live = liveCatMin ?? liveDefault;
+      const live = liveCatMin.minBoxes ?? liveDefault;
       if (boxes > 0 && boxes < live) {
         setGateError(
           `The minimum order size is ${live} lunch boxes. Your order has ${boxes}. Please go back and add ${live - boxes} more — nothing has been charged.`,
@@ -233,7 +237,13 @@ const CheckoutPage: React.FC = () => {
           ? { ...e, minQty: liveOverrides.get(e.menuItemId) ?? null }
           : e,
       );
-      const liveDishMin = deriveDishMinimumState(liveDish, livePlans, liveExtras);
+      // The service's own per-dish floor beats the store default, exactly as
+      // create_order v11 resolves it.
+      const liveDishMin = deriveDishMinimumState(
+        liveCatMin.minDishQty ?? liveDish,
+        livePlans,
+        liveExtras,
+      );
       if (boxes > 0 && liveDishMin.violations.length > 0) {
         const v = liveDishMin.violations[0];
         setGateError(
@@ -662,7 +672,7 @@ const CheckoutPage: React.FC = () => {
           <div className="px-3 py-2.5 bg-brand-secondary/50 flex items-center gap-2">
             <Package size={14} className="text-brand-primary shrink-0" />
             <span className="font-poppins text-sm font-semibold text-brand-text">
-              Extras
+              Add-ons
             </span>
           </div>
           <div className="px-3 py-2 space-y-1">
@@ -679,9 +689,10 @@ const CheckoutPage: React.FC = () => {
                 <span className="font-poppins text-sm text-brand-text capitalize truncate">
                   <span className="font-semibold tabular-nums">{e.qty}&times; </span>
                   {e.name}
+                  <span className="text-brand-text/40"> @ {pesoAmount(e.price)}</span>
                 </span>
                 <span className="ml-auto shrink-0 font-poppins text-sm text-brand-text/60 tabular-nums">
-                  &#8369;{e.price * e.qty}
+                  {pesoAmount(e.price * e.qty)}
                 </span>
               </div>
             ))}
@@ -816,18 +827,18 @@ const CheckoutPage: React.FC = () => {
                       : min.blocked
                         ? `Your order has ${boxes} lunch ${boxes === 1 ? "box" : "boxes"}. Orders need at least ${min.minimum} before we can take it. Nothing has been charged.`
                         : `Each dish in your order has a per-order minimum. Still short: ${dishMin.violations
-                            .map((v) => `${v.name} (${v.current}/${v.required})`)
-                            .join(", ")}. Please go back and top them up, or take them out. Nothing has been charged.`}
+                          .map((v) => `${v.name} (${v.current}/${v.required})`)
+                          .join(", ")}. Please go back and top them up, or take them out. Nothing has been charged.`}
                   </p>
                   <button
                     onClick={() =>
                       settingsError
                         ? retrySettings()
                         : navigate(
-                            effectiveState.slug
-                              ? `/services/${effectiveState.slug}`
-                              : "/meals",
-                          )
+                          effectiveState.slug
+                            ? `/services/${effectiveState.slug}`
+                            : "/meals",
+                        )
                     }
                     className="px-6 py-3 rounded-xl bg-brand-primary text-white font-poppins font-semibold hover:bg-brand-primary/90 transition-colors cursor-pointer"
                   >
@@ -836,54 +847,54 @@ const CheckoutPage: React.FC = () => {
                 </div>
               ) : (
                 <>
-              {currentStep === "delivery" && (
-                <>
-                  <h2 className="font-arvo font-bold text-brand-text text-lg mb-5">
-                    Delivery Details
-                  </h2>
-                  {gateError && (
-                    <p className="mb-4 font-poppins text-sm text-red-600">
-                      {gateError}
-                    </p>
+                  {currentStep === "delivery" && (
+                    <>
+                      <h2 className="font-arvo font-bold text-brand-text text-lg mb-5">
+                        Delivery Details
+                      </h2>
+                      {gateError && (
+                        <p className="mb-4 font-poppins text-sm text-red-600">
+                          {gateError}
+                        </p>
+                      )}
+                      <DeliveryStep
+                        formData={formData}
+                        onChange={setFormData}
+                        onContinue={handleContinueToPayment}
+                      />
+                    </>
                   )}
-                  <DeliveryStep
-                    formData={formData}
-                    onChange={setFormData}
-                    onContinue={handleContinueToPayment}
-                  />
-                </>
-              )}
 
-              {currentStep === "payment" && (
-                <>
-                  <h2 className="font-arvo font-bold text-brand-text text-lg mb-5">
-                    Payment
-                  </h2>
-                  <PaymentStep
-                    subtotal={subtotal}
-                    paymentProof={paymentProof}
-                    onProofChange={setPaymentProof}
-                    onSubmit={handleSubmit}
-                    isSubmitting={status === "submitting" || checking}
-                    onBack={handleBackToDelivery}
-                    onCreateOrder={handleCreatePayPalOrder}
-                    onApprove={handlePayPalApproved}
-                    error={
-                      submitError ? (
-                        <span>
-                          {submitError}{" "}
-                          <Link
-                            to="/contact"
-                            className="underline font-semibold"
-                          >
-                            Contact us
-                          </Link>
-                        </span>
-                      ) : null
-                    }
-                  />
-                </>
-              )}
+                  {currentStep === "payment" && (
+                    <>
+                      <h2 className="font-arvo font-bold text-brand-text text-lg mb-5">
+                        Payment
+                      </h2>
+                      <PaymentStep
+                        subtotal={subtotal}
+                        paymentProof={paymentProof}
+                        onProofChange={setPaymentProof}
+                        onSubmit={handleSubmit}
+                        isSubmitting={status === "submitting" || checking}
+                        onBack={handleBackToDelivery}
+                        onCreateOrder={handleCreatePayPalOrder}
+                        onApprove={handlePayPalApproved}
+                        error={
+                          submitError ? (
+                            <span>
+                              {submitError}{" "}
+                              <Link
+                                to="/contact"
+                                className="underline font-semibold"
+                              >
+                                Contact us
+                              </Link>
+                            </span>
+                          ) : null
+                        }
+                      />
+                    </>
+                  )}
                 </>
               )}
             </div>

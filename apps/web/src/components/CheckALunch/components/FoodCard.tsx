@@ -1,6 +1,7 @@
 import React, { memo, useState } from "react";
 import { Plus, Minus, Check } from "lucide-react";
 import { MenuItem } from "../../../types";
+import { pesoAmount } from "../../../constants/orders";
 import CachedImage from "../../CachedImage";
 import ImageLightbox from "../../ui/ImageLightbox";
 
@@ -14,6 +15,11 @@ interface FoodCardProps {
   placedCount: number;
   /** Per-order floor once this dish is picked; null = unknown, 0 = none. */
   requiredMin: number | null;
+  /**
+   * Price per piece, in pesos. Extras only: a plan course costs whatever the
+   * plan costs, so showing a price there would be a lie.
+   */
+  unitPrice?: number | null;
   /** Admin switch: the bulk "Fill all" / "Clear" pair under each card. */
   showBulkActions: boolean;
   onAddMany: (count: number) => void;
@@ -27,6 +33,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   openSlots,
   placedCount,
   requiredMin,
+  unitPrice = null,
   showBulkActions,
   onAddMany,
   onRemoveMany,
@@ -141,6 +148,15 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
         {item.description && (
           <p className="font-poppins text-xs text-brand-text/60 line-clamp-1 sm:line-clamp-2 mb-2 sm:mb-3 leading-relaxed">
             {item.description}
+          </p>
+        )}
+        {unitPrice != null && (
+          <p className="font-arvo font-bold text-sm text-brand-primary mb-2 sm:mb-3 tabular-nums">
+            {pesoAmount(unitPrice)}
+            <span className="font-poppins font-normal text-xs text-brand-text/50">
+              {" "}
+              each
+            </span>
           </p>
         )}
 
@@ -283,6 +299,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   prev.openSlots === next.openSlots &&
   prev.placedCount === next.placedCount &&
   prev.requiredMin === next.requiredMin &&
+  prev.unitPrice === next.unitPrice &&
   prev.showBulkActions === next.showBulkActions
 );
 

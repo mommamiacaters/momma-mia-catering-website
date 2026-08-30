@@ -24,12 +24,15 @@ import {
   type DishMinimumViolation,
 } from "../../../hooks/useStoreSettings";
 import { PLAN_SLOT_META } from "../../../constants/planSlots";
+import { pesoAmount } from "../../../constants/orders";
 import { SlotIcon } from "../../ui/SlotIcons";
 
 interface TrayPreviewProps {
   planInstances: PlanInstance[];
   /** À-la-carte extras riding the order (Add-ons, Café Menu). */
   extras?: ExtraSelection[];
+  /** This service's per-dish floor; null/omitted = use the store default. */
+  categoryMinDishQty?: number | null;
   activePlanInstanceId: string | null;
   /** Per-slot counts for a plan, from the database. */
   getMealPlanLimits: (type: string) => Record<string, number>;
@@ -66,6 +69,7 @@ const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label }) => ({
 const TrayPreview: React.FC<TrayPreviewProps> = ({
   planInstances,
   extras = [],
+  categoryMinDishQty = null,
   activePlanInstanceId,
   getMealPlanLimits,
   onSetActivePlan,
@@ -128,7 +132,13 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
   // Same shared derivation as the banner, cart drawer and checkout — this
   // panel must never celebrate "complete" while a dish is under its floor.
   const { minimumQtyPerDish } = useStoreSettings();
-  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances, extras);
+  // The service's own per-dish floor beats the store default, exactly as
+  // create_order v11 resolves it. null/undefined = no override.
+  const dishMin = deriveDishMinimumState(
+    categoryMinDishQty ?? minimumQtyPerDish,
+    planInstances,
+    extras,
+  );
   const dishesShort = dishMin.violations.length > 0;
 
   const completedCount = planInstances.filter((pi) =>
@@ -707,8 +717,8 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
             <span className="font-arvo font-bold text-sm text-brand-text">
               Extras
             </span>
-            <span className="ml-auto shrink-0 font-poppins text-[0.7rem] font-semibold px-2 py-0.5 rounded-full tabular-nums bg-brand-secondary text-brand-text/70">
-              {extras.reduce((n, e) => n + e.qty, 0)} items
+            <span className="ml-auto shrink-0 font-poppins text-sm font-semibold text-brand-primary tabular-nums">
+              {pesoAmount(extras.reduce((sum, e) => sum + e.price * e.qty, 0))}
             </span>
           </div>
           {extras.map((e) => (
@@ -724,9 +734,10 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
               <span className="font-poppins text-xs text-brand-text truncate">
                 <span className="font-semibold tabular-nums">{e.qty}&times; </span>
                 {e.name}
+                <span className="text-brand-text/40"> @ {pesoAmount(e.price)}</span>
               </span>
               <span className="ml-auto shrink-0 font-poppins text-xs text-brand-text/60 tabular-nums">
-                &#8369;{e.price * e.qty}
+                {pesoAmount(e.price * e.qty)}
               </span>
             </div>
           ))}
