@@ -672,7 +672,7 @@ const CheckoutPage: React.FC = () => {
           <div className="px-3 py-2.5 bg-brand-secondary/50 flex items-center gap-2">
             <Package size={14} className="text-brand-primary shrink-0" />
             <span className="font-poppins text-sm font-semibold text-brand-text">
-              Add-ons
+              Extras
             </span>
           </div>
           <div className="px-3 py-2 space-y-1">
