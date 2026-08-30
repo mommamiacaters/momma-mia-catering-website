@@ -175,10 +175,11 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
               value={form.sub_category_id}
               onChange={(e) => setForm({ ...form, sub_category_id: Number(e.target.value) })}
             >
+              {/* One sub-category per plan slot, so the name IS the slot —
+                  spelling it out again only made the list harder to read. */}
               {subCategories.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
-                  {s.slot ? ` — counts as ${s.slot}` : ""}
                 </option>
               ))}
             </Select>
@@ -210,9 +211,9 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
             <span className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-brand-secondary/50 px-3 py-2 font-poppins text-xs text-brand-text/65">
               <i className="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
               <span>
-                Counts as a <strong>{selectedSub?.slot}</strong> in a meal plan. On a
-                fixed-price plan this amount is <strong>not charged</strong> — the plan's
-                price applies. It is only charged on a plan set to “price range”.
+                On a fixed-price plan this amount is <strong>not charged</strong> —
+                the plan&rsquo;s price applies. It is only charged on a plan set to
+                “price range”.
               </span>
             </span>
           )}
