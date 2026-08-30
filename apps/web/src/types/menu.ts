@@ -7,6 +7,10 @@ export interface Category {
   /** Per-service order minimum. null = store default, 0 = none. Optional so
       callers that don't select it keep compiling. */
   min_order_boxes?: number | null;
+  /** TRUE = extras category (Add-ons, Café Menu), offered with every service. */
+  is_universal?: boolean;
+  /** FALSE = archived: hidden from the storefront and parked in the admin. */
+  is_active?: boolean;
 }
 
 export interface MenuItemRecord {
@@ -60,6 +64,8 @@ export interface MealPlan {
   rice_count: number;
   /** A rice bowl is one dish, not a main plus a rice. */
   rice_bowl_count: number;
+  sandwich_count: number;
+  pasta_count: number;
   sort_order: number;
   is_active: boolean;
   /** categories.id — which food service page sells this plan. */
@@ -79,7 +85,13 @@ export interface MealPlanPriceRange {
 export const PLAN_SLOTS: {
   key: keyof Pick<
     MealPlan,
-    "main_count" | "side_count" | "dessert_count" | "rice_count" | "rice_bowl_count"
+    | "main_count"
+    | "side_count"
+    | "dessert_count"
+    | "rice_count"
+    | "rice_bowl_count"
+    | "sandwich_count"
+    | "pasta_count"
   >;
   label: string;
 }[] = [
@@ -87,5 +99,7 @@ export const PLAN_SLOTS: {
   { key: "side_count", label: "Side dishes" },
   { key: "rice_count", label: "Rice" },
   { key: "rice_bowl_count", label: "Rice bowls" },
+  { key: "sandwich_count", label: "Sandwiches" },
+  { key: "pasta_count", label: "Pasta" },
   { key: "dessert_count", label: "Desserts" },
 ];

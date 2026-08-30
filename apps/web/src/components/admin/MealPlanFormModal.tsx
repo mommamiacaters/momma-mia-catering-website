@@ -34,6 +34,8 @@ const blankCounts: Counts = {
   dessert_count: 0,
   rice_count: 1,
   rice_bowl_count: 0,
+  sandwich_count: 0,
+  pasta_count: 0,
 };
 
 const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
@@ -68,6 +70,8 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
         dessert_count: initial.dessert_count,
         rice_count: initial.rice_count,
         rice_bowl_count: initial.rice_bowl_count ?? 0,
+        sandwich_count: initial.sandwich_count ?? 0,
+        pasta_count: initial.pasta_count ?? 0,
       });
       setPricingMode(initial.pricing_mode);
       setIsActive(initial.is_active);
@@ -121,6 +125,8 @@ const MealPlanFormModal: React.FC<MealPlanFormModalProps> = ({
       dessert_count: counts.dessert_count,
       rice_count: counts.rice_count,
       rice_bowl_count: counts.rice_bowl_count,
+      sandwich_count: counts.sandwich_count,
+      pasta_count: counts.pasta_count,
       pricing_mode: pricingMode,
       is_active: isActive,
       ...(initial ? {} : { sort_order: nextSortOrder }),

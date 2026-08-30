@@ -1,7 +1,7 @@
 // Shared types — single source of truth for the entire application
 // All component-local type duplicates should import from here
 
-export type { MenuItem, MenuTypeData, MenuData, MenuResponse } from '../services/menuService';
+export type { MenuItem, MenuTypeData, MenuData, MenuResponse, ExtrasCategory } from '../services/menuService';
 
 // ─── Checkout Flow ───
 export type CheckoutStep = "delivery" | "payment" | "confirmation";
@@ -16,8 +16,20 @@ export interface PaymentProof {
   fileSize: number;
 }
 
+/** One extra (Add-ons / Café Menu dish) added alongside the lunch boxes. */
+export interface ExtraSelection {
+  menuItemId: string;
+  name: string;
+  /** Pesos, snapshot at add time — display only; the server reprices. */
+  price: number;
+  image: string;
+  categorySlug: string;
+  minQty: number | null;
+  qty: number;
+}
+
 /** A slot in a meal plan. Mirrors sub_categories.slot in the database. */
-export type PlanSlot = "main" | "side" | "rice" | "rice_bowl" | "dessert";
+export type PlanSlot = "main" | "side" | "rice" | "rice_bowl" | "sandwich" | "pasta" | "dessert";
 
 /**
  * How a bulk add distributes across boxes.
@@ -106,6 +118,8 @@ export interface OrderSubmission {
     items: { menuItemId?: string; name: string; type: string; image: string }[];
     subtotal: number;
     planInstances?: PlanInstance[];
+    /** À-la-carte extras riding the order; priced server-side. */
+    extras?: { menuItemId: string; qty: number }[];
   };
   orderRef: string;
   // QR/receipt flow only — the PayPal flow carries no proof.

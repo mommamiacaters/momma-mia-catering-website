@@ -5,7 +5,7 @@ import MealPlanFormModal from "../../components/admin/MealPlanFormModal";
 import { peso } from "../../constants/orders";
 
 const SELECT =
-  "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sort_order, is_active, category_id";
+  "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sandwich_count, pasta_count, sort_order, is_active, category_id";
 
 /** The food-service categories that always get a section, even when empty. */
 const SERVICE_CATEGORY_SLUGS = ["check-a-lunch", "party-tray", "fun-boxes"];

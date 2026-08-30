@@ -24,6 +24,8 @@ export interface MenuTypeData {
   side: MenuItem[];
   rice: MenuItem[];
   rice_bowl: MenuItem[];
+  sandwich: MenuItem[];
+  pasta: MenuItem[];
   dessert: MenuItem[];
 }
 
@@ -62,6 +64,8 @@ export const PLAN_SLOT_LABELS: Record<string, string> = {
   side: "Side Dish",
   rice: "Rice",
   rice_bowl: "Rice Bowl",
+  sandwich: "Sandwich",
+  pasta: "Pasta",
   dessert: "Dessert",
 };
 
@@ -82,6 +86,13 @@ export interface MealPlan {
   categorySlug: string | null;
   /** The service's own order minimum; null = the store default applies. */
   categoryMinBoxes: number | null;
+}
+
+/** An extras group (Add-ons, Café Menu) offered alongside every service. */
+export interface ExtrasCategory {
+  slug: string;
+  name: string;
+  items: MenuItem[];
 }
 
 /** One dish a plan may be built from, via public.meal_plan_options. */
@@ -117,6 +128,8 @@ const emptyTypeData = (): MenuTypeData => ({
   side: [],
   rice: [],
   rice_bowl: [],
+  sandwich: [],
+  pasta: [],
   dessert: [],
 });
 
@@ -267,7 +280,7 @@ class MenuService {
       supabase
         .from("meal_plans")
         .select(
-          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, category:categories(slug, min_order_boxes)",
+          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sandwich_count, pasta_count, category:categories(slug, min_order_boxes)",
         )
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
@@ -298,6 +311,8 @@ class MenuService {
           dessert: p.dessert_count ?? 0,
           rice: p.rice_count ?? 0,
           rice_bowl: p.rice_bowl_count ?? 0,
+          sandwich: p.sandwich_count ?? 0,
+          pasta: p.pasta_count ?? 0,
         },
         minPrice: centsToPesos((r?.min_cents as number) ?? 0),
         maxPrice: centsToPesos((r?.max_cents as number) ?? 0),
@@ -324,6 +339,8 @@ class MenuService {
       dessert: [],
       rice: [],
       rice_bowl: [],
+      sandwich: [],
+      pasta: [],
     };
 
     const { data, error } = await supabase
@@ -383,8 +400,50 @@ class MenuService {
       side: opts.side.map(toMenuItem),
       rice: opts.rice.map(toMenuItem),
       rice_bowl: opts.rice_bowl.map(toMenuItem),
+      sandwich: opts.sandwich.map(toMenuItem),
+      pasta: opts.pasta.map(toMenuItem),
       dessert: opts.dessert.map(toMenuItem),
     };
+  }
+
+  /**
+   * The always-available extras (Add-ons, Café Menu): universal categories
+   * whose dishes ride along with every service's plans. Grouped by category,
+   * in the category sort order. Unpriced dishes never appear — the view
+   * filters them, because extras are charged à la carte.
+   */
+  async getExtras(): Promise<ExtrasCategory[]> {
+    const { data, error } = await supabase
+      .from("extras_menu_options")
+      .select(
+        "category_slug, category_name, category_sort, menu_item_id, name, description, image_url, price_cents, min_qty",
+      );
+    if (error) {
+      console.error("Failed to fetch extras:", error.message);
+      return [];
+    }
+    const byCat = new Map<string, ExtrasCategory & { sort: number }>();
+    for (const row of data ?? []) {
+      const slug = row.category_slug as string;
+      let cat = byCat.get(slug);
+      if (!cat) {
+        cat = { slug, name: row.category_name as string, sort: row.category_sort as number, items: [] };
+        byCat.set(slug, cat);
+      }
+      cat.items.push({
+        id: row.menu_item_id as string,
+        name: row.name as string,
+        description: (row.description as string | null) ?? "",
+        price: centsToPesos(row.price_cents as number),
+        category: slug,
+        type: "extra",
+        image: (row.image_url as string | null) ?? "",
+        minQty: (row.min_qty as number | null) ?? null,
+      });
+    }
+    const cats = [...byCat.values()].sort((a, b) => a.sort - b.sort);
+    for (const c of cats) c.items.sort((a, b) => a.name.localeCompare(b.name));
+    return cats.map(({ slug, name, items }) => ({ slug, name, items }));
   }
 
   /**
