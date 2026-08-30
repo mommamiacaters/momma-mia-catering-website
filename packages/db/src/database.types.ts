@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -82,6 +82,7 @@ export type Database = {
           created_at: string
           id: number
           is_active: boolean
+          is_universal: boolean
           min_order_boxes: number | null
           name: string
           slug: string
@@ -92,6 +93,7 @@ export type Database = {
           created_at?: string
           id?: number
           is_active?: boolean
+          is_universal?: boolean
           min_order_boxes?: number | null
           name: string
           slug: string
@@ -102,6 +104,7 @@ export type Database = {
           created_at?: string
           id?: number
           is_active?: boolean
+          is_universal?: boolean
           min_order_boxes?: number | null
           name?: string
           slug?: string
@@ -180,10 +183,12 @@ export type Database = {
           is_active: boolean
           main_count: number
           name: string
+          pasta_count: number
           price_cents: number
           pricing_mode: string
           rice_bowl_count: number
           rice_count: number
+          sandwich_count: number
           side_count: number
           sort_order: number
           updated_at: string
@@ -197,10 +202,12 @@ export type Database = {
           is_active?: boolean
           main_count?: number
           name: string
+          pasta_count?: number
           price_cents: number
           pricing_mode?: string
           rice_bowl_count?: number
           rice_count?: number
+          sandwich_count?: number
           side_count?: number
           sort_order?: number
           updated_at?: string
@@ -214,10 +221,12 @@ export type Database = {
           is_active?: boolean
           main_count?: number
           name?: string
+          pasta_count?: number
           price_cents?: number
           pricing_mode?: string
           rice_bowl_count?: number
           rice_count?: number
+          sandwich_count?: number
           side_count?: number
           sort_order?: number
           updated_at?: string
@@ -229,6 +238,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meal_plans_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "extras_menu_options"
+            referencedColumns: ["category_id"]
           },
         ]
       }
@@ -288,6 +304,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "extras_menu_options"
+            referencedColumns: ["category_id"]
           },
           {
             foreignKeyName: "menu_items_sub_category_id_fkey"
@@ -374,6 +397,13 @@ export type Database = {
             foreignKeyName: "order_items_menu_item_id_fkey"
             columns: ["menu_item_id"]
             isOneToOne: false
+            referencedRelation: "extras_menu_options"
+            referencedColumns: ["menu_item_id"]
+          },
+          {
+            foreignKeyName: "order_items_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
             referencedRelation: "meal_plan_options"
             referencedColumns: ["menu_item_id"]
           },
@@ -410,7 +440,13 @@ export type Database = {
           notified_at: string | null
           order_ref: string
           order_type: Database["public"]["Enums"]["order_type"]
+          paid_at: string | null
+          payment_amount_cents: number | null
           payment_proof_url: string | null
+          payment_provider: string | null
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          paypal_capture_id: string | null
+          paypal_order_id: string | null
           special_requests: string | null
           status: Database["public"]["Enums"]["order_status"]
           subtotal_cents: number
@@ -433,7 +469,13 @@ export type Database = {
           notified_at?: string | null
           order_ref: string
           order_type?: Database["public"]["Enums"]["order_type"]
+          paid_at?: string | null
+          payment_amount_cents?: number | null
           payment_proof_url?: string | null
+          payment_provider?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
           special_requests?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal_cents: number
@@ -456,7 +498,13 @@ export type Database = {
           notified_at?: string | null
           order_ref?: string
           order_type?: Database["public"]["Enums"]["order_type"]
+          paid_at?: string | null
+          payment_amount_cents?: number | null
           payment_proof_url?: string | null
+          payment_provider?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
           special_requests?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           subtotal_cents?: number
@@ -638,6 +686,21 @@ export type Database = {
         }
         Relationships: []
       }
+      extras_menu_options: {
+        Row: {
+          category_id: number | null
+          category_name: string | null
+          category_slug: string | null
+          category_sort: number | null
+          description: string | null
+          image_url: string | null
+          menu_item_id: string | null
+          min_qty: number | null
+          name: string | null
+          price_cents: number | null
+        }
+        Relationships: []
+      }
       meal_plan_options: {
         Row: {
           description: string | null
@@ -685,17 +748,32 @@ export type Database = {
         Args: { p_quote: Database["public"]["Tables"]["quote_requests"]["Row"] }
         Returns: undefined
       }
+      attach_paypal_order: {
+        Args: { p_order_id: string; p_paypal_order_id: string }
+        Returns: undefined
+      }
       create_order: {
         Args: {
           p_customer: Json
           p_items: Json
           p_order_ref: string
           p_payment_proof_url?: string
+          p_payment_provider?: string
           p_proof_ext?: string
         }
         Returns: Json
       }
       is_admin: { Args: never; Returns: boolean }
+      record_paypal_capture: {
+        Args: {
+          p_amount_cents: number
+          p_capture_id: string
+          p_currency: string
+          p_paypal_order_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
       submit_contact_message: {
         Args: {
           p_email: string
@@ -720,6 +798,12 @@ export type Database = {
         | "delivered"
         | "cancelled"
       order_type: "delivery" | "pickup" | "catering"
+      payment_status:
+        | "manual_proof"
+        | "awaiting_payment"
+        | "paid"
+        | "failed"
+        | "refunded"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -859,6 +943,13 @@ export const Constants = {
         "cancelled",
       ],
       order_type: ["delivery", "pickup", "catering"],
+      payment_status: [
+        "manual_proof",
+        "awaiting_payment",
+        "paid",
+        "failed",
+        "refunded",
+      ],
     },
   },
 } as const
