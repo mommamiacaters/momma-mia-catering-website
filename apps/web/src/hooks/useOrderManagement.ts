@@ -926,8 +926,11 @@ export function useOrderManagement(
     for (const cat of catalog) {
       for (const it of cat.items) fresh.set(it.id, it);
     }
-    setExtras((prev) =>
-      prev.map((e) => {
+    setExtras((prev) => {
+      // Return the same array when there is nothing to re-stamp; a new one
+      // would re-render the whole service page on every load.
+      if (prev.length === 0) return prev;
+      return prev.map((e) => {
         const f = fresh.get(e.menuItemId);
         return f
           ? {
@@ -938,8 +941,8 @@ export function useOrderManagement(
               minQty: f.minQty ?? null,
             }
           : e;
-      })
-    );
+      });
+    });
   }, []);
 
   // ─── Query helpers ───
