@@ -236,10 +236,11 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
           <span className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-brand-secondary/50 px-3 py-2 font-poppins text-xs text-brand-text/65">
             <i className="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
             <span>
-              Once this dish is in a lunch-box order, the order must include at
-              least this many of it. Blank uses the store default (Store
-              Settings → <strong>Minimum of each dish per order</strong>);{" "}
-              <strong>0</strong> removes the minimum for this dish only.
+              Once this dish is in an order, the order must include at least
+              this many of it. Blank falls back to the service&rsquo;s own{" "}
+              <strong>Minimum dishes</strong>, then to Store Settings →{" "}
+              <strong>Default minimum dishes</strong>; <strong>0</strong>{" "}
+              removes the minimum for this dish only.
             </span>
           </span>
         </div>
