@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { CheckCircle, ArrowLeft, Package, AlertCircle } from "lucide-react";
 import type {
+  ExtraSelection,
   MealPlanOrder,
   SelectedItemWithQuantity,
   CheckoutFormData,
@@ -42,6 +43,7 @@ interface CheckoutState {
   mealPlanOrders: MealPlanOrder[];
   selectedItems: SelectedItemWithQuantity[];
   planInstances?: PlanInstance[];
+  extras?: ExtraSelection[];
   subtotal: number;
   /** Which service the cart belongs to, so we can link the customer back to it. */
   slug?: string;
@@ -88,6 +90,7 @@ function findCartInSession(): CheckoutState | null {
         mealPlanOrders,
         selectedItems,
         planInstances: snap.planInstances,
+        extras: snap.extras ?? [],
         subtotal: snap.subtotal ?? 0,
         // Keys are `cart:<slug>` (useOrderManagement) — record the slug we
         // actually restored so we can send the customer back to it.
@@ -171,6 +174,7 @@ const CheckoutPage: React.FC = () => {
   const dishMin = deriveDishMinimumState(
     minimumQtyPerDish,
     effectiveState?.planInstances ?? [],
+    effectiveState?.extras ?? [],
   );
 
   /**
@@ -208,8 +212,12 @@ const CheckoutPage: React.FC = () => {
           ? rawDish
           : 0;
       const cartPlans = effectiveState?.planInstances ?? [];
+      const cartExtras = effectiveState?.extras ?? [];
       const dishIds = [
-        ...new Set(cartPlans.flatMap((pi) => pi.items.map((ai) => ai.menuItemId))),
+        ...new Set([
+          ...cartPlans.flatMap((pi) => pi.items.map((ai) => ai.menuItemId)),
+          ...cartExtras.map((e) => e.menuItemId),
+        ]),
       ];
       const liveOverrides = await menuService.fetchDishMinimums(dishIds);
       const livePlans = cartPlans.map((pi) => ({
@@ -220,7 +228,12 @@ const CheckoutPage: React.FC = () => {
             : ai,
         ),
       }));
-      const liveDishMin = deriveDishMinimumState(liveDish, livePlans);
+      const liveExtras = cartExtras.map((e) =>
+        liveOverrides.has(e.menuItemId)
+          ? { ...e, minQty: liveOverrides.get(e.menuItemId) ?? null }
+          : e,
+      );
+      const liveDishMin = deriveDishMinimumState(liveDish, livePlans, liveExtras);
       if (boxes > 0 && liveDishMin.violations.length > 0) {
         const v = liveDishMin.violations[0];
         setGateError(
@@ -343,6 +356,10 @@ const CheckoutPage: React.FC = () => {
           })),
           subtotal,
           planInstances: planInstances || undefined,
+          extras: (effectiveState?.extras ?? []).map((e) => ({
+            menuItemId: e.menuItemId,
+            qty: e.qty,
+          })),
         },
         orderRef: ref,
         paymentProof: {
@@ -419,6 +436,10 @@ const CheckoutPage: React.FC = () => {
           })),
           subtotal,
           planInstances: planInstances || undefined,
+          extras: (effectiveState?.extras ?? []).map((e) => ({
+            menuItemId: e.menuItemId,
+            qty: e.qty,
+          })),
         },
         orderRef: generateSecureOrderRef(),
       });
@@ -633,6 +654,39 @@ const CheckoutPage: React.FC = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Extras — à la carte, shown once with their own line totals */}
+      {(effectiveState?.extras?.length ?? 0) > 0 && (
+        <div className="border border-brand-divider rounded-xl overflow-hidden mb-4">
+          <div className="px-3 py-2.5 bg-brand-secondary/50 flex items-center gap-2">
+            <Package size={14} className="text-brand-primary shrink-0" />
+            <span className="font-poppins text-sm font-semibold text-brand-text">
+              Extras
+            </span>
+          </div>
+          <div className="px-3 py-2 space-y-1">
+            {(effectiveState?.extras ?? []).map((e) => (
+              <div key={e.menuItemId} className="flex items-center gap-2 py-1">
+                <div className="w-7 h-7 rounded-md overflow-hidden shrink-0 border border-brand-divider/50">
+                  <img
+                    src={e.image || FALLBACK_IMAGE}
+                    onError={onImgError}
+                    alt={e.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <span className="font-poppins text-sm text-brand-text capitalize truncate">
+                  <span className="font-semibold tabular-nums">{e.qty}&times; </span>
+                  {e.name}
+                </span>
+                <span className="ml-auto shrink-0 font-poppins text-sm text-brand-text/60 tabular-nums">
+                  &#8369;{e.price * e.qty}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Subtotal */}

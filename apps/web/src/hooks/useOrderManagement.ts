@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { PLAN_SLOTS } from "../constants/planSlots";
 import type {
+  ExtraSelection,
+  ExtrasCategory,
   MealPlanType,
   MealPlanOrder,
   SelectedItemWithQuantity,
@@ -50,6 +52,7 @@ function readCart(slug: string) {
       planInstances: PlanInstance[];
       activePlanInstanceId: string | null;
       subtotal: number;
+      extras?: ExtraSelection[];
     };
   } catch {
     return null;
@@ -60,7 +63,8 @@ function writeCart(
   slug: string,
   planInstances: PlanInstance[],
   activePlanInstanceId: string | null,
-  subtotal: number
+  subtotal: number,
+  extras: ExtraSelection[]
 ) {
   try {
     sessionStorage.setItem(
@@ -70,6 +74,7 @@ function writeCart(
         planInstances,
         activePlanInstanceId,
         subtotal,
+        extras,
         savedAt: Date.now(),
       })
     );
@@ -103,6 +108,11 @@ export function useOrderManagement(
   >(() => {
     if (!slug) return null;
     return readCart(slug)?.activePlanInstanceId ?? null;
+  });
+  // À-la-carte extras (Add-ons / Café Menu) riding alongside the boxes.
+  const [extras, setExtras] = useState<ExtraSelection[]>(() => {
+    if (!slug) return [];
+    return readCart(slug)?.extras ?? [];
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -836,6 +846,102 @@ export function useOrderManagement(
     [limitsFor]
   );
 
+  // ─── Extras (Add-ons / Café Menu) ───
+
+  /** Set an extra's quantity outright; qty <= 0 removes it. */
+  const setExtraQty = useCallback((item: MenuItem, qty: number) => {
+    setExtras((prev) => {
+      if (qty <= 0) return prev.filter((e) => e.menuItemId !== item.id);
+      const capped = Math.min(qty, 999);
+      // Update in place. Rebuilding the list moved the extra to the bottom of
+      // the tray on every step.
+      if (prev.some((e) => e.menuItemId === item.id)) {
+        return prev.map((e) =>
+          e.menuItemId === item.id ? { ...e, qty: capped } : e
+        );
+      }
+      return [
+        ...prev,
+        {
+          menuItemId: item.id,
+          name: item.name,
+          price: item.price,
+          image: item.image,
+          categorySlug: item.category,
+          minQty: item.minQty ?? null,
+          qty: capped,
+        },
+      ];
+    });
+  }, []);
+
+  const addExtra = useCallback((item: MenuItem, count: number) => {
+    setExtras((prev) => {
+      const existing = prev.find((e) => e.menuItemId === item.id);
+      const qty = Math.min((existing?.qty ?? 0) + count, 999);
+      // Keep the extra where it is; only a first add appends.
+      if (existing) {
+        return prev.map((e) => (e.menuItemId === item.id ? { ...e, qty } : e));
+      }
+      return [
+        ...prev,
+        {
+          menuItemId: item.id,
+          name: item.name,
+          price: item.price,
+          image: item.image,
+          categorySlug: item.category,
+          minQty: item.minQty ?? null,
+          qty,
+        },
+      ];
+    });
+  }, []);
+
+  const removeExtra = useCallback((item: MenuItem, count: number) => {
+    setExtras((prev) =>
+      prev
+        .map((e) =>
+          e.menuItemId === item.id ? { ...e, qty: e.qty - count } : e
+        )
+        .filter((e) => e.qty > 0)
+    );
+  }, []);
+
+  /** Remove every extra from one universal category (the tab's Clear). */
+  const clearExtras = useCallback((categorySlug: string | null) => {
+    setExtras((prev) =>
+      categorySlug === null ? [] : prev.filter((e) => e.categorySlug !== categorySlug)
+    );
+  }, []);
+
+  /**
+   * Re-stamp restored extras from the fresh catalogue, the same way assigned
+   * box dishes are. A session cart freezes name/price/image at add time, so a
+   * menu edit would leave the customer looking at a stale price while
+   * create_order charges the current one.
+   */
+  const restampExtras = useCallback((catalog: ExtrasCategory[]) => {
+    const fresh = new Map<string, MenuItem>();
+    for (const cat of catalog) {
+      for (const it of cat.items) fresh.set(it.id, it);
+    }
+    setExtras((prev) =>
+      prev.map((e) => {
+        const f = fresh.get(e.menuItemId);
+        return f
+          ? {
+              ...e,
+              name: f.name,
+              price: f.price,
+              image: f.image,
+              minQty: f.minQty ?? null,
+            }
+          : e;
+      })
+    );
+  }, []);
+
   // ─── Query helpers ───
 
   const isItemSelected = useCallback(
@@ -882,11 +988,13 @@ export function useOrderManagement(
   );
 
   const calculateTotalPrice = useCallback((): number => {
-    return planInstances.reduce(
+    const boxes = planInstances.reduce(
       (total, pi) => total + getMealPlanPrice(pi.type, pi.id),
       0
     );
-  }, [planInstances, getMealPlanPrice]);
+    const extrasTotal = extras.reduce((sum, e) => sum + e.price * e.qty, 0);
+    return boxes + extrasTotal;
+  }, [planInstances, getMealPlanPrice, extras]);
 
   // ─── Persist cart to sessionStorage ───
   // Debounced: at a 150-box order the snapshot is hundreds of KB of JSON, and
@@ -905,10 +1013,10 @@ export function useOrderManagement(
   useEffect(() => {
     if (!slug) return;
     pendingWrite.current = () =>
-      writeCart(slug, planInstances, activePlanInstanceId, calculateTotalPrice());
+      writeCart(slug, planInstances, activePlanInstanceId, calculateTotalPrice(), extras);
     if (persistTimer.current !== null) window.clearTimeout(persistTimer.current);
     persistTimer.current = window.setTimeout(flushCartWrite, 400);
-  }, [slug, planInstances, activePlanInstanceId, calculateTotalPrice, flushCartWrite]);
+  }, [slug, planInstances, activePlanInstanceId, calculateTotalPrice, extras, flushCartWrite]);
 
   useEffect(() => {
     const onHidden = () => {
@@ -949,6 +1057,12 @@ export function useOrderManagement(
     menuData,
     plans,
     planInstances,
+    extras,
+    setExtraQty,
+    addExtra,
+    removeExtra,
+    clearExtras,
+    restampExtras,
     activePlanInstanceId,
     mealPlanOrders,
     selectedItems,

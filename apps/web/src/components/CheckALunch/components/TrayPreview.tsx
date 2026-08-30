@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import {
   CategoryType,
+  ExtraSelection,
   PlanInstance,
   MealPlanType,
   AssignedItem,
@@ -27,6 +28,8 @@ import { SlotIcon } from "../../ui/SlotIcons";
 
 interface TrayPreviewProps {
   planInstances: PlanInstance[];
+  /** À-la-carte extras riding the order (Add-ons, Café Menu). */
+  extras?: ExtraSelection[];
   activePlanInstanceId: string | null;
   /** Per-slot counts for a plan, from the database. */
   getMealPlanLimits: (type: string) => Record<string, number>;
@@ -62,6 +65,7 @@ const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label }) => ({
 
 const TrayPreview: React.FC<TrayPreviewProps> = ({
   planInstances,
+  extras = [],
   activePlanInstanceId,
   getMealPlanLimits,
   onSetActivePlan,
@@ -124,7 +128,7 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
   // Same shared derivation as the banner, cart drawer and checkout — this
   // panel must never celebrate "complete" while a dish is under its floor.
   const { minimumQtyPerDish } = useStoreSettings();
-  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances);
+  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances, extras);
   const dishesShort = dishMin.violations.length > 0;
 
   const completedCount = planInstances.filter((pi) =>
@@ -694,6 +698,39 @@ const TrayPreview: React.FC<TrayPreviewProps> = ({
           );
         })}
       </div>
+      )}
+
+      {/* Extras — not boxes, so they sit below the list in their own tile */}
+      {extras.length > 0 && (
+        <div className="mt-3 shrink-0 rounded-xl border border-brand-divider bg-white px-3.5 py-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="font-arvo font-bold text-sm text-brand-text">
+              Extras
+            </span>
+            <span className="ml-auto shrink-0 font-poppins text-[0.7rem] font-semibold px-2 py-0.5 rounded-full tabular-nums bg-brand-secondary text-brand-text/70">
+              {extras.reduce((n, e) => n + e.qty, 0)} items
+            </span>
+          </div>
+          {extras.map((e) => (
+            <div key={e.menuItemId} className="flex items-center gap-1.5 py-0.5 min-w-0">
+              <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-brand-divider/50">
+                <img
+                  src={e.image || FALLBACK_IMAGE}
+                  onError={onImgError}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <span className="font-poppins text-xs text-brand-text truncate">
+                <span className="font-semibold tabular-nums">{e.qty}&times; </span>
+                {e.name}
+              </span>
+              <span className="ml-auto shrink-0 font-poppins text-xs text-brand-text/60 tabular-nums">
+                &#8369;{e.price * e.qty}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Drag hint — shown when multiple plans exist */}

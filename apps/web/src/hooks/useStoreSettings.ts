@@ -231,12 +231,24 @@ export interface DishMinimumState {
 export function deriveDishMinimumState(
   minimumQtyPerDish: number | null,
   planInstances: PlanInstance[],
+  // Extras ride the same floor: an Add-on is still a kitchen batch. Optional
+  // so surfaces without extras in hand keep their old call shape.
+  extras: { menuItemId: string; name: string; qty: number; minQty: number | null }[] = [],
 ): DishMinimumState {
   const known = minimumQtyPerDish !== null;
   const tally = new Map<
     string,
     { name: string; count: number; minQty: number | null }
   >();
+  for (const e of extras) {
+    const row =
+      tally.get(e.menuItemId) ?? { name: e.name, count: 0, minQty: null };
+    row.count += e.qty;
+    if (e.minQty !== null) {
+      row.minQty = row.minQty === null ? e.minQty : Math.max(row.minQty, e.minQty);
+    }
+    tally.set(e.menuItemId, row);
+  }
   for (const pi of planInstances) {
     for (const ai of pi.items) {
       const row =

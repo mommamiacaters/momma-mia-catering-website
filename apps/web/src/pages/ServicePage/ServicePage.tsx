@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Carousel from "../../components/Carousel/Carousel";
 import ContactSection from "../../components/ContactSection/ContactSection";
@@ -11,6 +11,8 @@ import {
 } from "../../constants/serviceContent";
 import { getCategoryDisplayName, SOCIAL_LINKS } from "../../constants";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
+import { menuService } from "../../services/menuService";
+import type { ExtrasCategory } from "../../types";
 import { useCarouselImages } from "../../hooks/useCarouselImages";
 import { useServices } from "../../hooks/useServices";
 
@@ -24,6 +26,22 @@ const ServicePage: React.FC = () => {
   const pageTitle =
     services.find((s) => s.slug === slug)?.pageTitle || serviceContent.title;
   const order = useOrderManagement(slug, serviceContent.hasMenu);
+  // Universal extras (Add-ons, Café Menu) — same set for every service.
+  const [extrasMenu, setExtrasMenu] = useState<ExtrasCategory[]>([]);
+  const { restampExtras } = order;
+  useEffect(() => {
+    if (!serviceContent.hasMenu) return;
+    let cancelled = false;
+    menuService.getExtras().then((cats) => {
+      if (cancelled) return;
+      setExtrasMenu(cats);
+      // A restored cart carries prices frozen at add time; refresh them.
+      restampExtras(cats);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [serviceContent.hasMenu, restampExtras]);
   const { slides: dbSlides, loading: carouselLoading } = useCarouselImages(slug || "");
 
   // The carousel is exactly what the admin uploaded — nothing else. There is no
@@ -46,6 +64,7 @@ const ServicePage: React.FC = () => {
         mealPlanOrders: order.mealPlanOrders,
         selectedItems: order.selectedItems,
         planInstances: order.planInstances,
+        extras: order.extras,
         subtotal: order.calculateTotalPrice(),
       },
     });
@@ -71,6 +90,7 @@ const ServicePage: React.FC = () => {
           isVisible={serviceContent.hasMenu && order.plans.length > 0}
           categoryMinBoxes={order.plans[0]?.categoryMinBoxes ?? null}
           planInstances={order.planInstances}
+          extras={order.extras}
           activePlanInstanceId={order.activePlanInstanceId}
           onSetActivePlan={order.setActivePlanInstanceId}
           onRemovePlanInstance={order.removePlanInstance}
@@ -207,6 +227,11 @@ const ServicePage: React.FC = () => {
                 onItemAddMany={order.handleItemAddMany}
                 onItemRemoveMany={order.handleItemRemoveMany}
                 clearCourse={order.clearCourse}
+                extrasMenu={extrasMenu}
+                extras={order.extras}
+                onExtraAdd={order.addExtra}
+                onExtraRemove={order.removeExtra}
+                onClearExtras={order.clearExtras}
                 getMealPlanPrice={order.getMealPlanPrice}
                 getMealPlanLimits={order.getMealPlanLimits}
                 getItemsByCategory={order.getItemsByCategory}

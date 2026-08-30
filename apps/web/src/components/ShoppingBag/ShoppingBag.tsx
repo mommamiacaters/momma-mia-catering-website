@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ShoppingBag as ShoppingBagIcon } from "lucide-react";
 import ShoppingBagSidebar from "../Sidebar/Sidebar";
 import type {
+  ExtraSelection,
   MealPlanType,
   PlanInstance,
 } from "../../types";
@@ -9,6 +10,7 @@ import type {
 interface ShoppingBagProps {
   isVisible?: boolean;
   planInstances: PlanInstance[];
+  extras?: ExtraSelection[];
   activePlanInstanceId: string | null;
   onSetActivePlan: (id: string | null) => void;
   onRemovePlanInstance: (id: string) => void;
@@ -32,6 +34,7 @@ interface ShoppingBagProps {
 const ShoppingBag: React.FC<ShoppingBagProps> = ({
   isVisible = true,
   planInstances,
+  extras = [],
   activePlanInstanceId,
   onSetActivePlan,
   onRemovePlanInstance,
@@ -77,6 +80,7 @@ const ShoppingBag: React.FC<ShoppingBagProps> = ({
         visible={isShoppingBagOpen}
         onHide={() => setIsShoppingBagOpen(false)}
         planInstances={planInstances}
+        extras={extras}
         activePlanInstanceId={activePlanInstanceId}
         onSetActivePlan={onSetActivePlan}
         onRemovePlanInstance={onRemovePlanInstance}

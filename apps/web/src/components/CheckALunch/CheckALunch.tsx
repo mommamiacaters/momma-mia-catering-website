@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { ArrowRight, Check, ChevronDown, ChevronUp, Package, X, Zap, Info, Trash2 } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, ChevronUp, Coffee, Package, PackagePlus, X, Zap, Info, Trash2, type LucideIcon } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import {
   deriveMinimumState,
@@ -7,6 +7,8 @@ import {
 } from "../../hooks/useStoreSettings";
 import {
   DishFillMode,
+  ExtraSelection,
+  ExtrasCategory,
   MealPlanType,
   MenuItem,
   MenuTypeData,
@@ -42,6 +44,12 @@ interface CheckALunchProps {
   onItemRemoveMany: (item: MenuItem, count: number) => void;
   /** Empty one course — a single box when given an id, every box when null. */
   clearCourse: (itemType: string, planInstanceId: string | null) => void;
+  /** Universal extras (Add-ons, Café Menu): offered with EVERY plan. */
+  extrasMenu: ExtrasCategory[];
+  extras: ExtraSelection[];
+  onExtraAdd: (item: MenuItem, count: number) => void;
+  onExtraRemove: (item: MenuItem, count: number) => void;
+  onClearExtras: (categorySlug: string | null) => void;
   plans: MealPlan[];
   getMealPlanPrice: (type: MealPlanType, planInstanceId?: string) => number;
   getMealPlanLimits: (type: MealPlanType) => Record<string, number>;
@@ -83,6 +91,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   onItemAddMany,
   onItemRemoveMany,
   clearCourse,
+  extrasMenu,
+  extras,
+  onExtraAdd,
+  onExtraRemove,
+  onClearExtras,
   plans,
   getMealPlanPrice,
   getMealPlanLimits,
@@ -92,7 +105,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   getActivePlanSelectedCount,
   onMoveItem,
 }) => {
-  const [activeCategory, setActiveCategory] = useState<CategoryType>("main");
+  // A tab is either a plan slot ("main") or an extras category ("x:add-on").
+  const [activeCategory, setActiveCategory] = useState<string>("main");
+  const activeExtraSlug = activeCategory.startsWith("x:")
+    ? activeCategory.slice(2)
+    : null;
   const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   // Order minimum, set by the admin in app_settings. planInstances.length is the
@@ -186,9 +203,35 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     return { openSlotsByType: open, placedByDish: placed, selectedDishIds: selected };
   }, [planInstances, activePlanInstanceId, getMealPlanLimits]);
 
+  // ─── Extras (universal categories: Add-ons, Café Menu) ───
+  const extrasQtyByItem = useMemo(
+    () => new Map(extras.map((e) => [e.menuItemId, e.qty])),
+    [extras]
+  );
+  const extrasQtyByCat = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of extras) m.set(e.categorySlug, (m.get(e.categorySlug) ?? 0) + e.qty);
+    return m;
+  }, [extras]);
+  const extrasTabs = useMemo(
+    () =>
+      extrasMenu.map((cat) => ({
+        key: `x:${cat.slug}`,
+        label: cat.name,
+        // First word carries the identity ("Add-ons", "Café") on phones.
+        short: cat.name.split(" ")[0],
+        icon: (cat.slug === "cafe-menu" ? Coffee : PackagePlus) as LucideIcon,
+        slug: cat.slug,
+        items: cat.items,
+      })),
+    [extrasMenu]
+  );
+  const activeExtrasTab = extrasTabs.find((t) => t.slug === activeExtraSlug) ?? null;
+
   // What a Clear press would actually remove: this box's dishes for the current
   // course while filling one, or the whole order's while auto-filling.
   const clearableCount = useMemo(() => {
+    if (activeExtraSlug) return extrasQtyByCat.get(activeExtraSlug) ?? 0;
     const boxes = activePlanInstanceId
       ? planInstances.filter((pi) => pi.id === activePlanInstanceId)
       : planInstances;
@@ -196,39 +239,54 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
       (sum, pi) => sum + pi.items.filter((i) => i.type === activeCategory).length,
       0
     );
-  }, [planInstances, activePlanInstanceId, activeCategory]);
+  }, [planInstances, activePlanInstanceId, activeCategory, activeExtraSlug, extrasQtyByCat]);
 
-  const activeLabel =
-    CATEGORY_CONFIG.find((c) => c.type === activeCategory)?.label ??
-    activeCategory;
+  const activeLabel = activeExtrasTab
+    ? activeExtrasTab.label
+    : CATEGORY_CONFIG.find((c) => c.type === activeCategory)?.label ??
+      activeCategory;
 
-  const activeMax = maxAllowed[activeCategory] || 0;
-  const activeSelected = categoryCounts[activeCategory];
-  const isMaxReached = categoryFull[activeCategory];
+  const activeMax = maxAllowed[activeCategory as CategoryType] || 0;
+  const activeSelected = activeExtrasTab
+    ? extrasQtyByCat.get(activeExtrasTab.slug) ?? 0
+    : categoryCounts[activeCategory as CategoryType];
+  const isMaxReached = activeExtrasTab
+    ? false
+    : categoryFull[activeCategory as CategoryType];
 
   // The section after this one, skipping courses this order's plans don't use
   // (a Dessert slot no plan asks for is not somewhere to send anyone).
   const usableCategories = CATEGORY_CONFIG.filter(
     (c) => (maxAllowed[c.type] || 0) > 0
   );
-  // Only the courses this order's plans actually use get a tab. With five
-  // slots defined, a plan that asks for one would otherwise show four dead
-  // "0/0" tabs. Falls back to the full set so the strip is never empty.
-  const tabCategories = usableCategories.length > 0 ? usableCategories : CATEGORY_CONFIG;
+  // Only the courses this order's plans actually use get a tab (a plan with
+  // one slot must not show four dead "0/0" tabs); the extras tabs follow,
+  // ALWAYS, whatever the plan — that is what makes them universal.
+  const slotTabs = (usableCategories.length > 0 ? usableCategories : CATEGORY_CONFIG).map(
+    (c) => ({ key: c.type as string, label: c.label, short: c.short, icon: c.icon })
+  );
+  const allTabs = [
+    ...slotTabs,
+    ...extrasTabs.map((t) => ({ key: t.key, label: t.label, short: t.short, icon: t.icon })),
+  ];
 
-  // Snap to a course the chosen plan actually uses. activeCategory starts at
-  // "main", so a Rice Bowl plan (which has no main) left the picker showing a
-  // course with no tab and no capacity.
+  // Stable identity for the tab set. Counting tabs is not enough: swapping a
+  // rice-bowl plan for a main-only one keeps the count at 1 while every key
+  // changes, and the snap below would never fire.
+  const tabKeys = allTabs.map((t) => t.key).join("|");
+
+  // Snap to a tab that exists. activeCategory starts at "main", so a Rice
+  // Bowl plan (which has no main) left the picker on a dead course.
   useEffect(() => {
-    if (usableCategories.length === 0) return;
-    if (usableCategories.some((c) => c.type === activeCategory)) return;
-    setActiveCategory(usableCategories[0].type);
-  }, [usableCategories, activeCategory]);
+    if (allTabs.length === 0) return;
+    if (allTabs.some((t) => t.key === activeCategory)) return;
+    setActiveCategory(allTabs[0].key);
+    // allTabs is rebuilt each render; tabKeys stands in for it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory, tabKeys]);
 
   const nextSection =
-    usableCategories[
-      usableCategories.findIndex((c) => c.type === activeCategory) + 1
-    ] ?? null;
+    allTabs[allTabs.findIndex((t) => t.key === activeCategory) + 1] ?? null;
 
   // Sorted plan instances + numbering (memoized)
   const { sortedInstances, instanceNumbers } = useMemo(() => {
@@ -337,7 +395,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
    * into the middle (only ~2.5 of them fit a phone), and the page lands on the
    * section heading so the new list starts at the top of the screen.
    */
-  const goToCategory = (cat: CategoryType) => {
+  const goToCategory = (cat: string) => {
     setActiveCategory(cat);
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -362,7 +420,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   };
 
   const jumpToNextSection = () => {
-    if (nextSection) goToCategory(nextSection.type);
+    if (nextSection) goToCategory(nextSection.key);
   };
 
   // ── Swipe between courses (touch only) ──
@@ -382,10 +440,10 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    const here = usableCategories.findIndex((c) => c.type === activeCategory);
+    const here = allTabs.findIndex((t) => t.key === activeCategory);
     // Swiping left pulls the next course in, like turning a page.
-    const target = usableCategories[here + (dx < 0 ? 1 : -1)];
-    if (target) goToCategory(target.type);
+    const target = allTabs[here + (dx < 0 ? 1 : -1)];
+    if (target) goToCategory(target.key);
   };
 
   // ── Mobile lunch-box drawer ──
@@ -424,7 +482,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
     const cat = CATEGORIES.find((c) =>
       getItemsByCategory(c).some((i) => i.id === v.menuItemId),
     );
+    const extraCat = cat
+      ? null
+      : extrasMenu.find((ec) => ec.items.some((i) => i.id === v.menuItemId));
     if (cat) setActiveCategory(cat);
+    else if (extraCat) setActiveCategory(`x:${extraCat.slug}`);
     // Two frames: one for the tab swap to render the card, one for the sheet's
     // scroll lock to come off so the window can actually move.
     requestAnimationFrame(() =>
@@ -578,6 +640,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
               <TrayPreview
                 compact
                 planInstances={planInstances}
+                extras={extras}
                 activePlanInstanceId={activePlanInstanceId}
                 getMealPlanLimits={getMealPlanLimits}
                 onSetActivePlan={onSetActivePlan}
@@ -814,17 +877,19 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
             ref={tabStripRef}
             className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1"
           >
-            {tabCategories.map(({ type, label, short, icon: Icon }) => {
-              const isActive = activeCategory === type;
-              const isComplete = categoryFull[type];
-              const count = categoryCounts[type];
-              const max = maxAllowed[type] || 0;
+            {allTabs.map(({ key, label, short, icon: Icon }) => {
+              const isExtra = key.startsWith("x:");
+              const extraQty = isExtra ? extrasQtyByCat.get(key.slice(2)) ?? 0 : 0;
+              const isActive = activeCategory === key;
+              const isComplete = !isExtra && categoryFull[key as CategoryType];
+              const count = isExtra ? extraQty : categoryCounts[key as CategoryType];
+              const max = isExtra ? 0 : maxAllowed[key as CategoryType] || 0;
 
               return (
                 <button
-                  key={type}
-                  data-cat={type}
-                  onClick={() => setActiveCategory(type)}
+                  key={key}
+                  data-cat={key}
+                  onClick={() => setActiveCategory(key)}
                   className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-poppins text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
                     isActive
                       ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
@@ -832,7 +897,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                         ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
                         : "bg-white text-brand-text/60 border border-brand-divider hover:border-brand-primary/40 hover:text-brand-text"
                   }`}
-                  aria-label={`${label}: ${count} of ${max} selected`}
+                  aria-label={
+                    isExtra
+                      ? `${label}: ${count} added`
+                      : `${label}: ${count} of ${max} selected`
+                  }
                   aria-current={isActive ? "true" : undefined}
                 >
                   {isComplete ? (
@@ -842,18 +911,26 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   )}
                   <span className="hidden sm:inline">{label}</span>
                   <span className="sm:hidden">{short}</span>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                      isActive
-                        ? "bg-white/20 text-white"
-                        : isComplete
-                          ? "bg-green-200/60 text-green-700"
-                          : "bg-brand-secondary text-brand-text/50"
-                    }`}
-                    title={`${count} of ${max} ${label.toLowerCase()} chosen for the box you're filling`}
-                  >
-                    {count}/{max}
-                  </span>
+                  {/* Extras have no capacity: the badge is a plain count, and
+                      only once there is something to count. */}
+                  {(!isExtra || count > 0) && (
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                        isActive
+                          ? "bg-white/20 text-white"
+                          : isComplete
+                            ? "bg-green-200/60 text-green-700"
+                            : "bg-brand-secondary text-brand-text/50"
+                      }`}
+                      title={
+                        isExtra
+                          ? `${count} ${label.toLowerCase()} added to your order`
+                          : `${count} of ${max} ${label.toLowerCase()} chosen for the box you're filling`
+                      }
+                    >
+                      {isExtra ? count : `${count}/${max}`}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -866,14 +943,16 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
             <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 mb-2">
               <div className="min-w-0">
                 <h4 className="font-arvo text-2xl font-bold text-brand-text">
-                  {getCategoryDisplayName(activeCategory)}
+                  {activeExtrasTab
+                    ? activeExtrasTab.label
+                    : getCategoryDisplayName(activeCategory)}
                 </h4>
                 <p className="font-poppins text-sm text-brand-text/40 mt-0.5">
-                  {
-                    CATEGORY_CONFIG.find(
-                      (c) => c.type === activeCategory
-                    )?.description
-                  }
+                  {activeExtrasTab
+                    ? "Extras that ride along with any order, priced per piece"
+                    : CATEGORY_CONFIG.find(
+                        (c) => c.type === activeCategory
+                      )?.description}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -884,21 +963,27 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   <button
                     type="button"
                     onClick={() =>
-                      activePlanInstanceId
-                        ? clearCourse(activeCategory, activePlanInstanceId)
-                        : setConfirmClearAll(true)
+                      activeExtraSlug
+                        ? onClearExtras(activeExtraSlug)
+                        : activePlanInstanceId
+                          ? clearCourse(activeCategory, activePlanInstanceId)
+                          : setConfirmClearAll(true)
                     }
                     className="flex items-center gap-1.5 rounded-full border border-brand-divider px-3 py-1 font-poppins text-sm font-medium text-brand-text/60 transition-colors hover:border-red-300 hover:text-red-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
                     title={
-                      activePlanInstanceId
-                        ? `Remove the ${activeLabel.toLowerCase()} from #${activePlanNum} ${activePlan?.type ?? ""}`
-                        : `Remove every ${activeLabel.toLowerCase()} from all ${sortedInstances.length} boxes`
+                      activeExtraSlug
+                        ? `Remove every ${activeLabel} extra from your order`
+                        : activePlanInstanceId
+                          ? `Remove the ${activeLabel.toLowerCase()} from #${activePlanNum} ${activePlan?.type ?? ""}`
+                          : `Remove every ${activeLabel.toLowerCase()} from all ${sortedInstances.length} boxes`
                     }
                   >
                     <Trash2 size={14} />
-                    {activePlanInstanceId
-                      ? "Clear this box"
-                      : `Clear all ${clearableCount}`}
+                    {activeExtraSlug
+                      ? `Clear all ${clearableCount}`
+                      : activePlanInstanceId
+                        ? "Clear this box"
+                        : `Clear all ${clearableCount}`}
                   </button>
                 )}
                 <span
@@ -908,24 +993,30 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                       : "bg-brand-secondary text-brand-text/50"
                   }`}
                 >
-                  {activeSelected} of {activeMax} selected
+                  {activeExtrasTab
+                    ? `${activeSelected} added`
+                    : `${activeSelected} of ${activeMax} selected`}
                 </span>
               </div>
             </div>
 
-            <div className="h-1.5 bg-brand-divider/40 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-[width] duration-500 ease-out ${
-                  isMaxReached ? "bg-green-500" : "bg-brand-primary"
-                }`}
-                style={{
-                  width:
-                    activeMax > 0
-                      ? `${Math.min(100, (activeSelected / activeMax) * 100)}%`
-                      : "0%",
-                }}
-              />
-            </div>
+            {/* Extras have no capacity, so a progress bar would have nothing
+                to measure. */}
+            {!activeExtrasTab && (
+              <div className="h-1.5 bg-brand-divider/40 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-[width] duration-500 ease-out ${
+                    isMaxReached ? "bg-green-500" : "bg-brand-primary"
+                  }`}
+                  style={{
+                    width:
+                      activeMax > 0
+                        ? `${Math.min(100, (activeSelected / activeMax) * 100)}%`
+                        : "0%",
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* ── Food Grids — opacity-based switching for instant compositor toggle ── */}
@@ -975,6 +1066,53 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                     <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-brand-divider">
                       <p className="font-poppins text-brand-text/40">
                         No items available for this category yet.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* ── Extras grids — same mounted-all pattern as the courses.
+                  No slot caps: openSlots is effectively unlimited and the
+                  card's stepper works on plain quantities. */}
+            {extrasTabs.map((tab) => {
+              const isActiveTab = activeCategory === tab.key;
+              return (
+                <div
+                  key={tab.key}
+                  className={
+                    isActiveTab
+                      ? "relative"
+                      : "absolute top-0 left-0 w-full opacity-0 pointer-events-none"
+                  }
+                  aria-hidden={!isActiveTab}
+                >
+                  {tab.items.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                      {tab.items.map((item) => (
+                        <FoodCard
+                          key={item.id}
+                          item={item}
+                          isSelected={(extrasQtyByItem.get(item.id) ?? 0) > 0}
+                          isDisabled={false}
+                          openSlots={999}
+                          placedCount={extrasQtyByItem.get(item.id) ?? 0}
+                          requiredMin={
+                            minimumQtyPerDish === null
+                              ? null
+                              : (item.minQty ?? minimumQtyPerDish)
+                          }
+                          showBulkActions={false}
+                          onAddMany={(n) => onExtraAdd(item, n)}
+                          onRemoveMany={(n) => onExtraRemove(item, n)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-brand-divider">
+                      <p className="font-poppins text-brand-text/40">
+                        Nothing here yet.
                       </p>
                     </div>
                   )}
@@ -1112,6 +1250,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                 <TrayPreview
                   compact
                   planInstances={planInstances}
+                  extras={extras}
                   activePlanInstanceId={activePlanInstanceId}
                   getMealPlanLimits={getMealPlanLimits}
                   onSetActivePlan={(id) => {

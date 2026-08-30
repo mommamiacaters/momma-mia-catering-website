@@ -95,6 +95,17 @@ function toOrderLines(order: OrderSubmission["order"]): OrderLine[] {
 }
 
 /**
+ * Extras (Add-ons / Café Menu) as à-la-carte lines: no plan_instance_id, so
+ * create_order prices them from the catalogue at their own price — and, since
+ * v10, holds them to the same per-dish minimum as box dishes.
+ */
+function extrasToOrderLines(order: OrderSubmission["order"]): OrderLine[] {
+  return (order.extras ?? [])
+    .filter((e) => e.qty > 0)
+    .map((e) => ({ menu_item_id: e.menuItemId, qty: e.qty }));
+}
+
+/**
  * Create the order server-side, priced and validated, but NOT yet paid.
  *
  * create_order looks up prices from the catalogue, recomputes the total, forces
@@ -113,7 +124,7 @@ export async function createPendingOrder(
   const { customer, order, orderRef } = data;
 
   const { data: result, error } = await supabase.rpc("create_order", {
-    p_items: toOrderLines(order) as unknown as never,
+    p_items: [...toOrderLines(order), ...extrasToOrderLines(order)] as unknown as never,
     p_customer: {
       first_name: customer.firstName,
       last_name: customer.lastName,
@@ -277,7 +288,7 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
   // 2) Create the order server-side. No provider argument: this is the legacy
   //    manual_proof path and the emails fire on creation.
   const { data: result, error } = await supabase.rpc("create_order", {
-    p_items: toOrderLines(order) as unknown as never,
+    p_items: [...toOrderLines(order), ...extrasToOrderLines(order)] as unknown as never,
     p_customer: {
       first_name: customer.firstName,
       last_name: customer.lastName,

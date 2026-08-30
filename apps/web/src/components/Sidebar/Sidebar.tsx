@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import type {
+  ExtraSelection,
   MealPlanType,
   PlanInstance,
 } from "../../types";
@@ -32,6 +33,8 @@ import { usePresence } from "../../hooks/usePresence";
 
 interface ShoppingBagSidebarProps {
   visible: boolean;
+  /** À-la-carte extras riding the order (Add-ons, Café Menu). */
+  extras?: ExtraSelection[];
   onHide: () => void;
   planInstances: PlanInstance[];
   activePlanInstanceId: string | null;
@@ -61,6 +64,7 @@ const CATEGORY_META = PLAN_SLOT_META.map(({ slot, label }) => ({
 
 const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   visible,
+  extras = [],
   onHide,
   planInstances,
   activePlanInstanceId,
@@ -88,7 +92,7 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
   // load-window flash nor a load-window bypass. The service's own floor beats
   // the store default.
   const min = deriveMinimumState(categoryMinBoxes ?? minimumMealPlans, totalMealPlans);
-  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances);
+  const dishMin = deriveDishMinimumState(minimumQtyPerDish, planInstances, extras);
   const allBoxesFilled =
     planInstances.length > 0 &&
     planInstances.every((pi) => isPlanInstanceComplete(pi, getMealPlanLimits(pi.type)));
@@ -840,6 +844,39 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                 </p>
               )}
             </div>
+            )}
+
+            {/* Extras — à la carte, not boxes; one tile, both views */}
+            {extras.length > 0 && (
+              <div className="bg-white rounded-2xl border border-brand-divider shadow-sm px-4 py-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="font-arvo font-bold text-sm text-brand-text">
+                    Extras
+                  </span>
+                  <span className="ml-auto shrink-0 font-poppins text-sm font-semibold text-brand-primary tabular-nums">
+                    &#8369;{extras.reduce((sum, e) => sum + e.price * e.qty, 0)}
+                  </span>
+                </div>
+                {extras.map((e) => (
+                  <div key={e.menuItemId} className="flex items-center gap-1.5 py-0.5 min-w-0">
+                    <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-brand-divider/50">
+                      <img
+                        src={e.image || FALLBACK_IMAGE}
+                        onError={onImgError}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <span className="font-poppins text-xs text-brand-text truncate">
+                      <span className="font-semibold tabular-nums">{e.qty}&times; </span>
+                      {e.name}
+                    </span>
+                    <span className="ml-auto shrink-0 font-poppins text-xs text-brand-text/60 tabular-nums">
+                      &#8369;{e.price * e.qty}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
             </>
           )}
