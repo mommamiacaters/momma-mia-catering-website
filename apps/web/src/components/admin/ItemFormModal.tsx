@@ -182,8 +182,8 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
               <HelpTip label="Sub-category" align="right">
                 Which course this dish fills when a meal plan asks for one — a
                 plan wanting “1 main dish” draws from <strong>Main</strong>.
-                New dishes start as Main. Pick <strong>— None —</strong> only
-                for an extra that never belongs to a plan.
+                Every dish needs one: without it the dish has no course, and
+                the builder never offers it.
               </HelpTip>
             </div>
             {/*
@@ -192,9 +192,10 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
               for "1 main dish" and resolves that through the sub-category's
               slot, so a typo here silently drops a dish out of the builder.
             */}
+            {/* No blank option: a dish with no sub-category has no slot, and
+                the picker's query skips those — it would vanish silently. */}
             <Select
               id="item-sub-category"
-              placeholder="— None —"
               value={form.sub_category_id}
               onChange={(e) => setForm({ ...form, sub_category_id: Number(e.target.value) })}
             >
@@ -206,6 +207,9 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
                 </option>
               ))}
             </Select>
+            <p className="mt-1.5 font-poppins text-xs text-brand-text/50">
+              <strong className="font-semibold">Main</strong> is the default.
+            </p>
           </div>
         </div>
 
