@@ -84,6 +84,7 @@ export type Database = {
           is_active: boolean
           is_universal: boolean
           min_order_boxes: number | null
+          min_qty_per_dish: number | null
           name: string
           slug: string
           sort_order: number
@@ -95,6 +96,7 @@ export type Database = {
           is_active?: boolean
           is_universal?: boolean
           min_order_boxes?: number | null
+          min_qty_per_dish?: number | null
           name: string
           slug: string
           sort_order?: number
@@ -106,6 +108,7 @@ export type Database = {
           is_active?: boolean
           is_universal?: boolean
           min_order_boxes?: number | null
+          min_qty_per_dish?: number | null
           name?: string
           slug?: string
           sort_order?: number
