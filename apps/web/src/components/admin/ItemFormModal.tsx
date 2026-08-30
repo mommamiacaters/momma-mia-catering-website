@@ -4,6 +4,7 @@ import type { Category, MenuItemRecord, SubCategory } from "../../types/menu";
 import Modal from "../ui/Modal";
 import ModalActions from "../ui/ModalActions";
 import Select from "../ui/Select";
+import HelpTip from "../ui/HelpTip";
 import ImageUploader from "./ImageUploader";
 
 interface ItemFormModalProps {
@@ -52,6 +53,11 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Main is the default course: nearly every dish is one, and a blank
+  // sub-category has no slot, which quietly hides the dish from every picker.
+  const defaultSubCategoryId =
+    subCategories.find((s) => s.slot === "main")?.id ?? 0;
+
   useEffect(() => {
     if (!open) return;
     setError(null);
@@ -59,7 +65,7 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
       setForm({
         name: initial.name,
         category_id: initial.category_id ?? categories[0]?.id ?? 0,
-        sub_category_id: initial.sub_category_id ?? 0,
+        sub_category_id: initial.sub_category_id ?? defaultSubCategoryId,
         price: initial.price_cents == null ? "" : String(initial.price_cents / 100),
         min_qty: initial.min_qty == null ? "" : String(initial.min_qty),
         image_url: initial.image_url ?? "",
@@ -68,9 +74,13 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
         is_catering: initial.is_catering,
       });
     } else {
-      setForm({ ...blank, category_id: defaultCategoryId ?? categories[0]?.id ?? 0 });
+      setForm({
+        ...blank,
+        category_id: defaultCategoryId ?? categories[0]?.id ?? 0,
+        sub_category_id: defaultSubCategoryId,
+      });
     }
-  }, [open, initial, defaultCategoryId, categories]);
+  }, [open, initial, defaultCategoryId, categories, defaultSubCategoryId]);
 
   const selectedSub = subCategories.find((s) => s.id === form.sub_category_id);
   /** Slot-bearing groups are the ones a meal plan draws from. */
@@ -160,9 +170,22 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
             </Select>
           </div>
           <div>
-            <label htmlFor="item-sub-category" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
-              Sub-category
-            </label>
+            {/* The tip sits BESIDE the label, not inside it — a button within
+                a <label> steals the click that should focus the select. */}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <label
+                htmlFor="item-sub-category"
+                className="block text-sm font-poppins font-medium text-brand-text"
+              >
+                Sub-category
+              </label>
+              <HelpTip label="Sub-category" align="right">
+                Which course this dish fills when a meal plan asks for one — a
+                plan wanting “1 main dish” draws from <strong>Main</strong>.
+                New dishes start as Main. Pick <strong>— None —</strong> only
+                for an extra that never belongs to a plan.
+              </HelpTip>
+            </div>
             {/*
               Was a free-text "Group" field, which is how the data drifted into
               "vegetable" vs "vegetables" and 38 untyped rows. A meal plan asks
