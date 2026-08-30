@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import SectionTabs, { type SectionTab } from "../../components/admin/SectionTabs";
 import ServiceIdentityForm from "../../components/admin/ServiceIdentityForm";
+import ServiceOrderRulesCard from "../../components/admin/ServiceOrderRulesCard";
 import SafeImage from "../../components/ui/SafeImage";
 import { iconById } from "../../constants/serviceIcons";
 import { useServices } from "../../hooks/useServices";
@@ -153,7 +154,12 @@ const AdminServiceDetail: React.FC = () => {
           >
             {visited.has(id) && (
               <>
-                {id === "details" && <ServiceIdentityForm service={service} />}
+                {id === "details" && (
+                  <>
+                    <ServiceIdentityForm service={service} />
+                    <ServiceOrderRulesCard serviceSlug={service.slug} />
+                  </>
+                )}
                 {id === "photos" && <AdminCarousels serviceSlug={service.slug} embedded />}
               </>
             )}

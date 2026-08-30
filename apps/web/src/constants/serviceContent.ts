@@ -45,6 +45,17 @@ export function getServiceContent(slug: string): ServiceContent {
   return SERVICE_CONTENT_MAP[slug] ?? NOT_FOUND;
 }
 
+/**
+ * Service page slug → menu CATEGORY slug. The two are different taxonomies
+ * (party-trays page sells the party-tray category; Merienda kept the legacy
+ * fun-boxes category slug), and joining them by equality silently drops rows.
+ */
+export const SERVICE_TO_CATEGORY: Record<string, string> = {
+  "check-a-lunch": "check-a-lunch",
+  "party-trays": "party-tray",
+  "merienda-meals": "fun-boxes",
+};
+
 /** The service pages that have a carousel — drives the admin's page picker. */
 export const CAROUSEL_SERVICES: { slug: string; title: string }[] = Object.entries(
   SERVICE_CONTENT_MAP,
