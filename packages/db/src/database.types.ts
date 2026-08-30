@@ -669,6 +669,27 @@ export type Database = {
         }
         Relationships: []
       }
+      sub_category_remap_20260831: {
+        Row: {
+          menu_item_id: string | null
+          moved_at: string | null
+          old_name: string | null
+          old_sub_category_id: number | null
+        }
+        Insert: {
+          menu_item_id?: string | null
+          moved_at?: string | null
+          old_name?: string | null
+          old_sub_category_id?: number | null
+        }
+        Update: {
+          menu_item_id?: string | null
+          moved_at?: string | null
+          old_name?: string | null
+          old_sub_category_id?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       admin_daily_sales: {
