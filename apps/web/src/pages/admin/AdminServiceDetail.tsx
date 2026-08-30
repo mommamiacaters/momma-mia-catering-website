@@ -155,10 +155,12 @@ const AdminServiceDetail: React.FC = () => {
             {visited.has(id) && (
               <>
                 {id === "details" && (
-                  <>
-                    <ServiceIdentityForm service={service} />
+                  // Order rules first: the minimums decide whether the service
+                  // can be ordered at all, so they outrank the copy and photo.
+                  <div className="space-y-6">
                     <ServiceOrderRulesCard serviceSlug={service.slug} />
-                  </>
+                    <ServiceIdentityForm service={service} />
+                  </div>
                 )}
                 {id === "photos" && <AdminCarousels serviceSlug={service.slug} embedded />}
               </>

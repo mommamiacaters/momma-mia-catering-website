@@ -128,7 +128,7 @@ const ServiceOrderRulesCard: React.FC<{ serviceSlug: string }> = ({ serviceSlug 
   );
 
   return (
-    <div className="mt-6 rounded-xl border border-brand-divider bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-brand-divider bg-white p-5 shadow-sm">
       <h2 className="font-arvo-bold text-base text-brand-text">Order rules</h2>
       <p className="mt-1 font-poppins text-xs text-brand-text/60">
         These <strong className="font-semibold">override the store defaults</strong>{" "}
