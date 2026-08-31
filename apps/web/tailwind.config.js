@@ -15,6 +15,14 @@ export default {
         'arvo': ['Arvo', 'serif'],
         'poppins': ['Poppins', 'sans-serif'],
       },
+      // Tailwind stops at 7xl (80rem), which left the dish picker boxed into
+      // 1280px while the browser had far more to give. These are real classes
+      // so `max-w-9xl` caps the page instead of silently compiling to nothing
+      // and letting it run edge to edge on an ultrawide.
+      maxWidth: {
+        '8xl': '90rem',   // 1440px
+        '9xl': '110rem',  // 1760px
+      },
       keyframes: {
         shimmer: {
           '0%': { transform: 'translateX(-100%)' },

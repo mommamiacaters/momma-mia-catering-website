@@ -72,7 +72,10 @@ const ServicePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-brand-secondary overflow-x-clip">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 lg:px-16 pt-6 pb-12 md:pt-10 md:pb-16 lg:pt-12 lg:pb-20">
+      {/* Wider than the old max-w-7xl so the plan cards and the dish grid stop
+          fighting for room, but still capped — unbounded full-bleed turns a
+          three-column grid into a six-column smear on a 4K monitor. */}
+      <div className="max-w-9xl mx-auto px-4 sm:px-5 md:px-6 lg:px-10 pt-6 pb-12 md:pt-10 md:pb-16 lg:pt-12 lg:pb-20">
         {/* Back link */}
         <Link
           to="/meals"
@@ -212,37 +215,37 @@ const ServicePage: React.FC = () => {
 
             {(ORDERABLE_SERVICE_SLUGS as readonly string[]).includes(slug ?? "") &&
               order.plans.length > 0 && (
-              <CheckALunch
-                mealPlanOrders={order.mealPlanOrders}
-                selectedItems={order.selectedItems}
-                planInstances={order.planInstances}
-                activePlanInstanceId={order.activePlanInstanceId}
-                onSetActivePlan={order.setActivePlanInstanceId}
-                menuData={order.menuData}
-                plans={order.plans}
-                loading={order.loading}
-                error={order.error}
-                onMealPlanSelect={order.handleMealPlanSelect}
-                onMealPlanQuantityChange={order.handleMealPlanQuantityChange}
-                onItemRemove={order.handleItemRemove}
-                onItemAddMany={order.handleItemAddMany}
-                onItemRemoveMany={order.handleItemRemoveMany}
-                clearCourse={order.clearCourse}
-                extrasMenu={extrasMenu}
-                extras={order.extras}
-                onExtraAdd={order.addExtra}
-                onExtraRemove={order.removeExtra}
-                onClearExtras={order.clearExtras}
-                getMealPlanPrice={order.getMealPlanPrice}
-                getMealPlanLimits={order.getMealPlanLimits}
-                getItemsByCategory={order.getItemsByCategory}
-                getCategoryDisplayName={getCategoryDisplayName}
-                getMaxAllowedItemsByType={order.getMaxAllowedItemsByType}
-                getActivePlanMaxAllowed={order.getActivePlanMaxAllowed}
-                getActivePlanSelectedCount={order.getActivePlanSelectedCount}
-                onMoveItem={order.moveItemBetweenPlans}
-              />
-            )}
+                <CheckALunch
+                  mealPlanOrders={order.mealPlanOrders}
+                  selectedItems={order.selectedItems}
+                  planInstances={order.planInstances}
+                  activePlanInstanceId={order.activePlanInstanceId}
+                  onSetActivePlan={order.setActivePlanInstanceId}
+                  menuData={order.menuData}
+                  plans={order.plans}
+                  loading={order.loading}
+                  error={order.error}
+                  onMealPlanSelect={order.handleMealPlanSelect}
+                  onMealPlanQuantityChange={order.handleMealPlanQuantityChange}
+                  onItemRemove={order.handleItemRemove}
+                  onItemAddMany={order.handleItemAddMany}
+                  onItemRemoveMany={order.handleItemRemoveMany}
+                  clearCourse={order.clearCourse}
+                  extrasMenu={extrasMenu}
+                  extras={order.extras}
+                  onExtraAdd={order.addExtra}
+                  onExtraRemove={order.removeExtra}
+                  onClearExtras={order.clearExtras}
+                  getMealPlanPrice={order.getMealPlanPrice}
+                  getMealPlanLimits={order.getMealPlanLimits}
+                  getItemsByCategory={order.getItemsByCategory}
+                  getCategoryDisplayName={getCategoryDisplayName}
+                  getMaxAllowedItemsByType={order.getMaxAllowedItemsByType}
+                  getActivePlanMaxAllowed={order.getActivePlanMaxAllowed}
+                  getActivePlanSelectedCount={order.getActivePlanSelectedCount}
+                  onMoveItem={order.moveItemBetweenPlans}
+                />
+              )}
           </div>
         )}
 

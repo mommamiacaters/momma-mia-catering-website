@@ -248,7 +248,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   const activeLabel = activeExtrasTab
     ? activeExtrasTab.label
     : CATEGORY_CONFIG.find((c) => c.type === activeCategory)?.label ??
-      activeCategory;
+    activeCategory;
 
   const activeMax = maxAllowed[activeCategory as CategoryType] || 0;
   const activeSelected = activeExtrasTab
@@ -574,11 +574,10 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
       <section className="mb-14">
         <div className="flex items-center gap-3 mb-6">
           <span
-            className={`flex items-center justify-center w-9 h-9 rounded-full font-poppins text-sm font-bold shrink-0 transition-colors ${
-              hasMealPlan
+            className={`flex items-center justify-center w-9 h-9 rounded-full font-poppins text-sm font-bold shrink-0 transition-colors ${hasMealPlan
                 ? "bg-brand-primary text-white"
                 : "bg-brand-primary/10 text-brand-primary ring-2 ring-brand-primary/30"
-            }`}
+              }`}
           >
             {hasMealPlan ? <Check size={16} strokeWidth={3} /> : "1"}
           </span>
@@ -636,623 +635,11 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
           card grid shrink instead of forcing the page wider. */}
       {hasMealPlan && (
         <>
-        <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 lg:items-start">
-          {/* ── Lunch Box summary — sticky beside the dishes on desktop, below
+          <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 lg:items-start">
+            {/* ── Lunch Box summary — sticky beside the dishes on desktop, below
                 them on mobile (where the floating bag button covers checkout) ── */}
-          {isDesktop && (
-            <aside className="hidden lg:block lg:order-1 lg:sticky lg:top-24">
-              <TrayPreview
-                compact
-                planInstances={planInstances}
-                extras={extras}
-                categoryMinDishQty={plans[0]?.categoryMinDishQty ?? null}
-                activePlanInstanceId={activePlanInstanceId}
-                getMealPlanLimits={getMealPlanLimits}
-                onSetActivePlan={onSetActivePlan}
-                onMoveItem={onMoveItem}
-                onFixShortDish={goToShortDish}
-              />
-            </aside>
-          )}
-
-          <section
-            id="dish-picker-section"
-            className="order-1 lg:order-2 lg:col-span-2 min-w-0 mb-10"
-          >
-          <div className="flex items-center gap-3 mb-8">
-            <span className="flex items-center justify-center w-9 h-9 rounded-full bg-brand-primary/10 text-brand-primary ring-2 ring-brand-primary/30 font-poppins text-sm font-bold shrink-0">
-              2
-            </span>
-            <div>
-              <h3 className="font-arvo text-xl font-bold text-brand-text">
-                Pick Your Dishes
-              </h3>
-              <p className="font-poppins text-xs text-brand-text/40">
-                Fill each category to complete your lunch box
-              </p>
-            </div>
-          </div>
-
-          {/* ── Plan Instance Selector ──
-                A plan chip lists its own boxes underneath, one plan at a time,
-                the way the category tabs below swap their dish grid. */}
-          {sortedInstances.length > 1 && (
-            <div className="mb-6">
-              <div className="flex flex-wrap gap-2 pt-1 pb-1 -mx-1 px-1">
-                <button
-                  onClick={() => setFillMenuOpen((open) => !open)}
-                  aria-expanded={fillMenuOpen}
-                  aria-controls="auto-fill-modes"
-                  className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${
-                    !activePlanInstanceId
-                      ? "bg-brand-primary text-white border-brand-primary shadow-md"
-                      : "bg-white text-brand-text/70 border-brand-divider hover:border-brand-primary/40"
-                  }`}
-                >
-                  <Zap size={12} />
-                  Auto-fill
-                  <ChevronDown
-                    size={12}
-                    className={`transition-transform duration-200 ${fillMenuOpen ? "rotate-180" : ""}`}
-                    aria-hidden="true"
-                  />
-                </button>
-
-                {planGroups.map(({ type, instances, filledBoxes }) => {
-                  const isExpanded = expandedPlan === type;
-                  const allBoxesFilled = filledBoxes === instances.length;
-
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => setExpandedPlan(isExpanded ? null : type)}
-                      aria-expanded={isExpanded}
-                      aria-controls="plan-box-chips"
-                      className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${
-                        isExpanded
-                          ? "bg-brand-primary/10 text-brand-primary border-brand-primary"
-                          : allBoxesFilled
-                            ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                            : "bg-white text-brand-text/70 border-brand-divider hover:border-brand-primary/40"
-                      }`}
-                    >
-                      {allBoxesFilled && <Check size={11} strokeWidth={3} />}
-                      <span className="truncate max-w-[8rem]">{type}</span>
-                      <span
-                        className={`px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold ${
-                          isExpanded
-                            ? "bg-brand-primary/20 text-brand-primary"
-                            : allBoxesFilled
-                              ? "bg-green-200/60 text-green-700"
-                              : "bg-brand-secondary text-brand-text/70"
-                        }`}
-                        title={`${filledBoxes} of ${instances.length} boxes filled`}
-                      >
-                        {filledBoxes}/{instances.length}
-                      </span>
-                      <ChevronDown
-                        size={12}
-                        className={`transition-transform duration-200 ${
-                          isExpanded ? "rotate-180" : ""
-                        }`}
-                        aria-hidden="true"
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Auto-fill modes — closed by default; the choice only matters
-                  once someone wonders why box 8 is empty. */}
-              <div
-                className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
-                  fillMenuOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                }`}
-              >
-                <div className="overflow-hidden">
-                  <div
-                    id="auto-fill-modes"
-                    role="radiogroup"
-                    aria-label="How Auto-fill spreads dishes"
-                    aria-hidden={!fillMenuOpen}
-                    className="mt-2 grid gap-1.5 rounded-xl border border-brand-divider bg-white p-1.5 sm:grid-cols-2"
-                  >
-                    {(
-                      [
-                        ["even", "Spread evenly", "One dish per box, then round again"],
-                        ["sequential", "Fill in order", "Finish a box before the next"],
-                      ] as const
-                    ).map(([mode, label, hint]) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        role="radio"
-                        aria-checked={fillMode === mode}
-                        tabIndex={fillMenuOpen ? undefined : -1}
-                        onClick={() => {
-                          setFillMode(mode);
-                          onSetActivePlan(null);
-                        }}
-                        className={`rounded-lg px-3 py-2 text-left transition-colors cursor-pointer ${
-                          fillMode === mode
-                            ? "bg-brand-primary text-white"
-                            : "bg-white text-brand-text hover:bg-brand-secondary"
-                        }`}
-                      >
-                        <span className="block font-poppins text-xs font-semibold">
-                          {label}
-                        </span>
-                        <span
-                          className={`block font-poppins text-[0.7rem] ${
-                            fillMode === mode ? "text-white/80" : "text-brand-text/70"
-                          }`}
-                        >
-                          {hint}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* 0fr→1fr slides the boxes in without measuring a height, so the
-                  dish grid below never jumps. */}
-              <div
-                className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
-                  expandedPlan ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                }`}
-              >
-                <div className="overflow-hidden">
-                  <div
-                    id="plan-box-chips"
-                    aria-hidden={!expandedPlan}
-                    className="flex flex-wrap gap-2 pt-3 -mx-1 px-1"
-                  >
-                    {expandedInstances.map((pi) => {
-                      const isActive = activePlanInstanceId === pi.id;
-                      const limits = getMealPlanLimits(pi.type);
-                      const isComplete = isPlanInstanceComplete(pi, limits);
-                      const totalSlots = Object.values(limits).reduce(
-                        (a: number, b) => a + (b as number),
-                        0
-                      );
-                      const filledSlots = pi.items.length;
-                      const instanceNum = instanceNumbers.get(pi.id) || 1;
-
-                      return (
-                        <button
-                          key={pi.id}
-                          onClick={() => onSetActivePlan(pi.id)}
-                          tabIndex={expandedPlan ? undefined : -1}
-                          aria-label={`Fill box ${instanceNum} of ${pi.type}, ${filledSlots} of ${totalSlots} dishes chosen`}
-                          aria-current={isActive ? "true" : undefined}
-                          className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${
-                            isActive
-                              ? "ring-2 ring-brand-primary bg-brand-primary/10 text-brand-primary border-brand-primary"
-                              : isComplete
-                                ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                                : "bg-white text-brand-text/70 border-brand-divider hover:border-brand-primary/40"
-                          }`}
-                        >
-                          {isComplete && <Check size={11} strokeWidth={3} />}
-                          <span>#{instanceNum}</span>
-                          <span
-                            className={`px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold ${
-                              isActive
-                                ? "bg-brand-primary/20 text-brand-primary"
-                                : isComplete
-                                  ? "bg-green-200/60 text-green-700"
-                                  : "bg-brand-secondary text-brand-text/70"
-                            }`}
-                          >
-                            {filledSlots}/{totalSlots}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Active plan indicator with mini tray preview ── */}
-          {activePlan && (
-            <div className="mb-6 bg-brand-primary/5 border border-brand-primary/20 rounded-xl overflow-hidden">
-              <div className="px-4 py-2.5 flex items-center gap-2">
-                <span className="font-poppins text-xs text-brand-primary font-medium">
-                  Filling:{" "}
-                  <strong>
-                    #{activePlanNum} {activePlan.type}
-                  </strong>
-                </span>
-                <button
-                  onClick={() => onSetActivePlan(null)}
-                  className="ml-auto font-poppins text-xs text-brand-text/40 hover:text-brand-primary transition-colors"
-                >
-                  Switch to auto-fill
-                </button>
-              </div>
-
-            </div>
-          )}
-
-          {/* ── Category Tabs ── */}
-          <div
-            ref={tabStripRef}
-            className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1"
-          >
-            {allTabs.map(({ key, label, short, icon: Icon }) => {
-              const isExtra = key.startsWith("x:");
-              const extraQty = isExtra ? extrasQtyByCat.get(key.slice(2)) ?? 0 : 0;
-              const isActive = activeCategory === key;
-              const isComplete = !isExtra && categoryFull[key as CategoryType];
-              const count = isExtra ? extraQty : categoryCounts[key as CategoryType];
-              const max = isExtra ? 0 : maxAllowed[key as CategoryType] || 0;
-
-              return (
-                <button
-                  key={key}
-                  data-cat={key}
-                  onClick={() => setActiveCategory(key)}
-                  className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-poppins text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
-                    isActive
-                      ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
-                      : isComplete
-                        ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
-                        : "bg-white text-brand-text/60 border border-brand-divider hover:border-brand-primary/40 hover:text-brand-text"
-                  }`}
-                  aria-label={
-                    isExtra
-                      ? `${label}: ${count} added`
-                      : `${label}: ${count} of ${max} selected`
-                  }
-                  aria-current={isActive ? "true" : undefined}
-                >
-                  {isComplete ? (
-                    <Check size={15} strokeWidth={3} />
-                  ) : (
-                    <Icon size={15} />
-                  )}
-                  <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">{short}</span>
-                  {/* Extras have no capacity: the badge is a plain count, and
-                      only once there is something to count. */}
-                  {(!isExtra || count > 0) && (
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                        isActive
-                          ? "bg-white/20 text-white"
-                          : isComplete
-                            ? "bg-green-200/60 text-green-700"
-                            : "bg-brand-secondary text-brand-text/50"
-                      }`}
-                      title={
-                        isExtra
-                          ? `${count} ${label.toLowerCase()} added to your order`
-                          : `${count} of ${max} ${label.toLowerCase()} chosen for the box you're filling`
-                      }
-                    >
-                      {isExtra ? count : `${count}/${max}`}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ── Active Category Header + Progress ── */}
-          <div className="mb-6" ref={sectionHeadRef}>
-            {/* Wraps below sm: the title plus Clear plus the count badge do not
-                fit a 343px picker column on a phone. */}
-            <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 mb-2">
-              <div className="min-w-0">
-                <h4 className="font-arvo text-2xl font-bold text-brand-text">
-                  {activeExtrasTab
-                    ? activeExtrasTab.label
-                    : getCategoryDisplayName(activeCategory)}
-                </h4>
-                <p className="font-poppins text-sm text-brand-text/40 mt-0.5">
-                  {activeExtrasTab
-                    ? "Extras that ride along with any order, priced per piece"
-                    : CATEGORY_CONFIG.find(
-                        (c) => c.type === activeCategory
-                      )?.description}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Scope is spelled out in the label, because "Clear" means one
-                    box while you're filling one and EVERY box in auto-fill —
-                    a 25x difference the button must not leave ambiguous. */}
-                {clearableCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      activeExtraSlug
-                        ? onClearExtras(activeExtraSlug)
-                        : activePlanInstanceId
-                          ? clearCourse(activeCategory, activePlanInstanceId)
-                          : setConfirmClearAll(true)
-                    }
-                    className="flex items-center gap-1.5 rounded-full border border-brand-divider px-3 py-1 font-poppins text-sm font-medium text-brand-text/60 transition-colors hover:border-red-300 hover:text-red-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
-                    title={
-                      activeExtraSlug
-                        ? `Remove every ${activeLabel} extra from your order`
-                        : activePlanInstanceId
-                          ? `Remove the ${activeLabel.toLowerCase()} from #${activePlanNum} ${activePlan?.type ?? ""}`
-                          : `Remove every ${activeLabel.toLowerCase()} from all ${sortedInstances.length} boxes`
-                    }
-                  >
-                    <Trash2 size={14} />
-                    {activeExtraSlug
-                      ? `Clear all ${clearableCount}`
-                      : activePlanInstanceId
-                        ? "Clear this box"
-                        : `Clear all ${clearableCount}`}
-                  </button>
-                )}
-                <span
-                  className={`font-poppins text-sm font-semibold px-3 py-1 rounded-full whitespace-nowrap ${
-                    isMaxReached
-                      ? "bg-green-100 text-green-700"
-                      : "bg-brand-secondary text-brand-text/50"
-                  }`}
-                >
-                  {activeExtrasTab
-                    ? `${activeSelected} added`
-                    : `${activeSelected} of ${activeMax} selected`}
-                </span>
-              </div>
-            </div>
-
-            {/* Extras have no capacity, so a progress bar would have nothing
-                to measure. */}
-            {!activeExtrasTab && (
-              <div className="h-1.5 bg-brand-divider/40 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-[width] duration-500 ease-out ${
-                    isMaxReached ? "bg-green-500" : "bg-brand-primary"
-                  }`}
-                  style={{
-                    width:
-                      activeMax > 0
-                        ? `${Math.min(100, (activeSelected / activeMax) * 100)}%`
-                        : "0%",
-                  }}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* ── Food Grids — opacity-based switching for instant compositor toggle ── */}
-          <div
-            className="relative"
-            ref={setDishListEl}
-            onTouchStart={onDishTouchStart}
-            onTouchEnd={onDishTouchEnd}
-          >
-            {CATEGORIES.map((cat) => {
-              const items = getItemsByCategory(cat);
-              const isActiveTab = activeCategory === cat;
-              const isCatFull = categoryFull[cat];
-
-              return (
-                <div
-                  key={cat}
-                  className={
-                    isActiveTab
-                      ? "relative"
-                      : "absolute top-0 left-0 w-full opacity-0 pointer-events-none"
-                  }
-                  aria-hidden={!isActiveTab}
-                >
-                  {items.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                      {items.map((item, index) => (
-                        <FoodCard
-                          key={`${item.name}-${index}`}
-                          item={item}
-                          isSelected={selectedDishIds.has(item.id)}
-                          isDisabled={isCatFull}
-                          openSlots={openSlotsByType[item.type] ?? 0}
-                          placedCount={placedByDish.get(item.id) ?? 0}
-                          requiredMin={
-                            effectiveMinQtyPerDish === null
-                              ? null
-                              : (item.minQty ?? effectiveMinQtyPerDish)
-                          }
-                          showBulkActions={showBulkDishActions}
-                          onAddMany={(n) => onItemAddMany(item, n, fillModeRef.current)}
-                          onRemoveMany={(n) => onItemRemoveMany(item, n)}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-brand-divider">
-                      <p className="font-poppins text-brand-text/40">
-                        No items available for this category yet.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* ── Extras grids — same mounted-all pattern as the courses.
-                  No slot caps: openSlots is effectively unlimited and the
-                  card's stepper works on plain quantities. */}
-            {extrasTabs.map((tab) => {
-              const isActiveTab = activeCategory === tab.key;
-              return (
-                <div
-                  key={tab.key}
-                  className={
-                    isActiveTab
-                      ? "relative"
-                      : "absolute top-0 left-0 w-full opacity-0 pointer-events-none"
-                  }
-                  aria-hidden={!isActiveTab}
-                >
-                  {tab.items.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                      {tab.items.map((item) => (
-                        <FoodCard
-                          key={item.id}
-                          item={item}
-                          isSelected={(extrasQtyByItem.get(item.id) ?? 0) > 0}
-                          isDisabled={false}
-                          openSlots={999}
-                          placedCount={extrasQtyByItem.get(item.id) ?? 0}
-                          requiredMin={
-                            effectiveMinQtyPerDish === null
-                              ? null
-                              : (item.minQty ?? effectiveMinQtyPerDish)
-                          }
-                          unitPrice={item.price}
-                          showBulkActions={false}
-                          onAddMany={(n) => onExtraAdd(item, n)}
-                          onRemoveMany={(n) => onExtraRemove(item, n)}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-brand-divider">
-                      <p className="font-poppins text-brand-text/40">
-                        Nothing here yet.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          </section>
-        </div>
-
-        {/* ── Section jumper ──
-            Pinned to the right edge beside the dishes so the next course is
-            always one tap away, mid-scroll, on any screen. Kept mounted so it
-            fades rather than pops, and parked at z-30 — under the chat button
-            and the lunch-box bar it must never cover. */}
-        <div
-          aria-hidden={!(nextSection && dishListInView && !trayOpen)}
-          className={`fixed right-0 sm:right-4 top-1/2 -translate-y-1/2 z-30 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none ${
-            nextSection && dishListInView && !trayOpen
-              ? "opacity-100 translate-x-0"
-              : "opacity-0 translate-x-6 pointer-events-none"
-          }`}
-        >
-          {nextSection && (
-            <button
-              type="button"
-              onClick={jumpToNextSection}
-              title={`Go to ${nextSection.label}`}
-              aria-label={`Go to the next course, ${nextSection.label}`}
-              className="flex flex-col items-center gap-2.5 rounded-l-2xl sm:rounded-full bg-brand-primary px-2 py-4 text-white shadow-xl shadow-brand-primary/30 transition-[transform,background-color] duration-200 hover:bg-brand-primary/90 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary"
-            >
-              {/* Upright glyphs stacked downward — a rotated word makes the
-                  reader tilt their head; this one just reads. */}
-              <span className="[writing-mode:vertical-rl] [text-orientation:upright] font-poppins text-[0.7rem] font-bold uppercase tracking-[0.08em]">
-                {nextSection.label}
-              </span>
-              <ArrowRight
-                size={16}
-                strokeWidth={2.5}
-                className="shrink-0 motion-safe:animate-nudge-right"
-                aria-hidden="true"
-              />
-            </button>
-          )}
-        </div>
-
-        {/* ── Mobile: lunch-box drawer ──
-            The tray panel the aside shows on desktop, reachable from a fixed
-            bottom bar instead of a long scroll past every dish card. */}
-        {!isDesktop && (
-        <div className="lg:hidden">
-          {/* Keeps the last picker content scrollable above the fixed bar. */}
-          <div className="h-20" aria-hidden="true" />
-
-          <button
-            ref={trayBarRef}
-            type="button"
-            onClick={() => setTrayOpen(true)}
-            aria-haspopup="dialog"
-            aria-expanded={trayOpen}
-            className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-brand-divider pb-[env(safe-area-inset-bottom)] text-left cursor-pointer"
-          >
-            {/* Fill progress, readable at a glance without opening anything */}
-            <div className="h-1 bg-brand-divider/60">
-              <div
-                className={`h-full transition-[width] duration-300 ${
-                  boxesDone === planInstances.length ? "bg-green-500" : "bg-brand-primary"
-                }`}
-                style={{ width: `${dishSlots ? Math.round((dishesPlaced / dishSlots) * 100) : 0}%` }}
-              />
-            </div>
-            <span className="flex items-center gap-3 px-4 py-2.5 pr-24 min-h-[56px]">
-              <span
-                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${
-                  boxesDone === planInstances.length
-                    ? "bg-green-100 text-green-700"
-                    : "bg-brand-primary/10 text-brand-primary"
-                }`}
-              >
-                {boxesDone === planInstances.length ? (
-                  <Check size={18} strokeWidth={3} />
-                ) : (
-                  <Package size={18} />
-                )}
-              </span>
-              <span className="min-w-0">
-                <span className="block font-arvo text-sm font-bold text-brand-text">
-                  {boxesDone === planInstances.length
-                    ? "All lunch boxes complete!"
-                    : "Your Lunch Boxes"}
-                </span>
-                <span className="block font-poppins text-xs text-brand-text/70 tabular-nums truncate">
-                  {dishesPlaced}/{dishSlots} dishes · {boxesDone}/{planInstances.length}{" "}
-                  {planInstances.length === 1 ? "box" : "boxes"} ready
-                </span>
-              </span>
-              <ChevronUp size={18} className="ml-auto shrink-0 text-brand-text/70" />
-            </span>
-          </button>
-
-          {/* Backdrop sits over the chat FAB (z-40) so nothing competes with
-              the open sheet. */}
-          <div
-            onClick={() => setTrayOpen(false)}
-            aria-hidden="true"
-            className={`fixed inset-0 z-[45] bg-black/40 transition-opacity duration-300 ${
-              trayOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
-          />
-
-          <div
-            ref={traySheetRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Your lunch boxes"
-            className={`fixed inset-x-0 bottom-0 z-50 h-[85dvh] rounded-t-3xl bg-brand-secondary shadow-2xl flex flex-col transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${
-              trayOpen ? "translate-y-0" : "translate-y-full"
-            }`}
-          >
-            <div className="relative shrink-0 pt-2.5 pb-1">
-              <div className="mx-auto w-10 h-1 rounded-full bg-brand-divider" aria-hidden="true" />
-              <button
-                ref={trayCloseRef}
-                type="button"
-                onClick={() => setTrayOpen(false)}
-                aria-label="Close lunch boxes"
-                className="absolute right-2 top-1 flex items-center justify-center w-11 h-11 rounded-full text-brand-text/70 hover:text-brand-text hover:bg-brand-divider/40 transition-colors cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto overscroll-contain px-3 pb-8 pt-1">
-              {sheetContentLive && (
+            {isDesktop && (
+              <aside className="hidden lg:block lg:order-1 lg:sticky lg:top-24">
                 <TrayPreview
                   compact
                   planInstances={planInstances}
@@ -1260,21 +647,620 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                   categoryMinDishQty={plans[0]?.categoryMinDishQty ?? null}
                   activePlanInstanceId={activePlanInstanceId}
                   getMealPlanLimits={getMealPlanLimits}
-                  onSetActivePlan={(id) => {
-                    // Picking a box here means "go fill it" — hand back to the
-                    // picker rather than leaving it buried under the sheet.
-                    onSetActivePlan(id);
-                    setTrayOpen(false);
-                  }}
+                  onSetActivePlan={onSetActivePlan}
                   onMoveItem={onMoveItem}
                   onFixShortDish={goToShortDish}
-                  onOpenBag={openBagFromSheet}
                 />
+              </aside>
+            )}
+
+            <section
+              id="dish-picker-section"
+              className="order-1 lg:order-2 lg:col-span-2 min-w-0 mb-10"
+            >
+              <div className="flex items-center gap-3 mb-8">
+                <span className="flex items-center justify-center w-9 h-9 rounded-full bg-brand-primary/10 text-brand-primary ring-2 ring-brand-primary/30 font-poppins text-sm font-bold shrink-0">
+                  2
+                </span>
+                <div>
+                  <h3 className="font-arvo text-xl font-bold text-brand-text">
+                    Pick Your Dishes
+                  </h3>
+                  <p className="font-poppins text-xs text-brand-text/40">
+                    Fill each category to complete your lunch box
+                  </p>
+                </div>
+              </div>
+
+              {/* ── Plan Instance Selector ──
+                A plan chip lists its own boxes underneath, one plan at a time,
+                the way the category tabs below swap their dish grid. */}
+              {sortedInstances.length > 1 && (
+                <div className="mb-6">
+                  <div className="flex flex-wrap gap-2 pt-1 pb-1 -mx-1 px-1">
+                    <button
+                      onClick={() => setFillMenuOpen((open) => !open)}
+                      aria-expanded={fillMenuOpen}
+                      aria-controls="auto-fill-modes"
+                      className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${!activePlanInstanceId
+                          ? "bg-brand-primary text-white border-brand-primary shadow-md"
+                          : "bg-white text-brand-text/70 border-brand-divider hover:border-brand-primary/40"
+                        }`}
+                    >
+                      <Zap size={12} />
+                      Auto-fill
+                      <ChevronDown
+                        size={12}
+                        className={`transition-transform duration-200 ${fillMenuOpen ? "rotate-180" : ""}`}
+                        aria-hidden="true"
+                      />
+                    </button>
+
+                    {planGroups.map(({ type, instances, filledBoxes }) => {
+                      const isExpanded = expandedPlan === type;
+                      const allBoxesFilled = filledBoxes === instances.length;
+
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => setExpandedPlan(isExpanded ? null : type)}
+                          aria-expanded={isExpanded}
+                          aria-controls="plan-box-chips"
+                          className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${isExpanded
+                              ? "bg-brand-primary/10 text-brand-primary border-brand-primary"
+                              : allBoxesFilled
+                                ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                : "bg-white text-brand-text/70 border-brand-divider hover:border-brand-primary/40"
+                            }`}
+                        >
+                          {allBoxesFilled && <Check size={11} strokeWidth={3} />}
+                          <span className="truncate max-w-[8rem]">{type}</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold ${isExpanded
+                                ? "bg-brand-primary/20 text-brand-primary"
+                                : allBoxesFilled
+                                  ? "bg-green-200/60 text-green-700"
+                                  : "bg-brand-secondary text-brand-text/70"
+                              }`}
+                            title={`${filledBoxes} of ${instances.length} boxes filled`}
+                          >
+                            {filledBoxes}/{instances.length}
+                          </span>
+                          <ChevronDown
+                            size={12}
+                            className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""
+                              }`}
+                            aria-hidden="true"
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Auto-fill modes — closed by default; the choice only matters
+                  once someone wonders why box 8 is empty. */}
+                  <div
+                    className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${fillMenuOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                      }`}
+                  >
+                    <div className="overflow-hidden">
+                      <div
+                        id="auto-fill-modes"
+                        role="radiogroup"
+                        aria-label="How Auto-fill spreads dishes"
+                        aria-hidden={!fillMenuOpen}
+                        className="mt-2 grid gap-1.5 rounded-xl border border-brand-divider bg-white p-1.5 sm:grid-cols-2"
+                      >
+                        {(
+                          [
+                            ["even", "Spread evenly", "One dish per box, then round again"],
+                            ["sequential", "Fill in order", "Finish a box before the next"],
+                          ] as const
+                        ).map(([mode, label, hint]) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            role="radio"
+                            aria-checked={fillMode === mode}
+                            tabIndex={fillMenuOpen ? undefined : -1}
+                            onClick={() => {
+                              setFillMode(mode);
+                              onSetActivePlan(null);
+                            }}
+                            className={`rounded-lg px-3 py-2 text-left transition-colors cursor-pointer ${fillMode === mode
+                                ? "bg-brand-primary text-white"
+                                : "bg-white text-brand-text hover:bg-brand-secondary"
+                              }`}
+                          >
+                            <span className="block font-poppins text-xs font-semibold">
+                              {label}
+                            </span>
+                            <span
+                              className={`block font-poppins text-[0.7rem] ${fillMode === mode ? "text-white/80" : "text-brand-text/70"
+                                }`}
+                            >
+                              {hint}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 0fr→1fr slides the boxes in without measuring a height, so the
+                  dish grid below never jumps. */}
+                  <div
+                    className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${expandedPlan ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                      }`}
+                  >
+                    <div className="overflow-hidden">
+                      <div
+                        id="plan-box-chips"
+                        aria-hidden={!expandedPlan}
+                        className="flex flex-wrap gap-2 pt-3 -mx-1 px-1"
+                      >
+                        {expandedInstances.map((pi) => {
+                          const isActive = activePlanInstanceId === pi.id;
+                          const limits = getMealPlanLimits(pi.type);
+                          const isComplete = isPlanInstanceComplete(pi, limits);
+                          const totalSlots = Object.values(limits).reduce(
+                            (a: number, b) => a + (b as number),
+                            0
+                          );
+                          const filledSlots = pi.items.length;
+                          const instanceNum = instanceNumbers.get(pi.id) || 1;
+
+                          return (
+                            <button
+                              key={pi.id}
+                              onClick={() => onSetActivePlan(pi.id)}
+                              tabIndex={expandedPlan ? undefined : -1}
+                              aria-label={`Fill box ${instanceNum} of ${pi.type}, ${filledSlots} of ${totalSlots} dishes chosen`}
+                              aria-current={isActive ? "true" : undefined}
+                              className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-full font-poppins text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${isActive
+                                  ? "ring-2 ring-brand-primary bg-brand-primary/10 text-brand-primary border-brand-primary"
+                                  : isComplete
+                                    ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                                    : "bg-white text-brand-text/70 border-brand-divider hover:border-brand-primary/40"
+                                }`}
+                            >
+                              {isComplete && <Check size={11} strokeWidth={3} />}
+                              <span>#{instanceNum}</span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold ${isActive
+                                    ? "bg-brand-primary/20 text-brand-primary"
+                                    : isComplete
+                                      ? "bg-green-200/60 text-green-700"
+                                      : "bg-brand-secondary text-brand-text/70"
+                                  }`}
+                              >
+                                {filledSlots}/{totalSlots}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
-            </div>
+
+              {/* ── Active plan indicator with mini tray preview ── */}
+              {activePlan && (
+                <div className="mb-6 bg-brand-primary/5 border border-brand-primary/20 rounded-xl overflow-hidden">
+                  <div className="px-4 py-2.5 flex items-center gap-2">
+                    <span className="font-poppins text-xs text-brand-primary font-medium">
+                      Filling:{" "}
+                      <strong>
+                        #{activePlanNum} {activePlan.type}
+                      </strong>
+                    </span>
+                    <button
+                      onClick={() => onSetActivePlan(null)}
+                      className="ml-auto font-poppins text-xs text-brand-text/40 hover:text-brand-primary transition-colors"
+                    >
+                      Switch to auto-fill
+                    </button>
+                  </div>
+
+                </div>
+              )}
+
+              {/* ── Category Tabs ── */}
+              <div
+                ref={tabStripRef}
+                // Wraps once there is room instead of scrolling: a plan with
+                // every course plus the two extras tabs is nine chips, which
+                // overflowed even a wide desktop and put a scrollbar across the
+                // picker. Phones keep the swipe — nine chips will never fit
+                // there — and goToCategory's scrollTo is simply a no-op when
+                // the strip has nothing to scroll.
+                className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1 md:flex-wrap md:gap-y-2.5 md:overflow-x-visible md:pb-0"
+              >
+                {allTabs.map(({ key, label, short, icon: Icon }) => {
+                  const isExtra = key.startsWith("x:");
+                  const extraQty = isExtra ? extrasQtyByCat.get(key.slice(2)) ?? 0 : 0;
+                  const isActive = activeCategory === key;
+                  const isComplete = !isExtra && categoryFull[key as CategoryType];
+                  const count = isExtra ? extraQty : categoryCounts[key as CategoryType];
+                  const max = isExtra ? 0 : maxAllowed[key as CategoryType] || 0;
+
+                  return (
+                    <button
+                      key={key}
+                      data-cat={key}
+                      onClick={() => setActiveCategory(key)}
+                      className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl font-poppins text-sm font-medium whitespace-nowrap transition-colors duration-150 ${isActive
+                          ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
+                          : isComplete
+                            ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
+                            : "bg-white text-brand-text/60 border border-brand-divider hover:border-brand-primary/40 hover:text-brand-text"
+                        }`}
+                      aria-label={
+                        isExtra
+                          ? `${label}: ${count} added`
+                          : `${label}: ${count} of ${max} selected`
+                      }
+                      aria-current={isActive ? "true" : undefined}
+                    >
+                      {isComplete ? (
+                        <Check size={15} strokeWidth={3} />
+                      ) : (
+                        <Icon size={15} />
+                      )}
+                      <span className="hidden sm:inline">{label}</span>
+                      <span className="sm:hidden">{short}</span>
+                      {/* Extras have no capacity: the badge is a plain count, and
+                      only once there is something to count. */}
+                      {(!isExtra || count > 0) && (
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-semibold ${isActive
+                              ? "bg-white/20 text-white"
+                              : isComplete
+                                ? "bg-green-200/60 text-green-700"
+                                : "bg-brand-secondary text-brand-text/50"
+                            }`}
+                          title={
+                            isExtra
+                              ? `${count} ${label.toLowerCase()} added to your order`
+                              : `${count} of ${max} ${label.toLowerCase()} chosen for the box you're filling`
+                          }
+                        >
+                          {isExtra ? count : `${count}/${max}`}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ── Active Category Header + Progress ── */}
+              <div className="mb-6" ref={sectionHeadRef}>
+                {/* Wraps below sm: the title plus Clear plus the count badge do not
+                fit a 343px picker column on a phone. */}
+                <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 mb-2">
+                  <div className="min-w-0">
+                    <h4 className="font-arvo text-2xl font-bold text-brand-text">
+                      {activeExtrasTab
+                        ? activeExtrasTab.label
+                        : getCategoryDisplayName(activeCategory)}
+                    </h4>
+                    <p className="font-poppins text-sm text-brand-text/40 mt-0.5">
+                      {activeExtrasTab
+                        ? "Extras that ride along with any order, priced per piece"
+                        : CATEGORY_CONFIG.find(
+                          (c) => c.type === activeCategory
+                        )?.description}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Scope is spelled out in the label, because "Clear" means one
+                    box while you're filling one and EVERY box in auto-fill —
+                    a 25x difference the button must not leave ambiguous. */}
+                    {clearableCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          activeExtraSlug
+                            ? onClearExtras(activeExtraSlug)
+                            : activePlanInstanceId
+                              ? clearCourse(activeCategory, activePlanInstanceId)
+                              : setConfirmClearAll(true)
+                        }
+                        className="flex items-center gap-1.5 rounded-full border border-brand-divider px-3 py-1 font-poppins text-sm font-medium text-brand-text/60 transition-colors hover:border-red-300 hover:text-red-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
+                        title={
+                          activeExtraSlug
+                            ? `Remove every ${activeLabel} extra from your order`
+                            : activePlanInstanceId
+                              ? `Remove the ${activeLabel.toLowerCase()} from #${activePlanNum} ${activePlan?.type ?? ""}`
+                              : `Remove every ${activeLabel.toLowerCase()} from all ${sortedInstances.length} boxes`
+                        }
+                      >
+                        <Trash2 size={14} />
+                        {activeExtraSlug
+                          ? `Clear all ${clearableCount}`
+                          : activePlanInstanceId
+                            ? "Clear this box"
+                            : `Clear all ${clearableCount}`}
+                      </button>
+                    )}
+                    <span
+                      className={`font-poppins text-sm font-semibold px-3 py-1 rounded-full whitespace-nowrap ${isMaxReached
+                          ? "bg-green-100 text-green-700"
+                          : "bg-brand-secondary text-brand-text/50"
+                        }`}
+                    >
+                      {activeExtrasTab
+                        ? `${activeSelected} added`
+                        : `${activeSelected} of ${activeMax} selected`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Extras have no capacity, so a progress bar would have nothing
+                to measure. */}
+                {!activeExtrasTab && (
+                  <div className="h-1.5 bg-brand-divider/40 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-[width] duration-500 ease-out ${isMaxReached ? "bg-green-500" : "bg-brand-primary"
+                        }`}
+                      style={{
+                        width:
+                          activeMax > 0
+                            ? `${Math.min(100, (activeSelected / activeMax) * 100)}%`
+                            : "0%",
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ── Food Grids — opacity-based switching for instant compositor toggle ── */}
+              <div
+                className="relative"
+                ref={setDishListEl}
+                onTouchStart={onDishTouchStart}
+                onTouchEnd={onDishTouchEnd}
+              >
+                {CATEGORIES.map((cat) => {
+                  const items = getItemsByCategory(cat);
+                  const isActiveTab = activeCategory === cat;
+                  const isCatFull = categoryFull[cat];
+
+                  return (
+                    <div
+                      key={cat}
+                      className={
+                        isActiveTab
+                          ? "relative"
+                          : "absolute top-0 left-0 w-full opacity-0 pointer-events-none"
+                      }
+                      aria-hidden={!isActiveTab}
+                    >
+                      {items.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                          {items.map((item, index) => (
+                            <FoodCard
+                              key={`${item.name}-${index}`}
+                              item={item}
+                              isSelected={selectedDishIds.has(item.id)}
+                              isDisabled={isCatFull}
+                              openSlots={openSlotsByType[item.type] ?? 0}
+                              placedCount={placedByDish.get(item.id) ?? 0}
+                              requiredMin={
+                                effectiveMinQtyPerDish === null
+                                  ? null
+                                  : (item.minQty ?? effectiveMinQtyPerDish)
+                              }
+                              showBulkActions={showBulkDishActions}
+                              onAddMany={(n) => onItemAddMany(item, n, fillModeRef.current)}
+                              onRemoveMany={(n) => onItemRemoveMany(item, n)}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-brand-divider">
+                          <p className="font-poppins text-brand-text/40">
+                            No items available for this category yet.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* ── Extras grids — same mounted-all pattern as the courses.
+                  No slot caps: openSlots is effectively unlimited and the
+                  card's stepper works on plain quantities. */}
+                {extrasTabs.map((tab) => {
+                  const isActiveTab = activeCategory === tab.key;
+                  return (
+                    <div
+                      key={tab.key}
+                      className={
+                        isActiveTab
+                          ? "relative"
+                          : "absolute top-0 left-0 w-full opacity-0 pointer-events-none"
+                      }
+                      aria-hidden={!isActiveTab}
+                    >
+                      {tab.items.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                          {tab.items.map((item) => (
+                            <FoodCard
+                              key={item.id}
+                              item={item}
+                              isSelected={(extrasQtyByItem.get(item.id) ?? 0) > 0}
+                              isDisabled={false}
+                              openSlots={999}
+                              placedCount={extrasQtyByItem.get(item.id) ?? 0}
+                              requiredMin={
+                                effectiveMinQtyPerDish === null
+                                  ? null
+                                  : (item.minQty ?? effectiveMinQtyPerDish)
+                              }
+                              unitPrice={item.price}
+                              showBulkActions={false}
+                              onAddMany={(n) => onExtraAdd(item, n)}
+                              onRemoveMany={(n) => onExtraRemove(item, n)}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-16 bg-white/50 rounded-2xl border border-dashed border-brand-divider">
+                          <p className="font-poppins text-brand-text/40">
+                            Nothing here yet.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+            </section>
           </div>
-        </div>
-        )}
+
+          {/* ── Section jumper ──
+            Pinned to the right edge beside the dishes so the next course is
+            always one tap away, mid-scroll, on any screen. Kept mounted so it
+            fades rather than pops, and parked at z-30 — under the chat button
+            and the lunch-box bar it must never cover. */}
+          <div
+            aria-hidden={!(nextSection && dishListInView && !trayOpen)}
+            className={`fixed right-0 sm:right-4 top-1/2 -translate-y-1/2 z-30 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none ${nextSection && dishListInView && !trayOpen
+                ? "opacity-100 translate-x-0"
+                : "opacity-0 translate-x-6 pointer-events-none"
+              }`}
+          >
+            {nextSection && (
+              <button
+                type="button"
+                onClick={jumpToNextSection}
+                title={`Go to ${nextSection.label}`}
+                aria-label={`Go to the next course, ${nextSection.label}`}
+                className="flex flex-col items-center gap-2.5 rounded-l-2xl sm:rounded-full bg-brand-primary px-2 py-4 text-white shadow-xl shadow-brand-primary/30 transition-[transform,background-color] duration-200 hover:bg-brand-primary/90 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary"
+              >
+                {/* Upright glyphs stacked downward — a rotated word makes the
+                  reader tilt their head; this one just reads. */}
+                <span className="[writing-mode:vertical-rl] [text-orientation:upright] font-poppins text-[0.7rem] font-bold uppercase tracking-[0.08em]">
+                  {nextSection.label}
+                </span>
+                <ArrowRight
+                  size={16}
+                  strokeWidth={2.5}
+                  className="shrink-0 motion-safe:animate-nudge-right"
+                  aria-hidden="true"
+                />
+              </button>
+            )}
+          </div>
+
+          {/* ── Mobile: lunch-box drawer ──
+            The tray panel the aside shows on desktop, reachable from a fixed
+            bottom bar instead of a long scroll past every dish card. */}
+          {!isDesktop && (
+            <div className="lg:hidden">
+              {/* Keeps the last picker content scrollable above the fixed bar. */}
+              <div className="h-20" aria-hidden="true" />
+
+              <button
+                ref={trayBarRef}
+                type="button"
+                onClick={() => setTrayOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={trayOpen}
+                className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-brand-divider pb-[env(safe-area-inset-bottom)] text-left cursor-pointer"
+              >
+                {/* Fill progress, readable at a glance without opening anything */}
+                <div className="h-1 bg-brand-divider/60">
+                  <div
+                    className={`h-full transition-[width] duration-300 ${boxesDone === planInstances.length ? "bg-green-500" : "bg-brand-primary"
+                      }`}
+                    style={{ width: `${dishSlots ? Math.round((dishesPlaced / dishSlots) * 100) : 0}%` }}
+                  />
+                </div>
+                <span className="flex items-center gap-3 px-4 py-2.5 pr-24 min-h-[56px]">
+                  <span
+                    className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${boxesDone === planInstances.length
+                        ? "bg-green-100 text-green-700"
+                        : "bg-brand-primary/10 text-brand-primary"
+                      }`}
+                  >
+                    {boxesDone === planInstances.length ? (
+                      <Check size={18} strokeWidth={3} />
+                    ) : (
+                      <Package size={18} />
+                    )}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-arvo text-sm font-bold text-brand-text">
+                      {boxesDone === planInstances.length
+                        ? "All lunch boxes complete!"
+                        : "Your Lunch Boxes"}
+                    </span>
+                    <span className="block font-poppins text-xs text-brand-text/70 tabular-nums truncate">
+                      {dishesPlaced}/{dishSlots} dishes · {boxesDone}/{planInstances.length}{" "}
+                      {planInstances.length === 1 ? "box" : "boxes"} ready
+                    </span>
+                  </span>
+                  <ChevronUp size={18} className="ml-auto shrink-0 text-brand-text/70" />
+                </span>
+              </button>
+
+              {/* Backdrop sits over the chat FAB (z-40) so nothing competes with
+              the open sheet. */}
+              <div
+                onClick={() => setTrayOpen(false)}
+                aria-hidden="true"
+                className={`fixed inset-0 z-[45] bg-black/40 transition-opacity duration-300 ${trayOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                  }`}
+              />
+
+              <div
+                ref={traySheetRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Your lunch boxes"
+                className={`fixed inset-x-0 bottom-0 z-50 h-[85dvh] rounded-t-3xl bg-brand-secondary shadow-2xl flex flex-col transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${trayOpen ? "translate-y-0" : "translate-y-full"
+                  }`}
+              >
+                <div className="relative shrink-0 pt-2.5 pb-1">
+                  <div className="mx-auto w-10 h-1 rounded-full bg-brand-divider" aria-hidden="true" />
+                  <button
+                    ref={trayCloseRef}
+                    type="button"
+                    onClick={() => setTrayOpen(false)}
+                    aria-label="Close lunch boxes"
+                    className="absolute right-2 top-1 flex items-center justify-center w-11 h-11 rounded-full text-brand-text/70 hover:text-brand-text hover:bg-brand-divider/40 transition-colors cursor-pointer"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto overscroll-contain px-3 pb-8 pt-1">
+                  {sheetContentLive && (
+                    <TrayPreview
+                      compact
+                      planInstances={planInstances}
+                      extras={extras}
+                      categoryMinDishQty={plans[0]?.categoryMinDishQty ?? null}
+                      activePlanInstanceId={activePlanInstanceId}
+                      getMealPlanLimits={getMealPlanLimits}
+                      onSetActivePlan={(id) => {
+                        // Picking a box here means "go fill it" — hand back to the
+                        // picker rather than leaving it buried under the sheet.
+                        onSetActivePlan(id);
+                        setTrayOpen(false);
+                      }}
+                      onMoveItem={onMoveItem}
+                      onFixShortDish={goToShortDish}
+                      onOpenBag={openBagFromSheet}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
