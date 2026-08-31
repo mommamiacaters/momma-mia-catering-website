@@ -20,6 +20,7 @@ const SLOT_CLASS: Record<PlanSlot, string> = {
   sandwich: "text-yellow-700",
   pasta: "text-red-600",
   dessert: "text-pink-500",
+  drink: "text-sky-600",
 };
 
 export const SlotIcon: React.FC<{

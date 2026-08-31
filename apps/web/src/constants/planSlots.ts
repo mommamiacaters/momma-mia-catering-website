@@ -1,4 +1,4 @@
-import { Cake, CookingPot, Leaf, Sandwich, Soup, UtensilsCrossed, Wheat, type LucideIcon } from "lucide-react";
+import { Cake, CookingPot, CupSoda, Leaf, Sandwich, Soup, UtensilsCrossed, Wheat, type LucideIcon } from "lucide-react";
 import type { PlanSlot } from "../types";
 
 /**
@@ -37,6 +37,7 @@ export const PLAN_SLOT_META: {
   { slot: "sandwich", label: "Sandwich", short: "Sarnie", Icon: Sandwich, description: "Pick your sandwich" },
   { slot: "pasta", label: "Pasta", short: "Pasta", Icon: CookingPot, description: "Choose your pasta" },
   { slot: "dessert", label: "Dessert", short: "Dessert", Icon: Cake, description: "Finish with something sweet" },
+  { slot: "drink", label: "Drink", short: "Drink", Icon: CupSoda, description: "Add something to sip" },
 ];
 
 export const PLAN_SLOTS: PlanSlot[] = PLAN_SLOT_META.map((m) => m.slot);

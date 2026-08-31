@@ -26,6 +26,7 @@ export interface MenuTypeData {
   rice_bowl: MenuItem[];
   sandwich: MenuItem[];
   pasta: MenuItem[];
+  drink: MenuItem[];
   dessert: MenuItem[];
 }
 
@@ -66,6 +67,7 @@ export const PLAN_SLOT_LABELS: Record<string, string> = {
   rice_bowl: "Rice Bowl",
   sandwich: "Sandwich",
   pasta: "Pasta",
+  drink: "Drink",
   dessert: "Dessert",
 };
 
@@ -132,6 +134,7 @@ const emptyTypeData = (): MenuTypeData => ({
   rice_bowl: [],
   sandwich: [],
   pasta: [],
+  drink: [],
   dessert: [],
 });
 
@@ -282,7 +285,7 @@ class MenuService {
       supabase
         .from("meal_plans")
         .select(
-          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sandwich_count, pasta_count, category:categories(slug, min_order_boxes, min_qty_per_dish, is_active)",
+          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sandwich_count, pasta_count, drink_count, category:categories(slug, min_order_boxes, min_qty_per_dish, is_active)",
         )
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
@@ -324,6 +327,7 @@ class MenuService {
           rice_bowl: p.rice_bowl_count ?? 0,
           sandwich: p.sandwich_count ?? 0,
           pasta: p.pasta_count ?? 0,
+          drink: p.drink_count ?? 0,
         },
         minPrice: centsToPesos((r?.min_cents as number) ?? 0),
         maxPrice: centsToPesos((r?.max_cents as number) ?? 0),
@@ -354,6 +358,7 @@ class MenuService {
       rice_bowl: [],
       sandwich: [],
       pasta: [],
+      drink: [],
     };
 
     const { data, error } = await supabase
@@ -415,6 +420,7 @@ class MenuService {
       rice_bowl: opts.rice_bowl.map(toMenuItem),
       sandwich: opts.sandwich.map(toMenuItem),
       pasta: opts.pasta.map(toMenuItem),
+      drink: opts.drink.map(toMenuItem),
       dessert: opts.dessert.map(toMenuItem),
     };
   }

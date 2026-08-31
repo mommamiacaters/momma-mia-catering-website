@@ -74,6 +74,7 @@ export interface MealPlan {
   rice_bowl_count: number;
   sandwich_count: number;
   pasta_count: number;
+  drink_count: number;
   sort_order: number;
   is_active: boolean;
   /** categories.id — which food service page sells this plan. */
@@ -100,6 +101,7 @@ export const PLAN_SLOTS: {
     | "rice_bowl_count"
     | "sandwich_count"
     | "pasta_count"
+    | "drink_count"
   >;
   label: string;
 }[] = [
@@ -109,5 +111,6 @@ export const PLAN_SLOTS: {
   { key: "rice_bowl_count", label: "Rice bowls" },
   { key: "sandwich_count", label: "Sandwiches" },
   { key: "pasta_count", label: "Pasta" },
+  { key: "drink_count", label: "Drinks" },
   { key: "dessert_count", label: "Desserts" },
 ];

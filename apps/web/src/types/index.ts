@@ -29,7 +29,15 @@ export interface ExtraSelection {
 }
 
 /** A slot in a meal plan. Mirrors sub_categories.slot in the database. */
-export type PlanSlot = "main" | "side" | "rice" | "rice_bowl" | "sandwich" | "pasta" | "dessert";
+export type PlanSlot =
+  | "main"
+  | "side"
+  | "rice"
+  | "rice_bowl"
+  | "sandwich"
+  | "pasta"
+  | "dessert"
+  | "drink";
 
 /**
  * How a bulk add distributes across boxes.
