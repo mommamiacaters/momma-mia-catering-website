@@ -251,6 +251,63 @@ export type Database = {
           },
         ]
       }
+      menu_item_categories: {
+        Row: {
+          category_id: number
+          created_at: string
+          menu_item_id: string
+          price_cents: number | null
+        }
+        Insert: {
+          category_id: number
+          created_at?: string
+          menu_item_id: string
+          price_cents?: number | null
+        }
+        Update: {
+          category_id?: number
+          created_at?: string
+          menu_item_id?: string
+          price_cents?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_item_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_item_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "extras_menu_options"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "menu_item_categories_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "extras_menu_options"
+            referencedColumns: ["menu_item_id"]
+          },
+          {
+            foreignKeyName: "menu_item_categories_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "meal_plan_options"
+            referencedColumns: ["menu_item_id"]
+          },
+          {
+            foreignKeyName: "menu_item_categories_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_items: {
         Row: {
           category_id: number | null
