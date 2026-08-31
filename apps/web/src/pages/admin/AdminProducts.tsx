@@ -9,6 +9,7 @@ import CategoryFormModal from "../../components/admin/CategoryFormModal";
 import CustomerPreview from "../../components/admin/CustomerPreview";
 import DishTypeFilter, { type DishTypeKey } from "../../components/admin/DishTypeFilter";
 import { getCategoryDisplayName } from "../../constants";
+import { PLAN_SLOTS } from "../../constants/planSlots";
 
 const SELECT =
   "id, category_id, name, description, image_url, price_cents, item_type, sub_category_id, is_available, is_catering, sort_order, min_qty";
@@ -129,7 +130,9 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
       const key = typeOf(it);
       tally.set(key, (tally.get(key) ?? 0) + 1);
     }
-    const order: DishTypeKey[] = ["main", "side", "rice", "rice_bowl", "dessert", "none"];
+    // Driven by the shared slot catalogue, not a list repeated here: this row
+    // silently lost Sandwich and Pasta when those slots were added.
+    const order: DishTypeKey[] = [...PLAN_SLOTS, "none"];
     return order
       .filter((key) => (tally.get(key) ?? 0) > 0)
       .map((key) => ({
