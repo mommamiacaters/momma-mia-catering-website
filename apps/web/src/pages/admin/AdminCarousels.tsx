@@ -84,6 +84,11 @@ const ImageTile: React.FC<ImageTileProps> = ({
   // The live page decode-filters its slides, so a record whose file is missing
   // or corrupt is ALREADY hidden out there — this tile's job is to say so.
   const broken = !image.image_url || imgFailed;
+  // HEIC is the common reason and the fixable one: iPhones shoot it, no browser
+  // decodes it, and "Image broken" alone leaves the owner with nothing to do.
+  // Named off the URL, not the failed decode, so it reads correctly even before
+  // the <img> has given up.
+  const isHeic = /\.hei[cf](\?|$)/i.test(image.image_url ?? "");
   const label = `photo ${position} of ${serviceTitle}`;
 
   const commitAlt = () => {
@@ -95,7 +100,7 @@ const ImageTile: React.FC<ImageTileProps> = ({
   return (
     <li
       className={`relative rounded-lg border bg-white overflow-hidden ${
-        broken ? "border-amber-400 ring-2 ring-amber-300/60" : "border-brand-divider"
+        broken || isHeic ? "border-amber-400 ring-2 ring-amber-300/60" : "border-brand-divider"
       }`}
     >
       <div
@@ -113,10 +118,12 @@ const ImageTile: React.FC<ImageTileProps> = ({
       </div>
 
       <div className="absolute right-2 top-2 flex flex-col items-end gap-1">
-        {broken && (
-          <span className="rounded-full bg-amber-500 px-2 py-0.5 font-poppins text-[10px] font-medium text-white shadow">
+        {(broken || isHeic) && (
+          <span className="max-w-[13rem] rounded-lg bg-amber-500 px-2 py-1 text-right font-poppins text-[10px] font-medium leading-snug text-white shadow">
             <i className="pi pi-exclamation-triangle mr-1 text-[9px]" aria-hidden="true" />
-            Image broken — not shown on site
+            {isHeic
+              ? "iPhone HEIC — no browser can show it. Re-upload as JPEG to put it back on the site."
+              : "Image broken — not shown on site"}
           </span>
         )}
         {!image.is_active && (
