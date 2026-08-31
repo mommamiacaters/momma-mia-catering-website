@@ -98,9 +98,9 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
         new Map(
           initialCategories.length > 0
             ? initialCategories.map((m) => [
-                m.category_id,
-                m.price_cents == null ? "" : String(m.price_cents / 100),
-              ])
+              m.category_id,
+              m.price_cents == null ? "" : String(m.price_cents / 100),
+            ])
             : initial.category_id
               ? [[initial.category_id, ""]]
               : [],
@@ -274,7 +274,7 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
             seeing every service and which ones are ticked at a glance. */}
         <fieldset>
           <legend className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
-            Sold in
+            Category
           </legend>
           <div className="space-y-1.5">
             {selectableCategories.map((c) => {
@@ -282,9 +282,8 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
               return (
                 <div
                   key={c.id}
-                  className={`rounded-lg border px-3 py-2 transition-colors ${
-                    on ? "border-brand-primary/50 bg-brand-secondary/40" : "border-brand-divider"
-                  }`}
+                  className={`rounded-lg border px-3 py-2 transition-colors ${on ? "border-brand-primary/50 bg-brand-secondary/40" : "border-brand-divider"
+                    }`}
                 >
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <label className="flex min-h-[2.25rem] flex-1 cursor-pointer items-center gap-2.5">
@@ -339,7 +338,7 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
               >
                 Sub-category
               </label>
-              <HelpTip label="Sub-category" align="right">
+              <HelpTip label="Sub-category">
                 Which course this dish fills when a meal plan asks for one — a
                 plan wanting “1 main dish” draws from <strong>Main</strong>.
                 Every dish needs one: without it the dish has no course, and
