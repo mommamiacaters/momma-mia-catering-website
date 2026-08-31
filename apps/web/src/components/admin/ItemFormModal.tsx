@@ -144,7 +144,16 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
       description: form.description.trim() || null,
       image_url: form.image_url.trim() || null,
       price_cents: form.price.trim() === "" ? null : Math.round(Number(form.price) * 100),
-      min_qty: form.min_qty.trim() === "" ? null : Math.floor(Number(form.min_qty)),
+      // Blank means "inherit", and for an extra that inherits the store's
+      // 15-per-dish floor — which makes a single bottle of water unorderable,
+      // client and server alike. Extras are sold by the piece, so a blank one
+      // is stored as an explicit 0 instead of NULL.
+      min_qty:
+        form.min_qty.trim() === ""
+          ? isUniversalCategory
+            ? 0
+            : null
+          : Math.floor(Number(form.min_qty)),
       sub_category_id: form.sub_category_id || null,
       item_type: selectedSub ? (selectedSub.slot ?? selectedSub.slug) : null,
       is_available: form.is_available,
@@ -419,7 +428,7 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
             step="1"
             className={inputClass}
             value={form.min_qty}
-            placeholder="Blank = store default"
+            placeholder={isUniversalCategory ? "Blank = no minimum" : "Blank = store default"}
             onChange={(e) => setForm({ ...form, min_qty: e.target.value })}
           />
           <span className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-brand-secondary/50 px-3 py-2 font-poppins text-xs text-brand-text/65">
