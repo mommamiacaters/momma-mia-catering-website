@@ -282,7 +282,7 @@ class MenuService {
       supabase
         .from("meal_plans")
         .select(
-          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sandwich_count, pasta_count, category:categories(slug, min_order_boxes, min_qty_per_dish)",
+          "id, name, description, price_cents, pricing_mode, main_count, side_count, dessert_count, rice_count, rice_bowl_count, sandwich_count, pasta_count, category:categories(slug, min_order_boxes, min_qty_per_dish, is_active)",
         )
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
@@ -298,7 +298,16 @@ class MenuService {
       (ranges ?? []).map((r) => [r.meal_plan_id as number, r]),
     );
 
-    const mapped: MealPlan[] = (plans ?? []).map((p) => {
+    // Archiving a service hid its DISHES (meal_plan_options joins
+    // categories.is_active) but left its PLANS on sale, so the storefront
+    // still offered a box whose picker had nothing in it. Filtered here rather
+    // than with an inner join, so a plan with no category is never dropped.
+    const sellable = (plans ?? []).filter((p) => {
+      const cat = Array.isArray(p.category) ? p.category[0] : p.category;
+      return (cat as { is_active?: boolean } | null)?.is_active !== false;
+    });
+
+    const mapped: MealPlan[] = sellable.map((p) => {
       const r = rangeById.get(p.id);
       const cat = Array.isArray(p.category) ? p.category[0] : p.category;
       return {
