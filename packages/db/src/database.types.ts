@@ -182,6 +182,7 @@ export type Database = {
           created_at: string
           description: string | null
           dessert_count: number
+          drink_count: number
           id: number
           is_active: boolean
           main_count: number
@@ -201,6 +202,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           dessert_count?: number
+          drink_count?: number
           id?: number
           is_active?: boolean
           main_count?: number
@@ -220,6 +222,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           dessert_count?: number
+          drink_count?: number
           id?: number
           is_active?: boolean
           main_count?: number
