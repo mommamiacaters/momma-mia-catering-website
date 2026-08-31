@@ -83,9 +83,10 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
   }, [open, initial, defaultCategoryId, categories, defaultSubCategoryId]);
 
   const selectedSub = subCategories.find((s) => s.id === form.sub_category_id);
-  /** Slot-bearing groups are the ones a meal plan draws from. */
-  const isPlanComponent = Boolean(selectedSub?.slot);
-
+  /** Extras (Add-ons, Café Menu) are the only dishes whose price is billed. */
+  const isUniversalCategory = Boolean(
+    categories.find((c) => c.id === form.category_id)?.is_universal,
+  );
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -140,18 +141,45 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
           </div>
         )}
 
+        {/* Name first: it is what the dish IS, and it is the field the admin
+            came to type. The photo used to push it below the fold. */}
         <div>
-          <label className="block text-sm font-poppins font-medium text-brand-text mb-1.5">Photo</label>
-          <ImageUploader
-            value={form.image_url}
-            onChange={(url) => setForm((f) => ({ ...f, image_url: url }))}
-            onError={setError}
+          <label
+            htmlFor="item-name"
+            className="block text-sm font-poppins font-medium text-brand-text mb-1.5"
+          >
+            Dish name
+          </label>
+          <input
+            id="item-name"
+            className={inputClass}
+            required
+            autoFocus
+            value={form.name}
+            placeholder="e.g. Chicken Adobo"
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-poppins font-medium text-brand-text mb-1.5">Dish name</label>
-          <input className={inputClass} required autoFocus value={form.name} placeholder="e.g. Chicken Adobo" onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3">
+            <span className="block text-sm font-poppins font-medium text-brand-text">Photo</span>
+            <span className="font-poppins text-xs text-brand-text/50">
+              Cropped to 4:3 — customers see exactly this
+            </span>
+          </div>
+          {/* Same shape as the menu card (aspect-[4/3], object-cover) and about
+              its real width, so whatever gets trimmed here is trimmed on the
+              live site too. The old full-width letterbox showed a crop that
+              never matched what a customer got. */}
+          <div className="max-w-[20rem]">
+            <ImageUploader
+              value={form.image_url}
+              onChange={(url) => setForm((f) => ({ ...f, image_url: url }))}
+              onError={setError}
+              heightClass="aspect-[4/3]"
+            />
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -214,11 +242,15 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
         </div>
 
         {/*
-          A dish keeps its own price — it's still the à-la-carte figure, and it's
-          what a "price range" plan charges. It is simply NOT what the customer
-          pays inside a fixed-price plan, where the plan line carries the money.
-          Say that here rather than leaving the admin to wonder why ₱70 never
-          shows up on a ₱210 order.
+          What this price actually does, verified against create_order:
+            - a-la-carte line (no meal plan)  -> CHARGED. This is Add-ons and
+              Cafe Menu extras today.
+            - inside a fixed-price plan       -> NOT charged; the plan line
+              carries the money, and every plan in the catalogue is fixed.
+            - inside a "price range" plan     -> charged.
+          The old copy mentioned only the last two, so it read as "this is
+          essentially never charged" while Menu Manager showed the figure beside
+          every dish. Say plainly which case is in play.
         */}
         <div>
           <label htmlFor="item-price" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
@@ -234,16 +266,22 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
             placeholder="Leave blank for “price on request”"
             onChange={(e) => setForm({ ...form, price: e.target.value })}
           />
-          {isPlanComponent && (
-            <span className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-brand-secondary/50 px-3 py-2 font-poppins text-xs text-brand-text/65">
-              <i className="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+          <span className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-brand-secondary/50 px-3 py-2 font-poppins text-xs text-brand-text/65">
+            <i className="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+            {isUniversalCategory ? (
               <span>
-                On a fixed-price plan this amount is <strong>not charged</strong> —
-                the plan&rsquo;s price applies. It is only charged on a plan set to
-                “price range”.
+                Customers <strong>pay this</strong> for each one — Add-ons and
+                Café items are charged per piece on top of the order.
               </span>
-            </span>
-          )}
+            ) : (
+              <span>
+                Inside a meal plan this is <strong>not charged</strong> — the
+                plan&rsquo;s own price is what the customer pays. Every plan is
+                fixed-price right now, so treat this as a reference figure, not
+                the amount billed.
+              </span>
+            )}
+          </span>
         </div>
 
         <div>
