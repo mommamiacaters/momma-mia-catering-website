@@ -34,17 +34,34 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ open, onClose, ne
     if (!trimmed) return;
     setSaving(true);
     setError(null);
-    const { error } = await supabase
-      .from("categories")
-      .insert({
+    // supabase-js throws (rather than returning an error) when the request
+    // itself fails — offline, a dropped response, a blocked request. The raw
+    // "TypeError: Failed to fetch" tells the owner nothing, and worse, the row
+    // may well have been written before the answer went missing.
+    let error: { code?: string; message: string } | null = null;
+    try {
+      ({ error } = await supabase.from("categories").insert({
         name: trimmed,
         slug: slugify(trimmed),
         sort_order: nextSortOrder,
         is_universal: isUniversal,
-      });
+      }));
+    } catch {
+      setSaving(false);
+      setError(
+        "Couldn't reach the server, so we don't know if it saved. Close this and refresh — if the category isn't there, try again.",
+      );
+      return;
+    }
     setSaving(false);
     if (error) {
-      setError(error.message);
+      // 23505 = unique_violation on categories_slug_key. Naming the category is
+      // far more use than the constraint name.
+      setError(
+        error.code === "23505"
+          ? `A category called “${trimmed}” already exists. Pick another name, or refresh to see it.`
+          : error.message,
+      );
       return;
     }
     onSaved();
