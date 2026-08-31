@@ -13,6 +13,14 @@ export interface Category {
   is_active?: boolean;
 }
 
+/** One service a dish is sold under, with its reference price there. */
+export interface MenuItemCategory {
+  menu_item_id: string;
+  category_id: number;
+  /** null = fall back to the dish's own price. Never charged inside a plan. */
+  price_cents: number | null;
+}
+
 export interface MenuItemRecord {
   id: string;
   category_id: number | null;

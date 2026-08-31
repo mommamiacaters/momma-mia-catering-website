@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import type { AvailabilityFilter, Category, MenuItemRecord, SubCategory } from "../../types/menu";
+import type {
+  AvailabilityFilter,
+  Category,
+  MenuItemCategory,
+  MenuItemRecord,
+  SubCategory,
+} from "../../types/menu";
 import MenuToolbar from "../../components/admin/MenuToolbar";
 import CategoryAccordion from "../../components/admin/CategoryAccordion";
 import CategoryItemList from "../../components/admin/CategoryItemList";
@@ -25,6 +31,8 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
   const [categories, setCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [items, setItems] = useState<MenuItemRecord[]>([]);
+  /** Which services each dish is sold in — a dish may be in several. */
+  const [memberships, setMemberships] = useState<MenuItemCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +54,7 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
 
   const load = async () => {
     setLoading(true);
-    const [{ data: cats }, { data: subs }, { data: its, error: itErr }] = await Promise.all([
+    const [{ data: cats }, { data: subs }, { data: its, error: itErr }, { data: mems }] = await Promise.all([
       supabase
         .from("categories")
         .select("id, slug, name, sort_order, is_universal, is_active")
@@ -57,11 +65,13 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
         .eq("is_active", true)
         .order("sort_order"),
       supabase.from("menu_items").select(SELECT).order("sort_order"),
+      supabase.from("menu_item_categories").select("menu_item_id, category_id, price_cents"),
     ]);
     if (itErr) setError(itErr.message);
     setCategories((cats as Category[]) ?? []);
     setSubCategories((subs as SubCategory[]) ?? []);
     setItems((its as MenuItemRecord[]) ?? []);
+    setMemberships((mems as MenuItemCategory[]) ?? []);
     setLoading(false);
   };
 
@@ -89,15 +99,39 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
     if (only) setOpenCats(new Set([only.id]));
   }, [categorySlug, categories]);
 
+  // A dish appears under EVERY service it is sold in, so the same row can show
+  // in Party Trays and Merienda. The home category (menu_items.category_id) is
+  // only the fallback for a dish whose memberships have not loaded yet.
   const grouped = useMemo(() => {
     const byCat = new Map<number, MenuItemRecord[]>();
+    const byId = new Map(items.map((i) => [i.id, i]));
+    const placed = new Set<string>();
+    const push = (catId: number, it: MenuItemRecord) => {
+      if (!byCat.has(catId)) byCat.set(catId, []);
+      byCat.get(catId)!.push(it);
+    };
+    for (const m of memberships) {
+      const it = byId.get(m.menu_item_id);
+      if (!it) continue;
+      push(m.category_id, it);
+      placed.add(it.id);
+    }
     for (const it of items) {
-      const key = it.category_id ?? -1;
-      if (!byCat.has(key)) byCat.set(key, []);
-      byCat.get(key)!.push(it);
+      if (placed.has(it.id)) continue;
+      push(it.category_id ?? -1, it);
     }
     return byCat;
-  }, [items]);
+  }, [items, memberships]);
+
+  /** menu_item_id -> the services it is sold in. */
+  const membershipsByItem = useMemo(() => {
+    const map = new Map<string, MenuItemCategory[]>();
+    for (const m of memberships) {
+      if (!map.has(m.menu_item_id)) map.set(m.menu_item_id, []);
+      map.get(m.menu_item_id)!.push(m);
+    }
+    return map;
+  }, [memberships]);
 
   // id → display name, so a row can label its group without each row re-scanning
   // the sub-category list.
@@ -125,8 +159,13 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
   const typeCounts = useMemo(() => {
     const tally = new Map<DishTypeKey, number>();
     const visibleIds = new Set(visibleCategories.map((c) => c.id));
+    // Counted once per dish, not once per membership: a dish sold in two
+    // visible services is still one dish.
     for (const it of items) {
-      if (it.category_id === null || !visibleIds.has(it.category_id)) continue;
+      const cats = membershipsByItem.get(it.id)?.map((m) => m.category_id) ?? [
+        ...(it.category_id === null ? [] : [it.category_id]),
+      ];
+      if (!cats.some((id) => visibleIds.has(id))) continue;
       const key = typeOf(it);
       tally.set(key, (tally.get(key) ?? 0) + 1);
     }
@@ -140,7 +179,7 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
         label: key === "none" ? "No type" : getCategoryDisplayName(key),
         count: tally.get(key) ?? 0,
       }));
-  }, [items, visibleCategories, typeOf]);
+  }, [items, visibleCategories, typeOf, membershipsByItem]);
 
   const toggleType = (key: DishTypeKey) =>
     setTypes((prev) => {
@@ -409,6 +448,9 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
         categories={categories}
         subCategories={subCategories}
         initial={itemModal.initial}
+        initialCategories={
+          itemModal.initial ? (membershipsByItem.get(itemModal.initial.id) ?? []) : []
+        }
         defaultCategoryId={itemModal.defaultCategoryId}
         onSaved={load}
       />

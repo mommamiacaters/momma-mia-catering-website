@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import type { Category, MenuItemRecord, SubCategory } from "../../types/menu";
+import type { Category, MenuItemCategory, MenuItemRecord, SubCategory } from "../../types/menu";
 import Modal from "../ui/Modal";
 import ModalActions from "../ui/ModalActions";
 import Select from "../ui/Select";
@@ -14,6 +14,8 @@ interface ItemFormModalProps {
   subCategories: SubCategory[];
   /** item being edited, or null when adding */
   initial: MenuItemRecord | null;
+  /** the services that dish is already sold in, with their prices */
+  initialCategories?: MenuItemCategory[];
   /** preselected category when adding from a category header */
   defaultCategoryId?: number;
   onSaved: () => void;
@@ -46,12 +48,31 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
   categories,
   subCategories,
   initial,
+  initialCategories = [],
   defaultCategoryId,
   onSaved,
 }) => {
   const [form, setForm] = useState(blank);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** categoryId -> price string. Presence in the map IS the tick. */
+  const [services, setServices] = useState<Map<number, string>>(new Map());
+
+  /** Archived categories are not offerable; a dish already in one still shows. */
+  const selectableCategories = categories.filter(
+    (c) => c.is_active !== false || services.has(c.id),
+  );
+
+  const toggleService = (id: number) =>
+    setServices((prev) => {
+      const next = new Map(prev);
+      if (next.has(id)) next.delete(id);
+      else next.set(id, "");
+      return next;
+    });
+
+  const setServicePrice = (id: number, price: string) =>
+    setServices((prev) => new Map(prev).set(id, price));
 
   // Main is the default course: nearly every dish is one, and a blank
   // sub-category has no slot, which quietly hides the dish from every picker.
@@ -73,26 +94,52 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
         is_available: initial.is_available,
         is_catering: initial.is_catering,
       });
+      setServices(
+        new Map(
+          initialCategories.length > 0
+            ? initialCategories.map((m) => [
+                m.category_id,
+                m.price_cents == null ? "" : String(m.price_cents / 100),
+              ])
+            : initial.category_id
+              ? [[initial.category_id, ""]]
+              : [],
+        ),
+      );
     } else {
-      setForm({
-        ...blank,
-        category_id: defaultCategoryId ?? categories[0]?.id ?? 0,
-        sub_category_id: defaultSubCategoryId,
-      });
+      const home = defaultCategoryId ?? categories[0]?.id ?? 0;
+      setForm({ ...blank, category_id: home, sub_category_id: defaultSubCategoryId });
+      setServices(home ? new Map([[home, ""]]) : new Map());
     }
+    // initialCategories is a fresh array each render; the item id is what
+    // actually identifies the dish being loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial, defaultCategoryId, categories, defaultSubCategoryId]);
 
   const selectedSub = subCategories.find((s) => s.id === form.sub_category_id);
-  /** Extras (Add-ons, Café Menu) are the only dishes whose price is billed. */
-  const isUniversalCategory = Boolean(
-    categories.find((c) => c.id === form.category_id)?.is_universal,
+  /**
+   * Extras (Add-ons, Café Menu) are the only dishes whose price is billed, and
+   * a dish sold in one of those IS charged there — even if it also sits in a
+   * plan service where it is not. Any universal tick means "this gets paid".
+   */
+  const isUniversalCategory = [...services.keys()].some(
+    (id) => categories.find((c) => c.id === id)?.is_universal,
   );
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    const picked = [...services.keys()];
+    if (picked.length === 0) {
+      setError("Pick at least one service for this dish to appear in.");
+      return;
+    }
+    // The home service is what create_order reads for the per-dish minimum, so
+    // it must be one the dish is actually sold in. Keep the existing one when
+    // it survived the edit; otherwise fall back to the first tick.
+    const home = picked.includes(form.category_id) ? form.category_id : picked[0];
     setSaving(true);
     setError(null);
     const payload = {
-      category_id: form.category_id || null,
+      category_id: home,
       name: form.name.trim(),
       description: form.description.trim() || null,
       image_url: form.image_url.trim() || null,
@@ -104,11 +151,42 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
       is_catering: form.is_catering,
     };
     const res = initial
-      ? await supabase.from("menu_items").update(payload).eq("id", initial.id)
-      : await supabase.from("menu_items").insert(payload);
+      ? await supabase.from("menu_items").update(payload).eq("id", initial.id).select("id").single()
+      : await supabase.from("menu_items").insert(payload).select("id").single();
+    if (res.error || !res.data) {
+      setSaving(false);
+      setError(res.error?.message ?? "Could not save the dish.");
+      return;
+    }
+
+    // Memberships: upsert what is ticked, then drop what is not. Upsert first
+    // so the dish is never briefly in no service at all — the storefront views
+    // join through this table.
+    const itemId = (res.data as { id: string }).id;
+    const rows = picked.map((categoryId) => ({
+      menu_item_id: itemId,
+      category_id: categoryId,
+      price_cents:
+        (services.get(categoryId) ?? "").trim() === ""
+          ? null
+          : Math.round(Number(services.get(categoryId)) * 100),
+    }));
+    const up = await supabase
+      .from("menu_item_categories")
+      .upsert(rows, { onConflict: "menu_item_id,category_id" });
+    if (up.error) {
+      setSaving(false);
+      setError(`Dish saved, but its services did not: ${up.error.message}`);
+      return;
+    }
+    const del = await supabase
+      .from("menu_item_categories")
+      .delete()
+      .eq("menu_item_id", itemId)
+      .not("category_id", "in", `(${picked.join(",")})`);
     setSaving(false);
-    if (res.error) {
-      setError(res.error.message);
+    if (del.error) {
+      setError(`Dish saved, but removing old services failed: ${del.error.message}`);
       return;
     }
     onSaved();
@@ -182,21 +260,66 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="item-category" className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
-              Category
-            </label>
-            <Select
-              id="item-category"
-              value={form.category_id}
-              onChange={(e) => setForm({ ...form, category_id: Number(e.target.value) })}
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </Select>
+        {/* Services: a dish can be sold in several, each with its own price.
+            A checkbox list rather than a dropdown, because the whole point is
+            seeing every service and which ones are ticked at a glance. */}
+        <fieldset>
+          <legend className="block text-sm font-poppins font-medium text-brand-text mb-1.5">
+            Sold in
+          </legend>
+          <div className="space-y-1.5">
+            {selectableCategories.map((c) => {
+              const on = services.has(c.id);
+              return (
+                <div
+                  key={c.id}
+                  className={`rounded-lg border px-3 py-2 transition-colors ${
+                    on ? "border-brand-primary/50 bg-brand-secondary/40" : "border-brand-divider"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <label className="flex min-h-[2.25rem] flex-1 cursor-pointer items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => toggleService(c.id)}
+                        className="h-4 w-4 cursor-pointer accent-brand-primary"
+                      />
+                      <span className="font-poppins text-sm text-brand-text">{c.name}</span>
+                      {c.is_universal && (
+                        <span className="rounded-full bg-brand-secondary px-2 py-0.5 font-poppins text-[0.7rem] text-brand-text/60">
+                          every service
+                        </span>
+                      )}
+                    </label>
+                    {on && (
+                      <label className="flex items-center gap-2">
+                        <span className="font-poppins text-xs text-brand-text/60">₱</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          aria-label={`Price in ${c.name}`}
+                          value={services.get(c.id) ?? ""}
+                          onChange={(e) => setServicePrice(c.id, e.target.value)}
+                          placeholder={form.price.trim() === "" ? "price" : form.price}
+                          className="w-28 rounded-lg border border-brand-divider bg-white px-2.5 py-1.5 font-poppins text-sm text-brand-text focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
+          <p className="mt-1.5 font-poppins text-xs text-brand-text/50">
+            Leave a price blank to use the dish price below. The first one ticked
+            is the dish&rsquo;s home service.
+          </p>
+        </fieldset>
+
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             {/* The tip sits BESIDE the label, not inside it — a button within
                 a <label> steals the click that should focus the select. */}
