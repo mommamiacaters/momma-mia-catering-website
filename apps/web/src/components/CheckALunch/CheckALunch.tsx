@@ -910,6 +910,20 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                       )}
                       <span className="hidden sm:inline">{label}</span>
                       <span className="sm:hidden">{short}</span>
+                      {/* A plan course and an extras group can share a name —
+                          "Drink" is included in the box, "Drinks" is charged per
+                          piece — and side by side that cost customers money by
+                          accident. Say which is which on the chip itself. */}
+                      {isExtra && (
+                        <span
+                          className={`text-[0.65rem] font-semibold ${
+                            isActive ? "text-white/80" : "text-brand-text/40"
+                          }`}
+                          title={`${label} are charged per piece, on top of your boxes`}
+                        >
+                          +₱
+                        </span>
+                      )}
                       {/* Extras have no capacity: the badge is a plain count, and
                       only once there is something to count. */}
                       {(!isExtra || count > 0) && (
