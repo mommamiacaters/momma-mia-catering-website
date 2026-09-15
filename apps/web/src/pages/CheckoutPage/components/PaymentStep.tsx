@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { PaymentMethod, PaymentProof } from "../../../types";
 import { validatePaymentProof, fileToBase64 } from "../../../utils/validation";
+import { prepareImageForUpload, MAX_EDGE } from "../../../services/imageUpload";
 import { loadPayPal, PAYPAL_CLIENT_ID, type PayPalButtonsInstance } from "../../../lib/paypal";
 
 interface Props {
@@ -89,17 +90,23 @@ const PaymentStep: React.FC<Props> = ({
       setFileError(null);
       setIsProcessing(true);
       try {
+        // Validate what the customer actually picked: the magic-byte check has to
+        // see the original bytes, not a re-encode of them.
         const result = await validatePaymentProof(file);
         if (!result.valid) {
           setFileError(result.error || "Invalid file.");
           return;
         }
-        const base64 = await fileToBase64(file);
+        // Receipts arrive as full-resolution phone photos. Shrink before base64
+        // inflates them by a third in memory and again in Storage. Falls back to
+        // the original when the browser can't re-encode it (HEIC, mainly).
+        const upload = await prepareImageForUpload(file, MAX_EDGE.proof, 0.85);
+        const base64 = await fileToBase64(upload);
         onProofChange({
           base64,
-          mimeType: file.type,
-          fileName: file.name,
-          fileSize: file.size,
+          mimeType: upload.type,
+          fileName: upload.name,
+          fileSize: upload.size,
         });
       } catch {
         setFileError("Failed to read file. Please try again.");

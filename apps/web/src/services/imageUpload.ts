@@ -58,6 +58,8 @@ export const MAX_EDGE = {
   carousel: 1800,
   /** Menu photos never render large. */
   menuItem: 1200,
+  /** Payment receipts: never displayed large, but an admin has to read the amount. */
+  proof: 1600,
 } as const;
 
 const toBlob = (canvas: HTMLCanvasElement, type: string, quality: number) =>
