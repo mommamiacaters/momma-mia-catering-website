@@ -18,6 +18,7 @@
     "db:types": "supabase gen types typescript --project-id fbzwicfvhrtyfqjounvo > packages/db/src/database.types.ts"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "sharp": "^0.35.4"
   }
 }
