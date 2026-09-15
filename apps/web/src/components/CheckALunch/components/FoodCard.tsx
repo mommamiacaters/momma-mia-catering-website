@@ -22,6 +22,8 @@ interface FoodCardProps {
   unitPrice?: number | null;
   /** Admin switch: the bulk "Fill all" / "Clear" pair under each card. */
   showBulkActions: boolean;
+  /** Card sits in a tab the shopper hasn't opened yet — don't fetch its photo. */
+  deferImage?: boolean;
   onAddMany: (count: number) => void;
   onRemoveMany: (count: number) => void;
 }
@@ -35,6 +37,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   requiredMin,
   unitPrice = null,
   showBulkActions,
+  deferImage = false,
   onAddMany,
   onRemoveMany,
 }) => {
@@ -123,6 +126,7 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
         <CachedImage
           src={item.image}
           alt={item.name}
+          defer={deferImage}
           containerClassName="w-full h-full"
           className={`w-full h-full object-cover transition-transform duration-500 ${
             !isDisabled ? "group-hover:scale-105" : ""
@@ -292,6 +296,8 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
       )}
     </div>
   );
+// Allow-list of props that change what a card renders. A new data prop must be
+// added here too, or the card ignores it — the callbacks are left out on purpose.
 }, (prev, next) =>
   prev.item === next.item &&
   prev.isSelected === next.isSelected &&
@@ -300,7 +306,8 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
   prev.placedCount === next.placedCount &&
   prev.requiredMin === next.requiredMin &&
   prev.unitPrice === next.unitPrice &&
-  prev.showBulkActions === next.showBulkActions
+  prev.showBulkActions === next.showBulkActions &&
+  prev.deferImage === next.deferImage
 );
 
 FoodCard.displayName = "FoodCard";

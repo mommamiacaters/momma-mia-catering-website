@@ -19,6 +19,14 @@ interface CachedImageProps {
   className?: string;
   containerClassName?: string;
   fallback?: string;
+  /** Fetch immediately instead of on approach. Above-the-fold art only. */
+  eager?: boolean;
+  /**
+   * Show the skeleton and don't request the image at all yet. For content that
+   * is mounted but not visible — a hidden tab's grid sits in layout at opacity
+   * 0, so native lazy-loading still sees it "in the viewport" and fetches it.
+   */
+  defer?: boolean;
 }
 
 const CachedImage: React.FC<CachedImageProps> = memo(({
@@ -27,20 +35,28 @@ const CachedImage: React.FC<CachedImageProps> = memo(({
   className = "",
   containerClassName = "",
   fallback = FALLBACK_IMAGE,
+  eager = false,
+  defer = false,
 }) => {
   const imgSrc = src || fallback;
+  // Lazy by default. A 115-dish grid renders ~9 cards on screen, and eager
+  // fetched every one of them at full size the moment the page mounted --
+  // hundreds of megabytes of egress for images nobody scrolled to. Above-the-
+  // fold art (a hero, a carousel slide) opts back in with eager.
+  const loadingAttr = eager ? "eager" : "lazy";
   const alreadyCached = loadedImages.has(imgSrc);
   const [loaded, setLoaded] = useState(alreadyCached);
   const [errored, setErrored] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Handle images that load from cache before onLoad fires
+  // Handle images that load from cache before onLoad fires. Re-check when a
+  // deferred image finally mounts, since imgSrc itself won't have changed.
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
       loadedImages.add(imgSrc);
       setLoaded(true);
     }
-  }, [imgSrc]);
+  }, [imgSrc, defer]);
 
   const handleLoad = () => {
     loadedImages.add(imgSrc);
@@ -63,18 +79,22 @@ const CachedImage: React.FC<CachedImageProps> = memo(({
         </div>
       )}
 
-      <img
-        ref={imgRef}
-        src={displaySrc}
-        alt={alt}
-        className={`transition-opacity duration-300 ${
-          loaded ? "opacity-100" : "opacity-0"
-        } ${className}`}
-        onLoad={handleLoad}
-        onError={handleError}
-        loading="eager"
-        decoding="async"
-      />
+      {/* No <img> while deferred: an element with a src is a request, whatever
+          its loading attribute says about timing. */}
+      {!defer && (
+        <img
+          ref={imgRef}
+          src={displaySrc}
+          alt={alt}
+          className={`transition-opacity duration-300 ${
+            loaded ? "opacity-100" : "opacity-0"
+          } ${className}`}
+          onLoad={handleLoad}
+          onError={handleError}
+          loading={loadingAttr}
+          decoding="async"
+        />
+      )}
     </div>
   );
 });
@@ -84,9 +104,12 @@ CachedImage.displayName = "CachedImage";
 export default CachedImage;
 
 /**
- * Preload a list of image URLs into the browser cache.
- * Call this once when menuData arrives to warm the cache
- * for all categories before the user switches tabs.
+ * Preload a handful of image URLs into the browser cache.
+ *
+ * For a few known-critical images only — a hero, the next slide. Do NOT hand it
+ * a catalogue: calling this with every dish once pulled ~133MB per page visit
+ * and blew the Supabase egress quota. Everything else should lazy-load, which
+ * is what CachedImage does by default.
  */
 export function preloadImages(urls: string[]): void {
   for (const url of urls) {

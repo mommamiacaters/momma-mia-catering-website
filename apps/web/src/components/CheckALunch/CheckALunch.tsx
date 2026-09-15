@@ -21,7 +21,6 @@ import { PLAN_SLOT_META, PLAN_SLOTS } from "../../constants/planSlots";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { usePresence } from "../../hooks/usePresence";
 import type { MealPlan } from "../../services/menuService";
-import { preloadImages } from "../CachedImage";
 import MealPlanSelector from "./components/MealPlanSelector";
 import FoodCard from "./components/FoodCard";
 import TrayPreview from "./components/TrayPreview";
@@ -134,18 +133,19 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
   // piece, so one tray of one dish must not be flagged as under the store's
   // 15-per-dish default. Mirrors create_order v11's coalesce.
   const effectiveMinQtyPerDish = plans[0]?.categoryMinDishQty ?? minimumQtyPerDish;
-  // Preload ALL category images when menu data arrives
-  useEffect(() => {
-    if (!menuData) return;
-    const allUrls: string[] = [];
-    for (const cat of CATEGORIES) {
-      const items = menuData[cat] || [];
-      for (const item of items) {
-        if (item.image) allUrls.push(item.image);
-      }
-    }
-    preloadImages(allUrls);
-  }, [menuData]);
+  // Deliberately NOT preloading the catalogue.
+  //
+  // This used to warm every course's images the moment menuData arrived, to
+  // make tab switches instant. On Check-a-Lunch that is 115 dishes at ~1.3MB
+  // each -- about 133MB pulled on EVERY visit, for images most shoppers never
+  // scroll to. It burned 28.5GB of Supabase egress in testing alone and took
+  // the project over its quota.
+  //
+  // Two things replace it. Cards lazy-load as they approach the viewport
+  // (CachedImage defaults to loading="lazy"), and cards in any tab but the
+  // active one get no src at all (deferImage). Lazy alone isn't enough: hidden
+  // tabs sit in layout at opacity 0, so the browser counts them as on screen.
+  // Switching back is still instant -- the photo is already in the HTTP cache.
 
   // ─── Memoized derived state ───
 
@@ -1067,6 +1067,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                                   : (item.minQty ?? effectiveMinQtyPerDish)
                               }
                               showBulkActions={showBulkDishActions}
+                              deferImage={!isActiveTab}
                               onAddMany={(n) => onItemAddMany(item, n, fillModeRef.current)}
                               onRemoveMany={(n) => onItemRemoveMany(item, n)}
                             />
@@ -1115,6 +1116,7 @@ const CheckALunch: React.FC<CheckALunchProps> = ({
                               }
                               unitPrice={item.price}
                               showBulkActions={false}
+                              deferImage={!isActiveTab}
                               onAddMany={(n) => onExtraAdd(item, n)}
                               onRemoveMany={(n) => onExtraRemove(item, n)}
                             />
