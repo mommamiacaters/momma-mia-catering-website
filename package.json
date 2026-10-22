@@ -5,7 +5,7 @@
   "description": "Momma Mia Catering platform monorepo (web + mobile).",
   "packageManager": "pnpm@11.2.2",
   "scripts": {
-    "start": "concurrently -k -n web,mobile -c blue,magenta \"pnpm run start:web\" \"pnpm run start:mobile\"",
+    "start": "pnpm run start:web",
     "start:web": "pnpm --filter @momma-mia/web dev",
     "start:mobile": "node scripts/run-android.mjs",
     "start:mobile:expo": "pnpm --filter @momma-mia/mobile start",

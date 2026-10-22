@@ -62,7 +62,7 @@ momma-mia-catering-website/
 ├── apps/
 │   ├── web/        # @momma-mia/web    — React 18 + Vite website  (this repo's main site)
 │   └── mobile/     # @momma-mia/mobile — Expo (React Native) app
-├── package.json    # root scripts to run either app, or both at once
+├── package.json    # root scripts to run each app
 └── pnpm-workspace.yaml
 ```
 
@@ -98,16 +98,16 @@ Run any of these from the **repo root** (`pnpm run …` and `npm run …` both w
 
 | Command                       | Runs                               | Result                                                          |
 |-------------------------------|------------------------------------|-----------------------------------------------------------------|
-| `npm run start`               | **Web + Mobile** together          | Web in the browser **and** the mobile app on the Android emulator |
+| `npm run start`               | **Web only** (alias of `start:web`) | http://localhost:5174 (or 5173 if free)                         |
 | `npm run start:web`           | Web only                           | http://localhost:5174 (or 5173 if free)                         |
 | `npm run start:mobile`        | Mobile on the **Android emulator** | Auto-boots the `momma_pixel` AVD, starts Metro, opens the app   |
 | `npm run start:mobile:expo`   | Mobile via **Expo Go**             | Prints a **QR code** for a physical iPhone / Android phone      |
 
-> 💡 `npm run start` is the everyday command: it launches the **website and the mobile app on the Android emulator** at the same time (color-coded `[web]` blue / `[mobile]` magenta; one `Ctrl+C` stops both).
+> 💡 `npm run start` is the everyday command: it launches the **web app only**. Mobile is now opt-in — start it explicitly in its own terminal with `npm run start:mobile` (Android emulator) or `npm run start:mobile:expo` (Expo Go QR).
 
 ### Mobile — the two ways to run
 
-**① Android emulator** (default — used by `npm run start` and `npm run start:mobile`)
+**① Android emulator** (used by `npm run start:mobile`)
 
 `start:mobile` runs `scripts/run-android.mjs`, which does the whole dance for you:
 1. starts the adb server,
