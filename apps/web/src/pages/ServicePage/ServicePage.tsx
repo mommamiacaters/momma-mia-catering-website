@@ -42,7 +42,11 @@ const ServicePage: React.FC = () => {
       cancelled = true;
     };
   }, [serviceContent.hasMenu, restampExtras]);
-  const { slides: dbSlides, loading: carouselLoading } = useCarouselImages(slug || "");
+  const {
+    slides: dbSlides,
+    loading: carouselLoading,
+    prune: pruneCarouselImage,
+  } = useCarouselImages(slug || "");
 
   // The carousel is exactly what the admin uploaded — nothing else. There is no
   // bundled set behind it any more: a stale sample photo standing in for the
@@ -165,6 +169,7 @@ const ServicePage: React.FC = () => {
               images={carouselImages}
               alts={carouselAlts}
               title={pageTitle}
+              onImageError={pruneCarouselImage}
             />
           </div>
         )}

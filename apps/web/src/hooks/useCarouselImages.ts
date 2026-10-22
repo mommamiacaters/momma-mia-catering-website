@@ -2,11 +2,11 @@
 //
 // Slides are published the moment the ROWS arrive — the carousel renders
 // immediately with per-slide skeletons and each photo pops in as it loads.
-// The old behaviour decoded every image up front (23 photos on Catering)
-// before showing anything, which read as a blank page for several seconds.
-// Broken files are still weeded out, just in the background: each URL is
-// decoded off-screen after publish and a failure prunes that one slide.
-import { useEffect, useState } from "react";
+// Broken files are weeded out with a HEAD request per URL (headers only, no
+// image bytes): a missing file or a format browsers can't paint (HEIC) is
+// pruned. A file that passes but still fails to load is pruned by `prune`,
+// which the carousel calls from the slide's own <img> error.
+import { useCallback, useEffect, useState } from "react";
 import { listCarouselImages } from "../services/carouselService";
 
 export interface CarouselSlide {
@@ -22,25 +22,40 @@ interface SlideState {
 
 const EMPTY: CarouselSlide[] = [];
 
-/** Decodes an image off-screen. false = the URL is broken or won't decode. */
-async function canDecode(src: string): Promise<boolean> {
-  const img = new Image();
-  img.src = src;
-  return img.decode().then(
-    () => true,
-    () => false,
-  );
+/** Formats every browser we support can paint. HEIC is Safari-only, so it's out. */
+const PAINTABLE = /^image\/(jpeg|png|webp|gif|avif|svg\+xml)\b/i;
+
+/**
+ * Header-only check that a URL exists and is paintable — never downloads the
+ * photo. A network error counts as paintable; the slide's <img> error is the backstop.
+ */
+async function canDisplay(src: string): Promise<boolean> {
+  try {
+    const res = await fetch(src, { method: "HEAD" });
+    return res.ok && PAINTABLE.test(res.headers.get("content-type") ?? "");
+  } catch {
+    return true;
+  }
 }
 
 export function useCarouselImages(slug: string): {
   slides: CarouselSlide[];
   loading: boolean;
+  prune: (src: string) => void;
 } {
   const [state, setState] = useState<SlideState>({
     slug: "",
     slides: EMPTY,
     loading: true,
   });
+
+  const prune = useCallback((src: string) => {
+    setState((prev) =>
+      prev.slides.some((s) => s.src === src)
+        ? { ...prev, slides: prev.slides.filter((s) => s.src !== src) }
+        : prev
+    );
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -53,26 +68,13 @@ export function useCarouselImages(slug: string): {
         // Publish now — don't hold the whole strip hostage to the slowest photo.
         setState({ slug, slides, loading: false });
 
-        // Background sweep: decode one URL at a time (so the validation never
-        // races the visible slide for bandwidth) and prune what won't paint —
-        // a row whose stored file is missing or corrupt must never surface as
-        // a permanently blank slide. Delayed so the first photo wins the wire.
-        const validate = async () => {
-          await new Promise((r) => setTimeout(r, 800));
-          for (const slide of slides) {
-            if (cancelled) return;
-            const ok = await canDecode(slide.src);
-            if (cancelled) return;
-            if (!ok) {
-              setState((prev) =>
-                prev.slug === slug
-                  ? { ...prev, slides: prev.slides.filter((s) => s.src !== slide.src) }
-                  : prev
-              );
-            }
-          }
-        };
-        void validate();
+        // Header checks are tiny, so they run in parallel; a row whose file is
+        // missing or unpaintable must never surface as a permanently blank slide.
+        slides.forEach((slide) => {
+          void canDisplay(slide.src).then((ok) => {
+            if (!cancelled && !ok) prune(slide.src);
+          });
+        });
       })
       .catch((err) => {
         if (cancelled) return;
@@ -84,11 +86,11 @@ export function useCarouselImages(slug: string): {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, prune]);
 
   // Slides from a previous slug never leak into the current page; a slug
   // whose fetch hasn't landed yet reports as still loading.
   return state.slug === slug
-    ? { slides: state.slides, loading: state.loading }
-    : { slides: EMPTY, loading: true };
+    ? { slides: state.slides, loading: state.loading, prune }
+    : { slides: EMPTY, loading: true, prune };
 }

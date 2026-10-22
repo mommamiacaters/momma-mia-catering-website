@@ -8,6 +8,8 @@ interface CarouselProps {
   alts?: (string | null)[];
   /** Auto-advance interval in ms. 0 = disabled. Default 5000. */
   autoPlay?: number;
+  /** Called with a slide's src when its photo fails to load, so the owner can drop it. */
+  onImageError?: (src: string) => void;
 }
 
 /**
@@ -21,15 +23,16 @@ const CLONE_PAD = 2;
  * One slide photo: skeleton until the bytes actually ARRIVE, then a fade-in.
  * Mounting the <img> is not "loaded" — on a slow connection the browser paints
  * its alt text into the empty box, which is exactly the flash this prevents.
- * A broken file keeps the skeleton (never the broken-image glyph); the
- * carousel hook prunes it moments later.
+ * A broken file keeps the skeleton (never the broken-image glyph) and is
+ * reported through onError so the owner can prune it.
  */
 const SlideImage: React.FC<{
   src: string;
   alt: string;
   loading: "eager" | "lazy";
   decoding: "sync" | "async";
-}> = ({ src, alt, loading, decoding }) => {
+  onError?: (src: string) => void;
+}> = ({ src, alt, loading, decoding, onError }) => {
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [ready, setReady] = useState(false);
   // Cache hits can complete before onLoad is wired — same belt CachedImage wears.
@@ -51,6 +54,7 @@ const SlideImage: React.FC<{
         src={src}
         alt={alt}
         onLoad={() => setReady(true)}
+        onError={() => onError?.(src)}
         className={`w-full h-full object-cover transition-opacity duration-300 ${
           ready ? "opacity-100" : "opacity-0"
         }`}
@@ -69,7 +73,13 @@ const SlideImage: React.FC<{
  * an instant re-anchor once scrolling settles: the copy under the viewport is
  * pixel-identical to the real slide, so the jump cannot be seen.
  */
-const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 5000 }) => {
+const Carousel: React.FC<CarouselProps> = ({
+  images,
+  title,
+  alts,
+  autoPlay = 5000,
+  onImageError,
+}) => {
   const trackRef = useRef<HTMLDivElement | null>(null);
   // Index into the EXTENDED strip (clones + real). The real photo number the
   // dots and labels speak is realOf(index).
@@ -356,6 +366,7 @@ const Carousel: React.FC<CarouselProps> = ({ images, title, alts, autoPlay = 500
                     alt={isClone ? "" : alts?.[real]?.trim() || `${title} ${real + 1}`}
                     loading={real === 0 ? "eager" : "lazy"}
                     decoding={real === 0 && !isClone ? "sync" : "async"}
+                    onError={onImageError}
                   />
                 ) : (
                   // Skeleton placeholder until slide enters viewport range

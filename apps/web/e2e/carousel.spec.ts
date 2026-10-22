@@ -12,10 +12,10 @@ const STUB_PNG = Buffer.from(
  * Serve every carousel photo as a tiny PNG instead of fetching the real file.
  *
  * This is what makes the suite deterministic. useCarouselImages publishes the
- * rows immediately, then ~800ms later decodes each photo off-screen and PRUNES
- * any that won't paint. Two of Check-a-Lunch's four photos are .heic, which
- * Chromium cannot decode, so they are ALWAYS pruned — the carousel drops from
- * four dots to two at an unpredictable moment. A prune also changes
+ * rows immediately, then HEAD-checks each photo and PRUNES any that won't
+ * paint. Two of Check-a-Lunch's four photos are .heic (image/heic), so they
+ * are ALWAYS pruned — the carousel drops from four dots to two at an
+ * unpredictable moment. The stub answers HEAD too, as a paintable PNG. A prune also changes
  * ServicePage's `key={carouselImages.join("|")}`, remounting the carousel, so a
  * count read a moment earlier goes stale and `dots.nth(count - 1)` resolves to
  * nothing. That timing, not any carousel logic, is what made these tests flaky.
