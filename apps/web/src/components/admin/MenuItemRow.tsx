@@ -2,6 +2,7 @@ import React from "react";
 import type { MenuItemRecord } from "../../types/menu";
 import { formatPeso } from "../../utils/format";
 import SafeImage from "../ui/SafeImage";
+import { thumbUrl } from "../../utils/thumbs";
 
 interface MenuItemRowProps {
   item: MenuItemRecord;
@@ -37,7 +38,7 @@ const MenuItemRow: React.FC<MenuItemRowProps> = ({
         missing ? "bg-amber-100 ring-1 ring-amber-300" : "bg-brand-secondary"
       }`}
     >
-      <SafeImage src={item.image_url} alt="" className="h-full w-full object-cover" />
+      <SafeImage src={thumbUrl(item.image_url)} fullSrc={item.image_url} alt="" className="h-full w-full object-cover" />
     </div>
 
     <div className="min-w-0 flex-1">

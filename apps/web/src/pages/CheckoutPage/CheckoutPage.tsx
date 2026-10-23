@@ -29,6 +29,7 @@ import {
 } from "../../services/settingsService";
 import { getCategoryDisplayName } from "../../constants";
 import { FALLBACK_IMAGE, onImgError } from "../../components/CachedImage";
+import { thumbUrl } from "../../utils/thumbs";
 import { generateSecureOrderRef } from "../../utils/validation";
 import { canSubmitOrder, recordSubmission, getSecondsUntilNext } from "../../utils/rateLimiter";
 import { PLAN_SLOTS } from "../../constants/planSlots";
@@ -544,7 +545,8 @@ const CheckoutPage: React.FC = () => {
                   <SlotIcon slot={dish.type} size={11} className="shrink-0" />
                   <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-brand-divider/50">
                     <img
-                      src={dish.image || FALLBACK_IMAGE}
+                      src={thumbUrl(dish.image) || FALLBACK_IMAGE}
+                      data-full={dish.image}
                       onError={onImgError}
                       alt=""
                       className="w-full h-full object-cover"
@@ -597,7 +599,8 @@ const CheckoutPage: React.FC = () => {
                         <div key={item.instanceId} className="flex items-center gap-2 py-1">
                           <div className="w-7 h-7 rounded-md overflow-hidden shrink-0 border border-brand-divider/50">
                             <img
-                              src={item.image || FALLBACK_IMAGE}
+                              src={thumbUrl(item.image) || FALLBACK_IMAGE}
+                              data-full={item.image}
                               onError={onImgError}
                               alt={item.name}
                               className="w-full h-full object-cover"
@@ -650,7 +653,8 @@ const CheckoutPage: React.FC = () => {
                   <div key={item.instanceId} className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-brand-divider/50">
                       <img
-                        src={item.image || FALLBACK_IMAGE}
+                        src={thumbUrl(item.image) || FALLBACK_IMAGE}
+                        data-full={item.image}
                         onError={onImgError}
                         alt={item.name}
                         className="w-full h-full object-cover"
@@ -681,7 +685,8 @@ const CheckoutPage: React.FC = () => {
               <div key={e.menuItemId} className="flex items-center gap-2 py-1">
                 <div className="w-7 h-7 rounded-md overflow-hidden shrink-0 border border-brand-divider/50">
                   <img
-                    src={e.image || FALLBACK_IMAGE}
+                    src={thumbUrl(e.image) || FALLBACK_IMAGE}
+                    data-full={e.image}
                     onError={onImgError}
                     alt={e.name}
                     className="w-full h-full object-cover"

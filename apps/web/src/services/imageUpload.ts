@@ -133,3 +133,32 @@ export async function prepareImageForUpload(
   }
 }
 
+/**
+ * A small WebP rendition for cards and cart rows (JPEG where the browser has no
+ * WebP encoder). Null when the browser can't decode the source — the storefront
+ * then falls back to the original, so a missing thumb is never a broken image.
+ */
+export async function makeThumbnail(file: Blob, maxEdge: number): Promise<Blob | null> {
+  if (typeof createImageBitmap !== "function") return null;
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    return null;
+  }
+  try {
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const webp = await toBlob(canvas, "image/webp", 0.72);
+    if (webp?.type === "image/webp") return webp;
+    const jpeg = await toBlob(canvas, "image/jpeg", 0.75);
+    return jpeg?.type === "image/jpeg" ? jpeg : null;
+  } finally {
+    bitmap.close();
+  }
+}

@@ -10,6 +10,8 @@ interface SafeImageProps {
   iconClass?: string;
   /** Fires when the image breaks (true) or a new src resets it (false). */
   onStatusChange?: (failed: boolean) => void;
+  /** Tried before the placeholder when `src` fails — the original behind a thumb. */
+  fullSrc?: string | null;
 }
 
 /**
@@ -27,8 +29,10 @@ const SafeImage: React.FC<SafeImageProps> = ({
   icon = "pi-image",
   iconClass = "text-brand-text/30 text-lg",
   onStatusChange,
+  fullSrc,
 }) => {
   const [failed, setFailed] = useState(false);
+  const [useFull, setUseFull] = useState(false);
   // Ref keeps an unstable callback prop from re-running the reset effect.
   const statusRef = useRef(onStatusChange);
   statusRef.current = onStatusChange;
@@ -37,6 +41,7 @@ const SafeImage: React.FC<SafeImageProps> = ({
   // a bad one would stay stuck on the placeholder.
   useEffect(() => {
     setFailed(false);
+    setUseFull(false);
     statusRef.current?.(false);
   }, [src]);
 
@@ -54,12 +59,16 @@ const SafeImage: React.FC<SafeImageProps> = ({
 
   return (
     <img
-      src={src}
+      src={useFull && fullSrc ? fullSrc : src}
       alt={alt}
       className={className}
       loading="lazy"
       decoding="async"
       onError={() => {
+        if (!useFull && fullSrc && fullSrc !== src) {
+          setUseFull(true);
+          return;
+        }
         setFailed(true);
         statusRef.current?.(true);
       }}

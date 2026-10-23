@@ -5,8 +5,18 @@ export const FALLBACK_IMAGE =
 
 // Swap a dead URL for the fallback. For raw <img> sites that can't take the
 // whole component — `src={x || FALLBACK}` only guards empty URLs, not 404s.
+// A thumb that isn't there yet tries the original (data-full) first.
 export const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
   const img = e.currentTarget;
+  const full = img.dataset.full;
+  if (full) {
+    // One shot: without this, a failing fallback would bounce back to `full`.
+    delete img.dataset.full;
+    if (img.src !== full) {
+      img.src = full;
+      return;
+    }
+  }
   if (img.src !== FALLBACK_IMAGE) img.src = FALLBACK_IMAGE;
 };
 
@@ -27,6 +37,8 @@ interface CachedImageProps {
    * 0, so native lazy-loading still sees it "in the viewport" and fetches it.
    */
   defer?: boolean;
+  /** Tried before `fallback` when `src` fails — the original behind a thumb. */
+  fullSrc?: string;
 }
 
 const CachedImage: React.FC<CachedImageProps> = memo(({
@@ -37,6 +49,7 @@ const CachedImage: React.FC<CachedImageProps> = memo(({
   fallback = FALLBACK_IMAGE,
   eager = false,
   defer = false,
+  fullSrc,
 }) => {
   const imgSrc = src || fallback;
   // Lazy by default. A 115-dish grid renders ~9 cards on screen, and eager
@@ -46,7 +59,8 @@ const CachedImage: React.FC<CachedImageProps> = memo(({
   const loadingAttr = eager ? "eager" : "lazy";
   const alreadyCached = loadedImages.has(imgSrc);
   const [loaded, setLoaded] = useState(alreadyCached);
-  const [errored, setErrored] = useState(false);
+  // 0 = src, 1 = fullSrc, 2 = fallback.
+  const [failures, setFailures] = useState(0);
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Handle images that load from cache before onLoad fires. Re-check when a
@@ -58,17 +72,26 @@ const CachedImage: React.FC<CachedImageProps> = memo(({
     }
   }, [imgSrc, defer]);
 
+  // A new photo (or a corrected one) starts over from its thumb.
+  useEffect(() => {
+    setFailures(0);
+  }, [imgSrc, fullSrc]);
+
   const handleLoad = () => {
-    loadedImages.add(imgSrc);
+    loadedImages.add(displaySrc);
     setLoaded(true);
   };
 
   const handleError = () => {
-    setErrored(true);
+    if (failures === 0 && fullSrc && fullSrc !== imgSrc) {
+      setFailures(1);
+      return;
+    }
+    setFailures(2);
     setLoaded(true);
   };
 
-  const displaySrc = errored ? fallback : imgSrc;
+  const displaySrc = failures === 0 ? imgSrc : failures === 1 ? fullSrc! : fallback;
 
   return (
     <div className={`relative overflow-hidden ${containerClassName}`}>

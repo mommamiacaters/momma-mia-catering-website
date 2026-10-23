@@ -3,6 +3,7 @@ import { Plus, Minus, Check } from "lucide-react";
 import { MenuItem } from "../../../types";
 import { pesoAmount } from "../../../constants/orders";
 import CachedImage from "../../CachedImage";
+import { thumbUrl } from "../../../utils/thumbs";
 import ImageLightbox from "../../ui/ImageLightbox";
 
 interface FoodCardProps {
@@ -124,7 +125,8 @@ const FoodCard: React.FC<FoodCardProps> = memo(({
         className="relative w-20 h-20 rounded-xl shrink-0 sm:w-full sm:h-auto sm:rounded-none sm:aspect-[4/3] overflow-hidden block cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
       >
         <CachedImage
-          src={item.image}
+          src={thumbUrl(item.image)}
+          fullSrc={item.image}
           alt={item.name}
           defer={deferImage}
           containerClassName="w-full h-full"

@@ -29,6 +29,7 @@ import {
   useStoreSettings,
 } from "../../hooks/useStoreSettings";
 import { FALLBACK_IMAGE, onImgError } from "../CachedImage";
+import { thumbUrl } from "../../utils/thumbs";
 import SummaryViewToggle, { type SummaryView } from "../ui/SummaryViewToggle";
 import { usePresence } from "../../hooks/usePresence";
 
@@ -484,7 +485,8 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                         <SlotIcon slot={dish.type} size={11} className="shrink-0" />
                         <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-brand-divider/50">
                           <img
-                            src={dish.image || FALLBACK_IMAGE}
+                            src={thumbUrl(dish.image) || FALLBACK_IMAGE}
+                            data-full={dish.image}
                             onError={onImgError}
                             alt=""
                             className="w-full h-full object-cover"
@@ -719,7 +721,8 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                                   >
                                     <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-brand-divider/50 pointer-events-none">
                                       <img
-                                        src={item.image || FALLBACK_IMAGE}
+                                        src={thumbUrl(item.image) || FALLBACK_IMAGE}
+                                        data-full={item.image}
                                         onError={onImgError}
                                         alt={item.name}
                                         className="w-full h-full object-cover"
@@ -870,7 +873,8 @@ const ShoppingBagSidebar: React.FC<ShoppingBagSidebarProps> = ({
                   <div key={e.menuItemId} className="flex items-center gap-1.5 py-0.5 min-w-0">
                     <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-brand-divider/50">
                       <img
-                        src={e.image || FALLBACK_IMAGE}
+                        src={thumbUrl(e.image) || FALLBACK_IMAGE}
+                        data-full={e.image}
                         onError={onImgError}
                         alt=""
                         className="w-full h-full object-cover"
