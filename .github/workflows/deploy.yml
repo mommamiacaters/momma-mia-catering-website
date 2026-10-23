@@ -53,7 +53,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Vite copies apps/web/public/{CNAME,404.html} into dist, preserving
+          # Vite copies apps/web/public/CNAME into dist (and the build writes 404.html), preserving
           # the custom domain and SPA fallback routing.
           path: "apps/web/dist"
 
