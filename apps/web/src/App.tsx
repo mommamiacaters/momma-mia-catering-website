@@ -9,17 +9,22 @@ import {
 import { PageTransition } from "./components/ui/PageTransition";
 import Navigation from "./components/Navigation/Navigation";
 import Footer from "./components/Footer/Footer";
-import Chatbot from "./components/Chatbot/Chatbot";
 import MealsPage from "./pages/MealsPage/MealsPage";
-import OtherServicesPage from "./pages/OtherServicesPage/OtherServicesPage";
-import AboutPage from "./pages/AboutPage/AboutPage";
-import ContactPage from "./pages/ContactPage/ContactPage";
-import ServicePage from "./pages/ServicePage/ServicePage";
-import CheckoutPage from "./pages/CheckoutPage/CheckoutPage";
-import LoginPage from "./pages/LoginPage/LoginPage";
-import RegisterPage from "./pages/RegisterPage/RegisterPage";
-import AccountPage from "./pages/AccountPage/AccountPage";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+
+// Only the homepage ships in the first bundle; every other page is its own
+// chunk. The service page is the road to an order, so it's fetched as soon as
+// the browser is idle rather than on the click.
+const loadServicePage = () => import("./pages/ServicePage/ServicePage");
+const ServicePage = lazy(loadServicePage);
+const OtherServicesPage = lazy(() => import("./pages/OtherServicesPage/OtherServicesPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage/AboutPage"));
+const ContactPage = lazy(() => import("./pages/ContactPage/ContactPage"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage/CheckoutPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage/RegisterPage"));
+const AccountPage = lazy(() => import("./pages/AccountPage/AccountPage"));
+const Chatbot = lazy(() => import("./components/Chatbot/Chatbot"));
 
 // The admin console is role-gated and never part of a customer's visit, yet it
 // shipped in the storefront bundle. Lazy chunks keep it off the first load;
@@ -32,8 +37,32 @@ const AdminMealPlans = lazy(() => import("./pages/admin/AdminMealPlans"));
 const AdminServiceDetail = lazy(() => import("./pages/admin/AdminServiceDetail"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 
+/** Desktop only: on phones and tablets the chatbot isn't shown, so it isn't loaded either. */
+function useIsDesktop(): boolean {
+  const query = "(min-width: 1024px)";
+  const [desktop, setDesktop] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setDesktop(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return desktop;
+}
+
 function AppContent() {
   const location = useLocation();
+  const isDesktop = useIsDesktop();
+
+  useEffect(() => {
+    const prefetch = () => void loadServicePage();
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(prefetch, { timeout: 3000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(prefetch, 2000);
+    return () => window.clearTimeout(id);
+  }, []);
   const [showNavbar, setShowNavbar] = useState(true);
   const lastScrollY = useRef(0); // Use useRef to persist scroll position across renders
 
@@ -87,7 +116,8 @@ function AppContent() {
       {!isServicePage && !isBarePage && <Navigation isVisible={showNavbar} />}
       <main className={!isServicePage && !isBarePage ? 'pt-16 md:pt-20' : ''}>
         <PageTransition transitionKey={routeGroup}>
-        <Suspense fallback={null}>
+        {/* Holds the page's height while a chunk loads, so the footer doesn't jump up. */}
+        <Suspense fallback={<div className="min-h-screen" />}>
         <Routes>
           <Route path="/" element={<MealsPage />} />
           <Route path="/meals" element={<MealsPage />} />
@@ -138,10 +168,10 @@ function AppContent() {
       {!isBarePage && <Footer />}
       {/* Desktop only: on phones and tablets the bottom of the screen belongs
           to the lunch-box bar and the section jumper. */}
-      {!isBarePage && (
-        <div className="hidden lg:block">
+      {!isBarePage && isDesktop && (
+        <Suspense fallback={null}>
           <Chatbot />
-        </div>
+        </Suspense>
       )}
     </div>
   );

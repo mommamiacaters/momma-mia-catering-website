@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { NavLink, Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { PageTransition } from "../../components/ui/PageTransition";
@@ -65,6 +65,8 @@ const AdminLayout: React.FC = () => {
               <img
                 src={logo}
                 alt="Momma Mia Caters"
+                width={500}
+                height={500}
                 className="h-14 md:h-20 w-auto object-contain flex-shrink-0"
               />
               <span className="hidden sm:flex flex-col leading-tight min-w-0">
@@ -210,7 +212,11 @@ const AdminLayout: React.FC = () => {
         <main className="flex-1 min-w-0 p-4 sm:p-6">
           <div className="mx-auto w-full max-w-7xl">
             <PageTransition transitionKey={pathname}>
-              <Outlet />
+              {/* Own boundary: a tab whose code is still loading must not
+                  suspend the App-level one and blank the sidebar with it. */}
+              <Suspense fallback={<div className="min-h-[50vh]" />}>
+                <Outlet />
+              </Suspense>
             </PageTransition>
           </div>
         </main>
