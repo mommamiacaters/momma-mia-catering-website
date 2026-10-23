@@ -56,6 +56,8 @@ const Navigation: React.FC<NavigationProps> = ({ isVisible }) => {
             <img
               src={logo}
               alt="Momma Mia Caters Logo"
+              width={500}
+              height={500}
               className="h-14 md:h-20 w-auto object-contain"
             />
           </Link>

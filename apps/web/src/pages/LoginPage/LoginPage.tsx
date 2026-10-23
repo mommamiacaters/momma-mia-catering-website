@@ -42,7 +42,7 @@ const LoginPage: React.FC = () => {
         </Link>
 
         <Link to="/" className="flex justify-center mb-6">
-          <img src={logo} alt="Momma Mia Caters" className="h-20 w-auto object-contain" />
+          <img src={logo} alt="Momma Mia Caters" width={500} height={500} className="h-20 w-auto object-contain" />
         </Link>
 
         <div className="bg-white rounded-2xl shadow-sm p-7 md:p-9">

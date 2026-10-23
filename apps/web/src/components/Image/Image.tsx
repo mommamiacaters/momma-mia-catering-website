@@ -16,7 +16,16 @@ const Image: React.FC<ImageProps> = ({ src, alt, className }) => {
   const base = "w-full h-full group-hover:scale-105 transition-transform duration-300";
   // default to cover unless overridden by className
   const fit = "object-cover";
-  return <img src={src} alt={alt} className={`${base} ${fit} ${className ?? ""}`.trim()} />;
+  // Every use sits in a card grid or further down a page: let the browser defer it.
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      className={`${base} ${fit} ${className ?? ""}`.trim()}
+    />
+  );
 };
 
 export default Image;
