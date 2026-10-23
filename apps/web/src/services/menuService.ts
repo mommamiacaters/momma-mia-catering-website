@@ -146,6 +146,10 @@ class MenuService {
   private cacheDuration = 5 * 60 * 1000; // 5 minutes
   private planCache: MealPlan[] | null = null;
   private planCacheAt = 0;
+  // Same 5-minute window as plans, so going back to a service page doesn't
+  // refetch its dish pool and extras. Failed reads are never cached.
+  private optionsCache = new Map<number, { at: number; data: Record<PlanSlot, PlanOption[]> }>();
+  private extrasCache: { at: number; data: ExtrasCategory[] } | null = null;
 
   private isDataFresh(): boolean {
     return Date.now() - this.cache.timestamp < this.cacheDuration;
@@ -350,6 +354,9 @@ class MenuService {
    * lunch-box main.
    */
   async getPlanOptions(mealPlanId: number): Promise<Record<PlanSlot, PlanOption[]>> {
+    const hit = this.optionsCache.get(mealPlanId);
+    if (hit && Date.now() - hit.at < this.cacheDuration) return hit.data;
+
     const grouped: Record<PlanSlot, PlanOption[]> = {
       main: [],
       side: [],
@@ -397,6 +404,7 @@ class MenuService {
         (a, b) => a.subCategorySort - b.subCategorySort || a.name.localeCompare(b.name),
       );
     }
+    this.optionsCache.set(mealPlanId, { at: Date.now(), data: grouped });
     return grouped;
   }
 
@@ -432,6 +440,9 @@ class MenuService {
    * filters them, because extras are charged à la carte.
    */
   async getExtras(): Promise<ExtrasCategory[]> {
+    if (this.extrasCache && Date.now() - this.extrasCache.at < this.cacheDuration) {
+      return this.extrasCache.data;
+    }
     const { data, error } = await supabase
       .from("extras_menu_options")
       .select(
@@ -462,7 +473,9 @@ class MenuService {
     }
     const cats = [...byCat.values()].sort((a, b) => a.sort - b.sort);
     for (const c of cats) c.items.sort((a, b) => a.name.localeCompare(b.name));
-    return cats.map(({ slug, name, items }) => ({ slug, name, items }));
+    const result = cats.map(({ slug, name, items }) => ({ slug, name, items }));
+    this.extrasCache = { at: Date.now(), data: result };
+    return result;
   }
 
   /**
@@ -521,6 +534,8 @@ class MenuService {
     this.cache.timestamp = 0;
     this.planCache = null;
     this.planCacheAt = 0;
+    this.optionsCache.clear();
+    this.extrasCache = null;
   }
 
   formatPrice(price: number): string {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { menuService } from "../../services/menuService";
 import { PLAN_SLOTS, type Category, type MealPlan, type MealPlanPriceRange } from "../../types/menu";
 import MealPlanFormModal from "../../components/admin/MealPlanFormModal";
 import { peso } from "../../constants/orders";
@@ -30,6 +31,8 @@ const AdminMealPlans: React.FC<AdminMealPlansProps> = ({ categorySlug, embedded 
   }>({ open: false, initial: null });
 
   const load = async () => {
+    // Every reload follows an edit here; drop the storefront's 5-minute plan cache with it.
+    menuService.clearCache();
     const [{ data, error }, { data: rangeRows }, { data: cats }] = await Promise.all([
       supabase.from("meal_plans").select(SELECT).order("sort_order"),
       supabase.from("meal_plan_price_ranges").select("*"),

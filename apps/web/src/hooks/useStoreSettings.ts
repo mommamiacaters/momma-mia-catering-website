@@ -97,6 +97,14 @@ export interface StoreSettings {
   retry: () => void;
 }
 
+/** Drop the cache and refetch in every mounted consumer. Call after an admin save. */
+export function invalidateStoreSettings(): void {
+  cache = null;
+  cachedAt = 0;
+  inflight = null;
+  subscribers.forEach((fn) => fn());
+}
+
 export function useStoreSettings(): StoreSettings {
   const [settings, setSettings] = useState<Record<string, Json> | null>(cache);
   const [loading, setLoading] = useState(!cache);
@@ -133,12 +141,7 @@ export function useStoreSettings(): StoreSettings {
     };
   }, []);
 
-  const retry = useCallback(() => {
-    cache = null;
-    cachedAt = 0;
-    inflight = null;
-    subscribers.forEach((fn) => fn());
-  }, []);
+  const retry = useCallback(() => invalidateStoreSettings(), []);
 
   // A value that came back from the DB is trusted — including an absent or
   // malformed key, which means "rule off" and matches the server's

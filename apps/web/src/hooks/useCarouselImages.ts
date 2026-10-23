@@ -7,7 +7,7 @@
 // pruned. A file that passes but still fails to load is pruned by `prune`,
 // which the carousel calls from the slide's own <img> error.
 import { useCallback, useEffect, useState } from "react";
-import { listCarouselImages } from "../services/carouselService";
+import { listCarouselImages, type CarouselImage } from "../services/carouselService";
 
 export interface CarouselSlide {
   src: string;
@@ -21,6 +21,24 @@ interface SlideState {
 }
 
 const EMPTY: CarouselSlide[] = [];
+
+/** Rows per service for 5 minutes, so going back to a page doesn't refetch them. */
+const ROWS_TTL_MS = 5 * 60 * 1000;
+const rowsCache = new Map<string, { at: number; rows: CarouselImage[] }>();
+
+/** Drop cached rows. Call after an admin carousel edit. */
+export function invalidateCarouselImages(): void {
+  rowsCache.clear();
+}
+
+function loadRows(slug: string): Promise<CarouselImage[]> {
+  const hit = rowsCache.get(slug);
+  if (hit && Date.now() - hit.at < ROWS_TTL_MS) return Promise.resolve(hit.rows);
+  return listCarouselImages(slug).then((rows) => {
+    rowsCache.set(slug, { at: Date.now(), rows });
+    return rows;
+  });
+}
 
 /** Formats every browser we support can paint. HEIC is Safari-only, so it's out. */
 const PAINTABLE = /^image\/(jpeg|png|webp|gif|avif|svg\+xml)\b/i;
@@ -61,7 +79,7 @@ export function useCarouselImages(slug: string): {
     if (!slug) return;
     let cancelled = false;
 
-    listCarouselImages(slug)
+    loadRows(slug)
       .then((rows) => {
         if (cancelled) return;
         const slides = rows.map((row) => ({ src: row.image_url, alt: row.alt_text }));

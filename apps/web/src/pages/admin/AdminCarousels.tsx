@@ -14,6 +14,7 @@ import {
   uploadCarouselImage,
 } from "../../services/carouselService";
 import type { CarouselImage } from "../../services/carouselService";
+import { invalidateCarouselImages } from "../../hooks/useCarouselImages";
 
 const readMessage = (err: unknown, fallback: string) =>
   err instanceof Error ? err.message : fallback;
@@ -430,6 +431,8 @@ const AdminCarousels: React.FC<AdminCarouselsProps> = ({ serviceSlug, embedded }
   const scrolled = useRef(false);
 
   const load = useCallback(async () => {
+    // Every reload follows an edit here; drop the storefront's cached rows with it.
+    invalidateCarouselImages();
     setLoading(true);
     try {
       const fresh = await listAllCarouselImages();

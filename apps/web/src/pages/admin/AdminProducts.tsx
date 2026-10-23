@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { menuService } from "../../services/menuService";
 import type {
   AvailabilityFilter,
   Category,
@@ -53,6 +54,8 @@ const AdminProducts: React.FC<AdminProductsProps> = ({ categorySlug, embedded })
   const [archiving, setArchiving] = useState(false);
 
   const load = async () => {
+    // Every reload follows an edit here; drop the storefront's 5-minute plan cache with it.
+    menuService.clearCache();
     setLoading(true);
     const [{ data: cats }, { data: subs }, { data: its, error: itErr }, { data: mems }] = await Promise.all([
       supabase

@@ -7,6 +7,7 @@ import {
   type AppSettingRow,
 } from "../../services/settingsService";
 import { SETTING_KEYS } from "../../services/settingsService";
+import { invalidateStoreSettings } from "../../hooks/useStoreSettings";
 import type { Json } from "@momma-mia/db";
 import AdminCompanyProfile from "./AdminCompanyProfile";
 import { ORDERABLE_SERVICES, OTHER_SERVICES } from "../../constants/services";
@@ -89,6 +90,8 @@ const AdminSettings: React.FC = () => {
     setError(null);
     try {
       await updateSetting(row.key, drafts[row.key]);
+      // The storefront caches settings for 5 minutes; this tab sees the change now.
+      invalidateStoreSettings();
       setSettings((prev) =>
         prev.map((s) => (s.key === row.key ? { ...s, value: drafts[row.key] } : s))
       );

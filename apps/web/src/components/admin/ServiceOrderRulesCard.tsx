@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { menuService } from "../../services/menuService";
 import { SERVICE_TO_CATEGORY } from "../../constants/serviceContent";
 import { useStoreSettings } from "../../hooks/useStoreSettings";
 
@@ -87,6 +88,8 @@ const ServiceOrderRulesCard: React.FC<{ serviceSlug: string }> = ({ serviceSlug 
       setError("Couldn't save. Please try again.");
       return;
     }
+    // Plans cache their service's floors; this tab's storefront sees the change now.
+    menuService.clearCache();
     setSavedMeals(meals);
     setSavedDishes(dishes);
     setSavedFlash(true);
