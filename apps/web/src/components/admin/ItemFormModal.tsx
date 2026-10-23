@@ -172,11 +172,13 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
     // so the dish is never briefly in no service at all — the storefront views
     // join through this table.
     const itemId = (res.data as { id: string }).id;
+    // Extras groups bill the dish price itself, so they never store their own.
+    const isUniversal = (id: number) => categories.find((c) => c.id === id)?.is_universal;
     const rows = picked.map((categoryId) => ({
       menu_item_id: itemId,
       category_id: categoryId,
       price_cents:
-        (services.get(categoryId) ?? "").trim() === ""
+        isUniversal(categoryId) || (services.get(categoryId) ?? "").trim() === ""
           ? null
           : Math.round(Number(services.get(categoryId)) * 100),
     }));
@@ -300,7 +302,12 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
                         </span>
                       )}
                     </label>
-                    {on && (
+                    {on && c.is_universal && (
+                      <span className="font-poppins text-xs text-brand-text/60">
+                        uses the dish price
+                      </span>
+                    )}
+                    {on && !c.is_universal && (
                       <label className="flex items-center gap-2">
                         <span className="font-poppins text-xs text-brand-text/60">₱</span>
                         <input
@@ -322,8 +329,9 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
             })}
           </div>
           <p className="mt-1.5 font-poppins text-xs text-brand-text/50">
-            Leave a price blank to use the dish price below. The first one ticked
-            is the dish&rsquo;s home service.
+            Leave a price blank to use the dish price below. Add-on groups always
+            charge the dish price. The first one ticked is the dish&rsquo;s home
+            service.
           </p>
         </fieldset>
 
