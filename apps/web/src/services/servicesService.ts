@@ -90,9 +90,8 @@ export async function uploadServiceImage(
   slug: string,
   file: File,
 ): Promise<{ image_url: string; storage_path: string }> {
-  // Validate the file the admin picked, then store whatever the downscaler
-  // hands back — re-encoding can change the type, so the extension follows it.
-  uploadExtension(file);
+  // Convert first (Safari turns HEIC into WebP/JPEG here), then validate what
+  // is actually stored — re-encoding can change the type, so the key follows it.
   const upload = await prepareImageForUpload(file, MAX_EDGE.service);
   const path = `services/${slug}/${crypto.randomUUID()}.${uploadExtension(upload)}`;
   const { error } = await supabase.storage

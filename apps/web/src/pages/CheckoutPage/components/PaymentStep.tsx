@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { PaymentMethod, PaymentProof } from "../../../types";
 import { validatePaymentProof, fileToBase64 } from "../../../utils/validation";
-import { prepareImageForUpload, MAX_EDGE } from "../../../services/imageUpload";
+import { prepareImageForUpload, MAX_EDGE, isHeic } from "../../../services/imageUpload";
 import { loadPayPal, PAYPAL_CLIENT_ID, type PayPalButtonsInstance } from "../../../lib/paypal";
 
 interface Props {
@@ -98,9 +98,15 @@ const PaymentStep: React.FC<Props> = ({
           return;
         }
         // Receipts arrive as full-resolution phone photos. Shrink before base64
-        // inflates them by a third in memory and again in Storage. Falls back to
-        // the original when the browser can't re-encode it (HEIC, mainly).
+        // inflates them by a third in memory and again in Storage. Safari also
+        // converts HEIC here; other browsers can't, and the admin couldn't open it.
         const upload = await prepareImageForUpload(file, MAX_EDGE.proof, 0.85);
+        if (isHeic(upload)) {
+          setFileError(
+            "This browser can't read iPhone HEIC photos. Upload a screenshot of the receipt instead.",
+          );
+          return;
+        }
         const base64 = await fileToBase64(upload);
         onProofChange({
           base64,

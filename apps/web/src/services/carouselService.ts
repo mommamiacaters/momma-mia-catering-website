@@ -76,10 +76,8 @@ export async function uploadCarouselImage(
   serviceSlug: string,
   file: File,
 ): Promise<{ image_url: string; storage_path: string }> {
-  // Validate what the admin picked, then store what the downscaler returns:
-  // re-encoding means a JPEG in can be a WebP out, and the object key has to
-  // describe what is actually stored.
-  uploadExtension(file);
+  // Convert first (Safari turns HEIC into WebP/JPEG here), then validate what
+  // is actually stored: a JPEG in can be a WebP out, and the key follows it.
   const upload = await prepareImageForUpload(file, MAX_EDGE.carousel);
   const path = `carousel/${serviceSlug}/${crypto.randomUUID()}.${uploadExtension(upload)}`;
   const { error } = await supabase.storage

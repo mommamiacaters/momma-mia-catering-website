@@ -34,12 +34,16 @@ const EXT_BY_TYPE: Record<string, string> = {
 export function uploadExtension(file: File): string {
   const ext = EXT_BY_TYPE[file.type.toLowerCase()];
   if (ext) return ext;
-  const heic = /hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
   throw new Error(
-    heic
-      ? "iPhone HEIC photos can't be shown by most browsers. Export or share it as JPEG first, then upload."
+    isHeic(file)
+      ? "This browser can't convert iPhone HEIC photos. Export or share it as JPEG first, or upload from Safari."
       : "Use a photo — JPG, PNG, WebP, GIF or AVIF.",
   );
+}
+
+/** iPhone's HEIC/HEIF. Only Safari can decode it, so it's converted before upload. */
+export function isHeic(file: File): boolean {
+  return /hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
 }
 
 // ---------------------------------------------------------------- downscaling
@@ -75,6 +79,8 @@ const toBlob = (canvas: HTMLCanvasElement, type: string, quality: number) =>
  * Deliberately conservative: any failure, any result that isn't actually
  * smaller, and any format it can't re-encode safely returns the ORIGINAL file.
  * A photo that uploads slightly too large beats one that doesn't upload.
+ * HEIC is the exception: where the browser can decode it (Safari) it is always
+ * converted, even if bigger, because other browsers can't show the original.
  */
 export async function prepareImageForUpload(
   file: File,
@@ -108,15 +114,17 @@ export async function prepareImageForUpload(
     // WebP first: it keeps transparency and is markedly smaller than JPEG.
     let blob = await toBlob(canvas, "image/webp", quality);
     let type = "image/webp";
+    const heic = isHeic(file);
     if (blob?.type !== "image/webp") {
       // No WebP encoder. JPEG has no alpha channel, so only take that path for
-      // a source that had none either — otherwise transparency turns black.
-      if (!WEB_SAFE.has(file.type.toLowerCase())) return file;
+      // a source that had none either (camera HEIC never does) — otherwise
+      // transparency turns black.
+      if (!WEB_SAFE.has(file.type.toLowerCase()) && !heic) return file;
       blob = await toBlob(canvas, "image/jpeg", quality);
       type = "image/jpeg";
       if (blob?.type !== "image/jpeg") return file;
     }
-    if (!blob || blob.size >= file.size) return file;
+    if (!blob || (!heic && blob.size >= file.size)) return file;
 
     const base = file.name.replace(/\.[^.]+$/, "") || "photo";
     return new File([blob], `${base}.${type === "image/webp" ? "webp" : "jpg"}`, { type });
@@ -124,3 +132,4 @@ export async function prepareImageForUpload(
     bitmap.close();
   }
 }
+

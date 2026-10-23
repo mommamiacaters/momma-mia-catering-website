@@ -10,7 +10,6 @@ const BUCKET = "menu-images";
 export async function uploadMenuImage(file: File): Promise<string> {
   // The extension comes from the MIME type, never the file name: a ".jpg"
   // that is really a HEIC would upload and then fail to render.
-  uploadExtension(file);
   const upload = await prepareImageForUpload(file, MAX_EDGE.menuItem);
   const path = `items/${crypto.randomUUID()}.${uploadExtension(upload)}`;
   const { error } = await supabase.storage
