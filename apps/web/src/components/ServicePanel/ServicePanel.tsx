@@ -43,7 +43,14 @@ interface ServicePanelProps {
   panelRef?: (el: HTMLDivElement | null) => void;
   /** Marks the node for the visibility observer. */
   visibleKey?: string;
+  /** Above-the-fold panel: fetch its photo first instead of lazily. */
+  priority?: boolean;
+  /** False while the real photo URL is still loading, so the placeholder isn't fetched. */
+  showImage?: boolean;
 }
+
+// React 18 doesn't know `fetchPriority`, so the lowercase attribute is passed as-is.
+const HIGH_PRIORITY = { fetchpriority: "high" } as Record<string, string>;
 
 // The hairlines, icon and copy all share the design's easing so a panel opens
 // as one movement instead of three overlapping ones.
@@ -59,6 +66,8 @@ const ServicePanel: React.FC<ServicePanelProps> = ({
   revealed = false,
   panelRef,
   visibleKey,
+  priority = false,
+  showImage = true,
 }) => {
   const Icon = icon ?? iconForService(service.slug);
   const horizontal = orientation === "horizontal";
@@ -101,11 +110,16 @@ const ServicePanel: React.FC<ServicePanelProps> = ({
 
   const body = (
     <>
-      <img
-        src={service.image}
-        alt=""
-        className={`absolute inset-0 h-full w-full object-cover transition-transform duration-1000 ${EASE} motion-safe:md:group-hover:scale-[1.07] motion-safe:md:group-focus-within:scale-[1.07]`}
-      />
+      {showImage && (
+        <img
+          src={service.image}
+          alt=""
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          {...(priority ? HIGH_PRIORITY : {})}
+          className={`absolute inset-0 h-full w-full object-cover transition-transform duration-1000 ${EASE} motion-safe:md:group-hover:scale-[1.07] motion-safe:md:group-focus-within:scale-[1.07]`}
+        />
+      )}
       {/* Idle panels sit at half tint so the food still reads as food; the
           hovered one darkens the rest of the way to carry body copy. Measured
           on these photos, the idle title band is ~7:1 against white. */}

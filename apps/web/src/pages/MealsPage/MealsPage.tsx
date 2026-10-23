@@ -42,7 +42,10 @@ function useStackedLayout(): boolean {
   return stacked;
 }
 
-const MainServices: React.FC<{ services: Service[] }> = ({ services }) => {
+const MainServices: React.FC<{ services: Service[]; showImages: boolean }> = ({
+  services,
+  showImages,
+}) => {
   const stacked = useStackedLayout();
   // Stacked, the panels are read one after another, so the one you have
   // scrolled to is the one that explains itself. Side by side from `md` up they
@@ -65,13 +68,18 @@ const MainServices: React.FC<{ services: Service[] }> = ({ services }) => {
           revealed={activeKey === service.slug}
           panelRef={register(service.slug)}
           visibleKey={service.slug}
+          priority
+          showImage={showImages}
         />
       ))}
     </div>
   );
 };
 
-const OtherServices: React.FC<{ services: Service[] }> = ({ services }) => {
+const OtherServices: React.FC<{ services: Service[]; showImages: boolean }> = ({
+  services,
+  showImages,
+}) => {
   const { ref, inView } = useInView<HTMLElement>();
 
   return (
@@ -111,6 +119,7 @@ const OtherServices: React.FC<{ services: Service[] }> = ({ services }) => {
               to="/other-services"
               orientation="horizontal"
               headingLevel="h3"
+              showImage={showImages}
             />
           </div>
         ))}
@@ -120,7 +129,9 @@ const OtherServices: React.FC<{ services: Service[] }> = ({ services }) => {
 };
 
 const MealsPage: React.FC = () => {
-  const { services } = useServices();
+  // While the rows load, `services` holds the bundled fallback photos; rendering
+  // them would download ~900 KB that the DB photos replace moments later.
+  const { services, loading } = useServices();
   // Admin switch for the whole Other Services block, separate from whether an
   // individual service is active.
   const { showOtherServices } = useStoreSettings();
@@ -132,8 +143,10 @@ const MealsPage: React.FC = () => {
   return (
     <div className="bg-brand-secondary">
       <h1 className="sr-only">Momma Mia — your meals &amp; more</h1>
-      <MainServices services={main} />
-      {showOtherServices && other.length > 0 && <OtherServices services={other} />}
+      <MainServices services={main} showImages={!loading} />
+      {showOtherServices && other.length > 0 && (
+        <OtherServices services={other} showImages={!loading} />
+      )}
     </div>
   );
 };
