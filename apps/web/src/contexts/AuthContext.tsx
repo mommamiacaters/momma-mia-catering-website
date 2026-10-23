@@ -76,11 +76,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       // Defer Supabase calls out of the callback to avoid auth deadlocks.
+      // INITIAL_SESSION is covered by getSession above, and a TOKEN_REFRESHED
+      // (hourly) doesn't change the profile — refetching on those was waste.
       if (newSession?.user) {
-        setTimeout(() => fetchProfile(newSession.user.id), 0);
+        if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+          setTimeout(() => fetchProfile(newSession.user.id), 0);
+        }
       } else {
         setProfile(null);
       }
