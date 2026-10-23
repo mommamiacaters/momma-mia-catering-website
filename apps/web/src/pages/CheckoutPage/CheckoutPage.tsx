@@ -191,14 +191,24 @@ const CheckoutPage: React.FC = () => {
     setChecking(true);
     setGateError(null);
     try {
-      const s = await fetchPublicSettings();
+      const cartPlans = effectiveState?.planInstances ?? [];
+      const cartExtras = effectiveState?.extras ?? [];
+      const dishIds = [
+        ...new Set([
+          ...cartPlans.flatMap((pi) => pi.items.map((ai) => ai.menuItemId)),
+          ...cartExtras.map((e) => e.menuItemId),
+        ]),
+      ];
+      // Three independent live reads: the store defaults, the cart's service
+      // floor, and the per-dish overrides. In parallel, one round trip not three.
+      const [s, liveCatMin, liveOverrides] = await Promise.all([
+        fetchPublicSettings(),
+        menuService.fetchPlanCategoryMinimum(cartPlans.map((pi) => pi.mealPlanId)),
+        menuService.fetchDishMinimums(dishIds),
+      ]);
       const raw = s[SETTING_KEYS.minimumMealPlans];
       const liveDefault =
         typeof raw === "number" && Number.isInteger(raw) && raw >= 0 ? raw : 0;
-      // The cart's service may carry its own floor — read it live too.
-      const liveCatMin = await menuService.fetchPlanCategoryMinimum(
-        (effectiveState?.planInstances ?? []).map((pi) => pi.mealPlanId),
-      );
       const live = liveCatMin.minBoxes ?? liveDefault;
       if (boxes > 0 && boxes < live) {
         setGateError(
@@ -215,15 +225,6 @@ const CheckoutPage: React.FC = () => {
         typeof rawDish === "number" && Number.isInteger(rawDish) && rawDish >= 0
           ? rawDish
           : 0;
-      const cartPlans = effectiveState?.planInstances ?? [];
-      const cartExtras = effectiveState?.extras ?? [];
-      const dishIds = [
-        ...new Set([
-          ...cartPlans.flatMap((pi) => pi.items.map((ai) => ai.menuItemId)),
-          ...cartExtras.map((e) => e.menuItemId),
-        ]),
-      ];
-      const liveOverrides = await menuService.fetchDishMinimums(dishIds);
       const livePlans = cartPlans.map((pi) => ({
         ...pi,
         items: pi.items.map((ai) =>
