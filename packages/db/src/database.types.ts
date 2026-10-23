@@ -858,6 +858,10 @@ export type Database = {
         }
         Returns: Json
       }
+      save_menu_item: {
+        Args: { p_categories: Json; p_id?: string; p_item: Json }
+        Returns: string
+      }
       submit_contact_message: {
         Args: {
           p_email: string

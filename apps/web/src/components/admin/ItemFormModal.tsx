@@ -159,45 +159,25 @@ const ItemFormModal: React.FC<ItemFormModalProps> = ({
       is_available: form.is_available,
       is_catering: form.is_catering,
     };
-    const res = initial
-      ? await supabase.from("menu_items").update(payload).eq("id", initial.id).select("id").single()
-      : await supabase.from("menu_items").insert(payload).select("id").single();
-    if (res.error || !res.data) {
-      setSaving(false);
-      setError(res.error?.message ?? "Could not save the dish.");
-      return;
-    }
-
-    // Memberships: upsert what is ticked, then drop what is not. Upsert first
-    // so the dish is never briefly in no service at all — the storefront views
-    // join through this table.
-    const itemId = (res.data as { id: string }).id;
     // Extras groups bill the dish price itself, so they never store their own.
     const isUniversal = (id: number) => categories.find((c) => c.id === id)?.is_universal;
-    const rows = picked.map((categoryId) => ({
-      menu_item_id: itemId,
+    const memberships = picked.map((categoryId) => ({
       category_id: categoryId,
       price_cents:
         isUniversal(categoryId) || (services.get(categoryId) ?? "").trim() === ""
           ? null
           : Math.round(Number(services.get(categoryId)) * 100),
     }));
-    const up = await supabase
-      .from("menu_item_categories")
-      .upsert(rows, { onConflict: "menu_item_id,category_id" });
-    if (up.error) {
-      setSaving(false);
-      setError(`Dish saved, but its services did not: ${up.error.message}`);
-      return;
-    }
-    const del = await supabase
-      .from("menu_item_categories")
-      .delete()
-      .eq("menu_item_id", itemId)
-      .not("category_id", "in", `(${picked.join(",")})`);
+    // One transaction server-side: the dish and its services save together or
+    // not at all, so a failure can't leave the services half-updated.
+    const { error: saveError } = await supabase.rpc("save_menu_item", {
+      p_item: payload,
+      p_categories: memberships,
+      ...(initial ? { p_id: initial.id } : {}),
+    });
     setSaving(false);
-    if (del.error) {
-      setError(`Dish saved, but removing old services failed: ${del.error.message}`);
+    if (saveError) {
+      setError(saveError.message || "Could not save the dish.");
       return;
     }
     onSaved();
