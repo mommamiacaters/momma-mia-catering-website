@@ -446,16 +446,26 @@ Deno.serve(async (req) => {
   // per-minute cap bounds total Gemini spend regardless of what the client sends.
   const ip = (req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown").trim();
   const ipHash = await sha256Short(ip);
-  const ok = (await Promise.all([
-    withinLimit("global-min", LIMIT_GLOBAL_PER_MIN, 60),
+  // Per-caller limits first; the global bucket is charged only for requests that
+  // pass them, so one abusive caller who is already blocked can't drain the
+  // site-wide allowance and lock everyone else out.
+  const callerOk = (await Promise.all([
     withinLimit(`ip-min:${ipHash}`, LIMIT_IP_PER_MIN, 60),
     withinLimit(`ip-hr:${ipHash}`, LIMIT_IP_PER_HOUR, 3600),
     withinLimit(`conv-hr:${conversationId}`, LIMIT_CONV_PER_HOUR, 3600),
   ])).every(Boolean);
-  if (!ok) {
+  if (!callerOk) {
     console.warn(`chat: rate limited ip=${ipHash} conv=${conversationId}`);
     return reply({
       response: "You're sending messages a little too fast. Please wait a minute and try again, or email mommamiacaters@gmail.com.",
+      status: "rate_limited",
+    }, 429);
+  }
+  if (!(await withinLimit("global-min", LIMIT_GLOBAL_PER_MIN, 60))) {
+    // Error level: this only trips under a distributed flood, worth noticing.
+    console.error(`chat: GLOBAL rate cap hit (${LIMIT_GLOBAL_PER_MIN}/min) ip=${ipHash}`);
+    return reply({
+      response: "Our chat is very busy right now. Please try again in a minute, or email mommamiacaters@gmail.com and we'll reply directly.",
       status: "rate_limited",
     }, 429);
   }
