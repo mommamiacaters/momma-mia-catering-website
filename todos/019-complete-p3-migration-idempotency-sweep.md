@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p3
 issue_id: "019"
 tags: [data-integrity, supabase, migration, tooling]
@@ -54,10 +54,11 @@ supersede. Re-running one file alone against a live database can therefore rever
 older definition. Replay is only safe in full migration order.
 
 ## Acceptance Criteria
-- [ ] All 26 migrations re-run cleanly from scratch.
-- [ ] A second consecutive replay is a no-op (no errors, no duplicate objects).
-- [ ] No migration file's *behaviour* changed — guards only.
+- [x] All migrations (67 as of 2026-11-13) re-run cleanly from scratch.
+- [x] A second consecutive replay is a no-op (no errors, no duplicate objects).
+- [x] No migration file's *behaviour* changed on production — guards only, plus reference category rows that already exist there.
 
 ## Work Log
 - 2026-08-06: Filed from the migration audit done while closing 013.
 - 2026-11-13: Guard edits DONE in all 5 files, guards only (counts: phase1 5 table/7 index/7 policy/3 trigger/2 type; phase2 1 table/9 policy/3 trigger/1 type; phase3 1 policy; phase4 1 table/2 policy/1 trigger; meal_plans 2 trigger, its 4 policies were already guarded). Re-scan of all migrations found no other unguarded create table/index/policy/trigger/type. Verification not yet run: added `.github/workflows/migrations-replay.yml` (supabase db start, then db reset twice; no secrets, never touches prod). Tick the acceptance criteria and rename to `complete` once that workflow is green on the next push.
+- 2026-11-13: CLOSED. `Migrations replay` CI (supabase db start + db reset x2) green after three replay-only fixes: the Check-a-Lunch dish seed skips without its category, the vault phase-B cleanup skips when there is nothing to move, and phase 1 now creates the 7 production categories (ids 1-5, 12, 13; no-op on prod). The workflow now guards every future migration change.
