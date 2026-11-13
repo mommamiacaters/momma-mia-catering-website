@@ -268,7 +268,7 @@ Legend: ✅ in scope · ➕ later phase · — n/a
 | 6 Web map + payments | 🟡 Partial | Payments done with **PayPal (card + PayPal)** plus manual GCash/bank proof, superseding the PayMongo/Xendit decision; web map not started. |
 | 7 Store submission | ⬜ Not started | Needs account deletion, push, D-U-N-S. |
 
-Go-live hardening done 2026-11-12/13: test orders/quotes moved to a private `archive` schema; internal notify RPCs locked down; server-side order validation + flood throttle; PayPal refund states + live webhook; chatbot one-quote-per-conversation, live menu facts and rate limits; auth `site_url` + custom SMTP (Resend); carousel photos converted to WebP (−93%); nightly encrypted DB backup workflow (`.github/workflows/db-backup.yml`, needs secrets).
+Go-live hardening done 2026-11-12/13: test orders/quotes moved to a private `archive` schema; internal notify RPCs locked down; server-side order validation + flood throttle; PayPal refund states + live webhook; chatbot one-quote-per-conversation, live menu facts and rate limits; auth `site_url` + custom SMTP (Resend); carousel photos converted to WebP (−93%). No automated backups (Free plan has none; nightly backup declined 2026-11-13).
 
 Each phase is shippable and ordered to de-risk early. Rough sizing assumes one developer + AI assistance.
 
