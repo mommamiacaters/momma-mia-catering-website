@@ -141,14 +141,23 @@ export async function readReferenceRows(supabase) {
   return rows;
 }
 
-/** Every object key the database currently points at, across all TARGETS. */
+/** items/abc.png -> items/abc_thumb.webp. Must match apps/web/src/utils/thumbs.ts. */
+export const thumbKeyFor = (key) => key.replace(/\.[^./]+$/, "") + "_thumb.webp";
+
+/**
+ * Every object key the database currently points at, across all TARGETS —
+ * plus each dish photo's thumb. Thumbs are found by NAME (never stored in a
+ * column), so without this the orphan sweep would delete every one of them.
+ */
 export async function referencedKeys(supabase) {
   const keys = new Set();
   const rows = await readReferenceRows(supabase);
   for (const target of TARGETS) {
     for (const row of rows.get(target.table)) {
       const key = keyFromValue(row[target.column], target.kind);
-      if (key) keys.add(key);
+      if (!key) continue;
+      keys.add(key);
+      if (key.startsWith("items/")) keys.add(thumbKeyFor(key));
     }
   }
   return keys;

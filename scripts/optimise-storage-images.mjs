@@ -22,7 +22,10 @@
 //
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.  Needs sharp (root devDependency).
 import sharp from "sharp";
-import { writeFile } from "node:fs/promises";
+import { writeFile, readFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import path from "node:path";
 import {
   BUCKET,
@@ -145,12 +148,33 @@ async function downloadObject(objectPath) {
 }
 
 /**
+ * sharp's prebuilt binaries can't decode iPhone HEIC (HEVC is patent-encumbered,
+ * so libheif ships AVIF-only). On macOS, hand those to the built-in `sips` to
+ * get a JPEG first; elsewhere the file fails as before and is reported.
+ * Detected by the ISO-BMFF "ftyp" brand, not the name.
+ */
+async function decodable(input) {
+  const brand = input.subarray(4, 12).toString("latin1");
+  if (!/^ftyp(heic|heix|hevc|hevx|mif1|msf1)/.test(brand) || process.platform !== "darwin") return input;
+  const dir = await mkdtemp(path.join(tmpdir(), "heic-"));
+  try {
+    const src = path.join(dir, "in.heic");
+    const out = path.join(dir, "out.jpg");
+    await writeFile(src, input);
+    await promisify(execFile)("sips", ["-s", "format", "jpeg", "-s", "formatOptions", "95", src, "--out", out]);
+    return await readFile(out);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+/**
  * resize+webp, and sharp drops all metadata unless asked to keep it — so EXIF, GPS
  * and camera tags go with it. rotate() first, or orientation-flagged photos that
  * relied on that EXIF come out sideways.
  */
 async function optimise(input) {
-  return sharp(input)
+  return sharp(await decodable(input))
     .rotate()
     .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: "inside", withoutEnlargement: true })
     .webp({ quality: QUALITY })
