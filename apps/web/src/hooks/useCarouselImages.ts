@@ -47,13 +47,28 @@ const PAINTABLE = /^image\/(jpeg|png|webp|gif|avif|svg\+xml)\b/i;
  * Header-only check that a URL exists and is paintable — never downloads the
  * photo. A network error counts as paintable; the slide's <img> error is the backstop.
  */
-async function canDisplay(src: string): Promise<boolean> {
+async function checkDisplay(src: string): Promise<boolean> {
   try {
     const res = await fetch(src, { method: "HEAD" });
     return res.ok && PAINTABLE.test(res.headers.get("content-type") ?? "");
   } catch {
     return true;
   }
+}
+
+/**
+ * One check per URL per page load. Storage keys carry a fresh UUID, so a URL's
+ * bytes never change — re-checking on every service-page visit was 5–10 wasted
+ * requests each time.
+ */
+const displayCache = new Map<string, Promise<boolean>>();
+function canDisplay(src: string): Promise<boolean> {
+  let hit = displayCache.get(src);
+  if (!hit) {
+    hit = checkDisplay(src);
+    displayCache.set(src, hit);
+  }
+  return hit;
 }
 
 export function useCarouselImages(slug: string): {
