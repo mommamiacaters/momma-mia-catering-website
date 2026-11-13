@@ -1,0 +1,84 @@
+# Nightly database backup — the Supabase Free plan has no backups or PITR.
+#
+# Dumps the app's schemas (public, archive, auth, storage metadata — NOT the
+# photo files themselves) with pg_dump, ENCRYPTS the dump with a passphrase,
+# and keeps it as a workflow artifact for 30 days.
+#
+# Why encrypted: this repository is PUBLIC, and artifacts of a public repo can
+# be downloaded by any signed-in GitHub user. The dump holds customer names,
+# emails, phones and addresses, so it never leaves the runner unencrypted.
+#
+# Repository secrets required (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL    Session-pooler connection string from Supabase
+#                      (Connect → Session pooler, port 5432), password filled in.
+#   BACKUP_PASSPHRASE  A long random passphrase. Store it in a password manager:
+#                      without it the backups cannot be opened.
+#
+# Restore a backup:
+#   gpg --decrypt momma-mia-db-<stamp>.dump.gpg > db.dump
+#   pg_restore --list db.dump                       # inspect
+#   pg_restore --no-owner --no-privileges -d "<target db url>" -n public db.dump
+name: Nightly DB backup
+
+on:
+  schedule:
+    - cron: "0 18 * * *" # 02:00 Asia/Manila
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check secrets are configured
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          missing=""
+          [ -n "$SUPABASE_DB_URL" ] || missing="$missing SUPABASE_DB_URL"
+          [ -n "$BACKUP_PASSPHRASE" ] || missing="$missing BACKUP_PASSPHRASE"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing — see the header of .github/workflows/db-backup.yml"
+            exit 1
+          fi
+
+      # The project runs Postgres 17; an older pg_dump refuses a newer server.
+      - name: Install pg_dump 17
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y --no-install-recommends postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Dump and encrypt
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stamp=$(date -u +%Y%m%d-%H%M)
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" \
+            --format=custom --no-owner --no-privileges \
+            --schema=public --schema=archive --schema=auth --schema=storage \
+            --file=db.dump
+          gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+            --passphrase-fd 3 --output "momma-mia-db-$stamp.dump.gpg" db.dump 3<<<"$BACKUP_PASSPHRASE"
+          shred -u db.dump
+          ls -lh "momma-mia-db-$stamp.dump.gpg"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: momma-mia-db-${{ env.STAMP }}
+          path: momma-mia-db-${{ env.STAMP }}.dump.gpg
+          retention-days: 30
+          if-no-files-found: error
