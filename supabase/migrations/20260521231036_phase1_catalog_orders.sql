@@ -44,6 +44,23 @@ create table if not exists public.categories (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+
+-- Reference rows. Production's categories were created by the seed script and
+-- the admin console, but later migrations look them up by id/slug, so a fresh
+-- database (CI replay) needs the same ids. Matches production as of 2026-11-13;
+-- a no-op wherever they already exist.
+insert into public.categories (id, slug, name, sort_order) values
+  (1,  'check-a-lunch', 'Check-a-Lunch',  1),
+  (2,  'add-on',        'Add-ons',        7),
+  (3,  'cafe-menu',     'Café Menu',      8),
+  (4,  'party-tray',    'Party Trays',    3),
+  (5,  'fun-boxes',     'Merienda Meals', 4),
+  (12, 'rice-bowls',    'Rice Bowls',     6),
+  (13, 'drinks',        'Drinks',         9)
+on conflict do nothing;
+select setval('public.categories_id_seq',
+              greatest((select max(id) from public.categories), 1));
+
 drop trigger if exists trg_categories_updated_at on public.categories;
 create trigger trg_categories_updated_at
   before update on public.categories
