@@ -54,6 +54,12 @@ function AuthForm() {
       setError('Email and password are required.');
       return;
     }
+    // Sign-up only: matches the web form and the auth server's 8-character
+    // minimum. Sign-in is left alone so older, shorter passwords still work.
+    if (mode === 'signup' && password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -102,7 +108,7 @@ function AuthForm() {
       <Text className="mb-1 text-sm font-semibold text-brand-text">Password</Text>
       <TextInput
         className="rounded-2xl border border-brand-divider bg-white px-4 py-3 text-brand-text"
-        placeholder="••••••••"
+        placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'}
         placeholderTextColor="#6B6358"
         value={password}
         onChangeText={setPassword}
