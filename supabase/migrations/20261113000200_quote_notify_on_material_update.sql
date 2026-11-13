@@ -1,5 +1,5 @@
 -- ============================================================================
--- Email the owner again when a chat quote's key details change.
+-- Email the owner again when a chat quote's key details change (throttled).
 -- ----------------------------------------------------------------------------
 -- chat_save_quote() keeps ONE row per chat conversation: the first complete lead
 -- INSERTs (trg_notify_quote_request emails the owner), later turns UPDATE in place.
@@ -8,9 +8,18 @@
 -- told. Now an update that changes who/what/when/how-many emails the owner the
 -- current details. Cosmetic updates (transcript, score) stay silent.
 --
--- Reuses _quote_notify_post (vault secret, 12-per-minute cap, swallows errors so a
--- failed email never blocks the save). Idempotent; internal, not API-callable.
+-- Throttle: at most one update email per quote per 10 minutes, measured from the
+-- last email (or the row's creation, which already emailed). _quote_notify_post's
+-- own cap counts INSERTs per minute, so it cannot bound repeated UPDATEs of one
+-- row; without this, a scripted chat could turn every turn into an owner email.
+--
+-- BEFORE UPDATE so the stamp is written in the same row version (no second
+-- UPDATE, no trigger recursion). _quote_notify_post swallows its own errors, so a
+-- failed email never blocks the save. Idempotent; internal, not API-callable.
 -- ============================================================================
+
+alter table public.quote_requests
+  add column if not exists last_notified_at timestamptz;
 
 create or replace function public.notify_quote_request_updated()
 returns trigger
@@ -19,7 +28,10 @@ security definer
 set search_path = ''
 as $$
 begin
-  perform public._quote_notify_post(new);
+  if coalesce(old.last_notified_at, old.created_at) < now() - interval '10 minutes' then
+    new.last_notified_at := now();
+    perform public._quote_notify_post(new);
+  end if;
   return new;
 end;
 $$;
@@ -28,7 +40,7 @@ revoke execute on function public.notify_quote_request_updated() from public, an
 
 drop trigger if exists trg_notify_quote_request_updated on public.quote_requests;
 create trigger trg_notify_quote_request_updated
-  after update on public.quote_requests
+  before update on public.quote_requests
   for each row
   when (
        old.email      is distinct from new.email

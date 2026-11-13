@@ -47,6 +47,8 @@ const GEMINI_TIMEOUT_MS = 15_000;
 
 // Rate limits (fixed windows, see chat_rate_check). Generous for a real
 // customer, small for a script.
+/** Whole-site ceiling on model calls per minute — far above real traffic for one caterer. */
+const LIMIT_GLOBAL_PER_MIN = 60;
 const LIMIT_IP_PER_MIN = 10;
 const LIMIT_IP_PER_HOUR = 80;
 const LIMIT_CONV_PER_HOUR = 40;
@@ -438,9 +440,14 @@ Deno.serve(async (req) => {
     : crypto.randomUUID();
 
   // 0) Rate limits (per IP per minute/hour, per conversation per hour).
-  const ip = (req.headers.get("x-forwarded-for")?.split(",")[0] ?? req.headers.get("cf-connecting-ip") ?? "unknown").trim();
+  // cf-connecting-ip is set by Cloudflare in front of Supabase and overwrites any
+  // client value; X-Forwarded-For's first hop is client-controlled, so it is only
+  // a fallback. Because per-IP limits are still evadable (many IPs), a global
+  // per-minute cap bounds total Gemini spend regardless of what the client sends.
+  const ip = (req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown").trim();
   const ipHash = await sha256Short(ip);
   const ok = (await Promise.all([
+    withinLimit("global-min", LIMIT_GLOBAL_PER_MIN, 60),
     withinLimit(`ip-min:${ipHash}`, LIMIT_IP_PER_MIN, 60),
     withinLimit(`ip-hr:${ipHash}`, LIMIT_IP_PER_HOUR, 3600),
     withinLimit(`conv-hr:${conversationId}`, LIMIT_CONV_PER_HOUR, 3600),
