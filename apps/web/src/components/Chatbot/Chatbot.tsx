@@ -57,6 +57,29 @@ Feel free to type a message if you have more questions!`;
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
+// One id per chat conversation. The server upserts the quote lead on it, so a
+// conversation can never create more than one quote row. Kept in sessionStorage
+// so a widget remount / page navigation in the same tab keeps the same id.
+const CONVERSATION_KEY = "mm-chat-conversation-id";
+const newConversationId = (): string => {
+  try {
+    const saved = sessionStorage.getItem(CONVERSATION_KEY);
+    if (saved) return saved;
+  } catch { /* storage blocked: fall through to an in-memory id */ }
+  const id =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+        });
+  try { sessionStorage.setItem(CONVERSATION_KEY, id); } catch { /* ignore */ }
+  return id;
+};
+
+const REQUEST_TIMEOUT_MS = 35_000;
+const GENERIC_ERROR = "Oops! Something went wrong. Please try again in a moment.";
+
 const Chatbot: React.FC<ChatbotProps> = ({
   webhookUrl = `${SUPABASE_URL}/functions/v1/chat`,
   className = "",
@@ -68,7 +91,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [showBadge, setShowBadge] = useState(true);
   const [showQuickOptions, setShowQuickOptions] = useState(true);
-  const [context, setContext] = useState<Record<string, unknown>>({});
+  const [context, setContext] = useState<Record<string, unknown>>(() => ({
+    conversationId: newConversationId(),
+  }));
   const [showServiceSelection, setShowServiceSelection] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -76,6 +101,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const chatWidgetRef = useRef<HTMLDivElement>(null);
   const messageIdCounter = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const timedOutRef = useRef(false);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -114,6 +140,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
       abortControllerRef.current?.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
+      // A hung request must not leave the typing indicator spinning forever.
+      timedOutRef.current = false;
+      const timeout = setTimeout(() => {
+        timedOutRef.current = true;
+        controller.abort();
+      }, REQUEST_TIMEOUT_MS);
 
       setIsLoading(true);
 
@@ -138,7 +170,15 @@ const Chatbot: React.FC<ChatbotProps> = ({
         });
 
         if (!response.ok) {
+          // The function answers 429 with a friendly `response`; show that, never
+          // the raw HTTP error. Anything else falls through to the generic message.
           const errorText = await response.text().catch(() => "");
+          if (response.status === 429) {
+            try {
+              const parsed = JSON.parse(errorText) as WebhookResponse;
+              if (parsed.response) return parsed;
+            } catch { /* not JSON */ }
+          }
           throw new Error(
             `HTTP error! status: ${response.status}, message: ${errorText}`
           );
@@ -159,12 +199,13 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
         return data;
       } catch (error) {
-        if ((error as Error).name === "AbortError") {
-          throw error; // Don't log aborted requests
+        if ((error as Error).name === "AbortError" && !timedOutRef.current) {
+          throw error; // Cancelled by us (new request / unmount): don't log
         }
         console.error("Webhook call failed:", error);
         throw error;
       } finally {
+        clearTimeout(timeout);
         setIsLoading(false);
         abortControllerRef.current = null;
       }
@@ -191,11 +232,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
   };
 
   const handleWebhookError = (error: unknown) => {
-    if ((error as Error).name === "AbortError") return; // Silently ignore cancelled requests
-    addMessage(
-      "Oops! Something went wrong. Please try again in a moment.",
-      "bot"
-    );
+    // Silently ignore requests we cancelled ourselves; a timeout is a real failure.
+    if ((error as Error).name === "AbortError" && !timedOutRef.current) return;
+    addMessage(GENERIC_ERROR, "bot");
   };
 
   const sendMessage = async () => {
@@ -413,6 +452,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 placeholder="Type your message..."
                 disabled={isLoading || isTyping}
                 rows={1}
+                maxLength={1000}
                 className="flex-1 py-3 px-4 border-2 border-brand-divider rounded-3xl text-sm resize-none font-poppins h-11 min-h-11 max-h-11 transition-colors duration-300 text-brand-text overflow-hidden leading-tight focus:outline-none focus:border-brand-primary disabled:opacity-60"
                 style={{ lineHeight: "1.2" }}
               />

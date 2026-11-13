@@ -374,7 +374,7 @@ verify_jwt = false
 
 # Chatbot — called directly from the storefront browser (public), exactly like
 # the old n8n webhook it replaces. JWT verification is off so anonymous visitors
-# can chat; the function caps input size to bound LLM cost. Not rate-limited yet.
+# can chat; the function caps input size, rate-limits per IP/conversation and allow-lists CORS origins.
 [functions.chat]
 verify_jwt = false
 
