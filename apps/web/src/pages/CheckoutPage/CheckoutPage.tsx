@@ -356,7 +356,7 @@ const CheckoutPage: React.FC = () => {
     setOrderRef(ref);
 
     try {
-      await submitOrder({
+      const { orderRef: savedRef } = await submitOrder({
         customer: formData,
         order: {
           mealPlans: mealPlanOrders,
@@ -381,6 +381,7 @@ const CheckoutPage: React.FC = () => {
         },
       });
 
+      setOrderRef(savedRef);
       setStatus("success");
       setCurrentStep("confirmation");
       recordSubmission();

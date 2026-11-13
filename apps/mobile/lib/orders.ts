@@ -177,7 +177,8 @@ export async function submitOrder(opts: {
     }
   }
 
-  return { orderRef, totalCents };
+  // The server may replace a reference that is already taken — show the stored one.
+  return { orderRef: result.order_ref || orderRef, totalCents };
 }
 
 export interface OrderSummary {

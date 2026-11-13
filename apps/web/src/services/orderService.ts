@@ -258,7 +258,7 @@ function dataUriToBlob(dataUri: string): { blob: Blob; mime: string } {
  * The proof upload still happens AFTER the order commits, to the key the server
  * reserved — a rejected order therefore never orphans a blob (todo 017).
  */
-export async function submitOrder(data: OrderSubmission): Promise<void> {
+export async function submitOrder(data: OrderSubmission): Promise<{ orderRef: string }> {
   const { customer, order, orderRef, paymentProof } = data;
 
   // 1) PARSE the proof — but do not upload yet. dataUriToBlob stays inside the
@@ -327,4 +327,9 @@ export async function submitOrder(data: OrderSubmission): Promise<void> {
   }
   // No client-side notify call — emails are sent server-side via the
   // order-notify trigger, which manual_proof orders hit at creation.
+
+  // The server may replace a reference that is already taken, so show the one
+  // it actually stored.
+  const savedRef = (result as { order_ref?: string } | null)?.order_ref;
+  return { orderRef: savedRef || orderRef };
 }
