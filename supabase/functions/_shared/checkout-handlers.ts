@@ -213,6 +213,8 @@ export function captureOrderHandler(mode: PayPalMode) {
         p_amount_cents: amountToCents(amt.value),
         p_currency: amt.currency_code,
         p_status: capture.status,
+        // Play money: recorded but archived, labelled and never emailed.
+        p_sandbox: mode === "sandbox",
       });
     } catch (e) {
       // The money moved but the books did not. Say so plainly and loudly — the
