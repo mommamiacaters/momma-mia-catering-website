@@ -51,6 +51,13 @@ revoke all on function public._notify_config() from public, anon, authenticated;
 do $$
 declare v_url text; v_secret text;
 begin
+  -- Nothing to drop (fresh database / CI replay, or already done): the guard
+  -- below protects those rows, so with none present there is nothing to protect.
+  if not exists (select 1 from public.app_settings
+                  where key in ('order_notify_url', 'order_notify_secret')) then
+    return;
+  end if;
+
   select decrypted_secret into v_url
     from vault.decrypted_secrets where name = 'order_notify_url';
   select decrypted_secret into v_secret
