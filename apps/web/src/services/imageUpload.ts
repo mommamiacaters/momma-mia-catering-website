@@ -36,12 +36,12 @@ export function uploadExtension(file: File): string {
   if (ext) return ext;
   throw new Error(
     isHeic(file)
-      ? "This browser can't convert iPhone HEIC photos. Export or share it as JPEG first, or upload from Safari."
+      ? "Couldn't convert this iPhone HEIC photo. Export or share it as JPEG first, then upload that."
       : "Use a photo — JPG, PNG, WebP, GIF or AVIF.",
   );
 }
 
-/** iPhone's HEIC/HEIF. Only Safari can decode it, so it's converted before upload. */
+/** iPhone's HEIC/HEIF. Only Safari renders it, so it is always converted before upload (see decodeBitmap). */
 export function isHeic(file: File): boolean {
   return /hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
 }
@@ -70,6 +70,33 @@ const toBlob = (canvas: HTMLCanvasElement, type: string, quality: number) =>
   new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
 
 /**
+ * Decode any photo into a bitmap, EXIF rotation applied.
+ *
+ * Only Safari decodes HEIC natively. Everywhere else an iPhone photo used to be
+ * rejected ("export it as JPEG first"), and the ones that slipped through sat in
+ * Storage unrenderable. For HEIC the browser can't read, this loads a WASM
+ * decoder on demand — its own chunk, fetched only when someone picks a HEIC —
+ * converts to JPEG in memory, and decodes that. Null when nothing can read it.
+ */
+async function decodeBitmap(file: Blob & { name?: string }): Promise<ImageBitmap | null> {
+  try {
+    // from-image applies the EXIF rotation, which canvas otherwise drops —
+    // without it every portrait phone photo uploads on its side.
+    return await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    if (!(file instanceof File) || !isHeic(file)) return null;
+  }
+  try {
+    const { heicTo } = await import("heic-to");
+    const jpeg = await heicTo({ blob: file, type: "image/jpeg", quality: 0.92 });
+    return await createImageBitmap(jpeg, { imageOrientation: "from-image" });
+  } catch (err) {
+    console.warn("HEIC decode failed:", err);
+    return null;
+  }
+}
+
+/**
  * Shrink an oversized photo before it goes to Storage.
  *
  * Phone cameras produce 3-5 MB files and the storefront was serving them at
@@ -79,8 +106,8 @@ const toBlob = (canvas: HTMLCanvasElement, type: string, quality: number) =>
  * Deliberately conservative: any failure, any result that isn't actually
  * smaller, and any format it can't re-encode safely returns the ORIGINAL file.
  * A photo that uploads slightly too large beats one that doesn't upload.
- * HEIC is the exception: where the browser can decode it (Safari) it is always
- * converted, even if bigger, because other browsers can't show the original.
+ * HEIC is the exception: it is always converted, even if bigger, because only
+ * Safari can show the original. Non-Safari browsers decode it via decodeBitmap.
  */
 export async function prepareImageForUpload(
   file: File,
@@ -90,14 +117,8 @@ export async function prepareImageForUpload(
   if (file.size <= SKIP_BYTES && WEB_SAFE.has(file.type.toLowerCase())) return file;
   if (typeof createImageBitmap !== "function") return file;
 
-  let bitmap: ImageBitmap;
-  try {
-    // from-image applies the EXIF rotation, which canvas otherwise drops —
-    // without it every portrait phone photo uploads on its side.
-    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-  } catch {
-    return file;
-  }
+  const bitmap = await decodeBitmap(file);
+  if (!bitmap) return file;
 
   try {
     const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
@@ -140,12 +161,8 @@ export async function prepareImageForUpload(
  */
 export async function makeThumbnail(file: Blob, maxEdge: number): Promise<Blob | null> {
   if (typeof createImageBitmap !== "function") return null;
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-  } catch {
-    return null;
-  }
+  const bitmap = await decodeBitmap(file);
+  if (!bitmap) return null;
   try {
     const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
