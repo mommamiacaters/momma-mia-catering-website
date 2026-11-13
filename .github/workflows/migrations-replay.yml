@@ -1,0 +1,52 @@
+name: Migrations replay
+
+# Proves supabase/migrations/** replays cleanly. Uses ONLY a throwaway local
+# Postgres in Docker on the runner: no secrets, no `supabase link`, never
+# touches the remote project.
+on:
+  push:
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
+      - ".github/workflows/migrations-replay.yml"
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
+      - ".github/workflows/migrations-replay.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrations-replay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      - name: Start local database
+        run: supabase db start
+
+      # Both resets rebuild the database from empty in migration order: the first
+      # proves a from-scratch replay works, the second that it is repeatable.
+      # (Re-pasting a single old file onto the live DB is NOT supported — later
+      # migrations redefine objects, so replay is only safe in full order.)
+      - name: Reset 1 (replay all migrations from scratch)
+        run: supabase db reset
+
+      - name: Reset 2 (must also succeed cleanly)
+        run: supabase db reset
+
+      - name: Stop local stack
+        if: always()
+        run: supabase stop --no-backup

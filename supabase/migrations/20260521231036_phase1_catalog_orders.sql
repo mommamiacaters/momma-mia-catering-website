@@ -21,15 +21,21 @@ $$;
 
 -- ---------- enums -----------------------------------------------------------
 -- Full status sets defined up front so later phases don't need ALTER TYPE.
+do $$ begin
 create type public.order_status as enum (
   'pending', 'confirmed', 'preparing', 'ready',
   'assigned', 'picked_up', 'delivered', 'cancelled'
 );
+exception when duplicate_object then null;
+end $$;
 
+do $$ begin
 create type public.order_type as enum ('delivery', 'pickup', 'catering');
+exception when duplicate_object then null;
+end $$;
 
 -- ---------- categories ------------------------------------------------------
-create table public.categories (
+create table if not exists public.categories (
   id          serial primary key,
   slug        text not null unique,            -- e.g. 'check-a-lunch', 'fun-boxes'
   name        text not null,
@@ -38,6 +44,7 @@ create table public.categories (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+drop trigger if exists trg_categories_updated_at on public.categories;
 create trigger trg_categories_updated_at
   before update on public.categories
   for each row execute function public.set_updated_at();
@@ -46,7 +53,7 @@ create trigger trg_categories_updated_at
 -- The shared catalog. BOTH web and (later) mobile read this table. Only the
 -- admin console (Phase 3) writes it. price is stored in CENTAVOS (integer) to
 -- avoid floating-point money bugs.
-create table public.menu_items (
+create table if not exists public.menu_items (
   id           uuid primary key default gen_random_uuid(),
   category_id  int references public.categories(id) on delete set null,
   name         text not null,
@@ -60,8 +67,9 @@ create table public.menu_items (
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
-create index idx_menu_items_category on public.menu_items(category_id);
-create index idx_menu_items_available on public.menu_items(is_available);
+create index if not exists idx_menu_items_category on public.menu_items(category_id);
+create index if not exists idx_menu_items_available on public.menu_items(is_available);
+drop trigger if exists trg_menu_items_updated_at on public.menu_items;
 create trigger trg_menu_items_updated_at
   before update on public.menu_items
   for each row execute function public.set_updated_at();
@@ -69,7 +77,7 @@ create trigger trg_menu_items_updated_at
 -- ---------- orders ----------------------------------------------------------
 -- client_id references auth.users directly (nullable) so GUEST CHECKOUT keeps
 -- working now; Phase 2 adds the profiles table that extends auth.users.
-create table public.orders (
+create table if not exists public.orders (
   id                 uuid primary key default gen_random_uuid(),
   order_ref          text not null unique,       -- MM-YYYYMMDD-HHMM-xxxx
   client_id          uuid references auth.users(id) on delete set null,
@@ -97,9 +105,10 @@ create table public.orders (
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now()
 );
-create index idx_orders_client on public.orders(client_id);
-create index idx_orders_status on public.orders(status);
-create index idx_orders_created on public.orders(created_at desc);
+create index if not exists idx_orders_client on public.orders(client_id);
+create index if not exists idx_orders_status on public.orders(status);
+create index if not exists idx_orders_created on public.orders(created_at desc);
+drop trigger if exists trg_orders_updated_at on public.orders;
 create trigger trg_orders_updated_at
   before update on public.orders
   for each row execute function public.set_updated_at();
@@ -107,7 +116,7 @@ create trigger trg_orders_updated_at
 -- ---------- order_items -----------------------------------------------------
 -- unit_price_cents is a PRICE SNAPSHOT taken at order time, so later menu price
 -- edits never rewrite historical order totals.
-create table public.order_items (
+create table if not exists public.order_items (
   id               uuid primary key default gen_random_uuid(),
   order_id         uuid not null references public.orders(id) on delete cascade,
   menu_item_id     uuid references public.menu_items(id) on delete set null,
@@ -121,10 +130,10 @@ create table public.order_items (
   plan_type        text,
   created_at       timestamptz not null default now()
 );
-create index idx_order_items_order on public.order_items(order_id);
+create index if not exists idx_order_items_order on public.order_items(order_id);
 
 -- ---------- contact_submissions --------------------------------------------
-create table public.contact_submissions (
+create table if not exists public.contact_submissions (
   id          uuid primary key default gen_random_uuid(),
   first_name  text not null,
   last_name   text not null,
@@ -133,7 +142,7 @@ create table public.contact_submissions (
   message     text not null,
   created_at  timestamptz not null default now()
 );
-create index idx_contact_created on public.contact_submissions(created_at desc);
+create index if not exists idx_contact_created on public.contact_submissions(created_at desc);
 
 -- ============================================================================
 -- Row Level Security
@@ -148,9 +157,11 @@ alter table public.order_items         enable row level security;
 alter table public.contact_submissions enable row level security;
 
 -- Catalog: world-readable, but only ACTIVE/AVAILABLE rows to anon/auth.
+drop policy if exists "categories are publicly readable" on public.categories;
 create policy "categories are publicly readable"
   on public.categories for select
   using (is_active = true);
+drop policy if exists "available menu items are publicly readable" on public.menu_items;
 
 create policy "available menu items are publicly readable"
   on public.menu_items for select
@@ -159,15 +170,18 @@ create policy "available menu items are publicly readable"
 -- Orders: anyone may CREATE an order (guest checkout). No select/update/delete
 -- for anon/authenticated here — clients reading their own history arrives with
 -- auth in Phase 2.
+drop policy if exists "anyone can create an order" on public.orders;
 create policy "anyone can create an order"
   on public.orders for insert
   with check (true);
+drop policy if exists "order items can be created with an order" on public.order_items;
 
 create policy "order items can be created with an order"
   on public.order_items for insert
   with check (true);
 
 -- Contact: anyone may submit; nobody can read via the client API.
+drop policy if exists "anyone can submit a contact message" on public.contact_submissions;
 create policy "anyone can submit a contact message"
   on public.contact_submissions for insert
   with check (true);
@@ -186,12 +200,14 @@ values ('payment-proofs', 'payment-proofs', false)
 on conflict (id) do nothing;
 
 -- menu-images: world-readable; writes locked to admin/service (Phase 3).
+drop policy if exists "menu images are publicly readable" on storage.objects;
 create policy "menu images are publicly readable"
   on storage.objects for select
   using (bucket_id = 'menu-images');
 
 -- payment-proofs: a guest can UPLOAD a proof during checkout, but NOBODY can
 -- read them back through the client API (only service_role / admin tooling).
+drop policy if exists "anyone can upload a payment proof" on storage.objects;
 create policy "anyone can upload a payment proof"
   on storage.objects for insert
   with check (bucket_id = 'payment-proofs');

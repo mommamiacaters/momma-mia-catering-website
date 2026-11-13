@@ -35,6 +35,7 @@ create table if not exists public.sub_categories (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+drop trigger if exists trg_sub_categories_updated_at on public.sub_categories;
 
 create trigger trg_sub_categories_updated_at
   before update on public.sub_categories
@@ -58,6 +59,7 @@ create table if not exists public.meal_plans (
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
+drop trigger if exists trg_meal_plans_updated_at on public.meal_plans;
 
 create trigger trg_meal_plans_updated_at
   before update on public.meal_plans

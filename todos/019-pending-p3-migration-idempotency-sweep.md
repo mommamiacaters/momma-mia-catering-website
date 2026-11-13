@@ -60,3 +60,4 @@ older definition. Replay is only safe in full migration order.
 
 ## Work Log
 - 2026-08-06: Filed from the migration audit done while closing 013.
+- 2026-11-13: Guard edits DONE in all 5 files, guards only (counts: phase1 5 table/7 index/7 policy/3 trigger/2 type; phase2 1 table/9 policy/3 trigger/1 type; phase3 1 policy; phase4 1 table/2 policy/1 trigger; meal_plans 2 trigger, its 4 policies were already guarded). Re-scan of all migrations found no other unguarded create table/index/policy/trigger/type. Verification not yet run: added `.github/workflows/migrations-replay.yml` (supabase db start, then db reset twice; no secrets, never touches prod). Tick the acceptance criteria and rename to `complete` once that workflow is green on the next push.

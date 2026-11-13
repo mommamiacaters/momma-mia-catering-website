@@ -10,7 +10,7 @@
 --     minimum) are public; anything sensitive defaults to admin-only.
 -- ============================================================================
 
-create table public.app_settings (
+create table if not exists public.app_settings (
   key         text primary key,
   value       jsonb not null,
   label       text not null,                 -- human label shown in the admin UI
@@ -18,6 +18,7 @@ create table public.app_settings (
   is_public   boolean not null default false, -- readable by anon (storefront)?
   updated_at  timestamptz not null default now()
 );
+drop trigger if exists trg_app_settings_updated_at on public.app_settings;
 
 create trigger trg_app_settings_updated_at
   before update on public.app_settings
@@ -26,11 +27,13 @@ create trigger trg_app_settings_updated_at
 alter table public.app_settings enable row level security;
 
 -- Public site may read ONLY settings flagged public (e.g. the order minimum).
+drop policy if exists "public settings are readable" on public.app_settings;
 create policy "public settings are readable"
   on public.app_settings for select
   using (is_public = true);
 
 -- Admins read everything and are the only ones who may write.
+drop policy if exists "admins manage settings" on public.app_settings;
 create policy "admins manage settings"
   on public.app_settings for all
   using (public.is_admin())

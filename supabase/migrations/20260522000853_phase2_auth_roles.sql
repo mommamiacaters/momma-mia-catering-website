@@ -5,9 +5,12 @@
 -- 'client' and 'admin' are exercised by the current apps.
 -- ============================================================================
 
+do $$ begin
 create type public.app_role as enum ('client', 'driver', 'admin');
+exception when duplicate_object then null;
+end $$;
 
-create table public.profiles (
+create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   role        public.app_role not null default 'client',
   full_name   text,
@@ -16,6 +19,7 @@ create table public.profiles (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+drop trigger if exists trg_profiles_updated_at on public.profiles;
 create trigger trg_profiles_updated_at
   before update on public.profiles
   for each row execute function public.set_updated_at();
@@ -40,6 +44,7 @@ begin
   return new;
 end;
 $$;
+drop trigger if exists on_auth_user_created on auth.users;
 
 create trigger on_auth_user_created
   after insert on auth.users
@@ -77,6 +82,7 @@ begin
   return new;
 end;
 $$;
+drop trigger if exists trg_profiles_prevent_role_change on public.profiles;
 
 create trigger trg_profiles_prevent_role_change
   before update on public.profiles
@@ -87,9 +93,11 @@ create trigger trg_profiles_prevent_role_change
 -- ============================================================================
 
 -- profiles: read own (or admin reads all); update own (role guarded by trigger)
+drop policy if exists "users read their own profile or admin reads all" on public.profiles;
 create policy "users read their own profile or admin reads all"
   on public.profiles for select
   using (id = auth.uid() or public.is_admin());
+drop policy if exists "users update their own profile or admin updates any" on public.profiles;
 
 create policy "users update their own profile or admin updates any"
   on public.profiles for update
@@ -97,9 +105,11 @@ create policy "users update their own profile or admin updates any"
   with check (id = auth.uid() or public.is_admin());
 
 -- catalog: admins may write (the public-read policies live in Phase 1)
+drop policy if exists "admins manage categories" on public.categories;
 create policy "admins manage categories"
   on public.categories for all
   using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "admins manage menu items" on public.menu_items;
 
 create policy "admins manage menu items"
   on public.menu_items for all
@@ -107,13 +117,16 @@ create policy "admins manage menu items"
 
 -- orders: a logged-in client sees their own; admins see and manage all.
 -- (guest INSERT stays allowed via the Phase 1 policy)
+drop policy if exists "clients read their own orders" on public.orders;
 create policy "clients read their own orders"
   on public.orders for select
   using (client_id = auth.uid() or public.is_admin());
+drop policy if exists "admins update orders" on public.orders;
 
 create policy "admins update orders"
   on public.orders for update
   using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "read order items for visible orders" on public.order_items;
 
 create policy "read order items for visible orders"
   on public.order_items for select
@@ -127,11 +140,13 @@ create policy "read order items for visible orders"
   );
 
 -- contact submissions: only admins can read them back
+drop policy if exists "admins read contact submissions" on public.contact_submissions;
 create policy "admins read contact submissions"
   on public.contact_submissions for select
   using (public.is_admin());
 
 -- ---------- payment proofs: admins can read them ----------------------------
+drop policy if exists "admins read payment proofs" on storage.objects;
 create policy "admins read payment proofs"
   on storage.objects for select
   using (bucket_id = 'payment-proofs' and public.is_admin());
