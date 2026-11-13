@@ -1,6 +1,6 @@
 # Momma Mia Platform Plan — Web + Mobile on Supabase
 
-> Status: **Proposal / not yet started.** Author: senior review (backend + frontend + UX).
+> Status (2026-11-13): **Phases 0–3 shipped; website live and taking real orders. Phase 4 partial; Phases 5 and 7 not started.** See "Current status" below. Author: senior review (backend + frontend + UX).
 > Scope: migrate the data layer from n8n+Google Sheets to **Supabase**, refactor the codebase into a **monorepo**, and add a **React Native (Expo) mobile app** for **clients, riders, and admins** with **live map tracking** (a "Grab for Momma Mia"). Eventually surface the map on the website too.
 > Standing constraint: ~~**n8n stays connected** — it becomes a downstream automation layer (email, Sheets mirror, chatbot), not the system of record.~~
 > **SUPERSEDED 2026-06-27: n8n is fully retired.** The self-hosted n8n box's TLS cert kept breaking and taking the chatbot + contact form down, so the last two integrations moved onto Supabase: the chatbot is now a `chat` Edge Function (Gemini 2.5 Flash) and the contact-form/quote-lead emails are sent by the `order-notify` Edge Function (Resend) via DB triggers. Quote leads persist to a `quote_requests` table (the Google Sheets mirror was dropped). No part of the live site calls n8n anymore.
@@ -255,6 +255,21 @@ Legend: ✅ in scope · ➕ later phase · — n/a
 
 ## 8. Phased roadmap
 
+### Current status (2026-11-13)
+
+| Phase | State | Notes |
+|---|---|---|
+| 0 Foundations | ✅ Done | pnpm monorepo (`apps/web`, `apps/mobile`, `packages/*`), Supabase project `fbzwicfvhrtyfqjounvo`. |
+| 1 Data layer + n8n | ✅ Done | Catalog/orders on Supabase; n8n fully retired (orders via `create_order` RPC, emails via `order-notify` + Resend, chatbot via `chat` Edge Function). |
+| 2 Auth & roles | ✅ Done | Email/password auth, admin role, RLS on every table, role-change guard. Account deletion **not built yet** (store requirement for Phase 7). |
+| 3 Admin console | ✅ Done | Orders (active/archived, stats, daily sales), products, meal plans, carousels, services, settings, company profile. |
+| 4 Mobile client | 🟡 Partial | Expo app: browse, cart, checkout, orders. Push notifications not built. |
+| 5 Driver + live tracking | ⬜ Not started | Only a map placeholder exists. |
+| 6 Web map + payments | 🟡 Partial | Payments done with **PayPal (card + PayPal)** plus manual GCash/bank proof, superseding the PayMongo/Xendit decision; web map not started. |
+| 7 Store submission | ⬜ Not started | Needs account deletion, push, D-U-N-S. |
+
+Go-live hardening done 2026-11-12/13: test orders/quotes moved to a private `archive` schema; internal notify RPCs locked down; server-side order validation + flood throttle; PayPal refund states + live webhook; chatbot one-quote-per-conversation, live menu facts and rate limits; auth `site_url` + custom SMTP (Resend); carousel photos converted to WebP (−93%); nightly encrypted DB backup workflow (`.github/workflows/db-backup.yml`, needs secrets).
+
 Each phase is shippable and ordered to de-risk early. Rough sizing assumes one developer + AI assistance.
 
 ### Phase 0 — Foundations & de-risking (1 week)
@@ -365,4 +380,4 @@ Each phase is shippable and ordered to de-risk early. Rough sizing assumes one d
 
 ---
 
-*Next step on approval: Phase 0 — create the Supabase project, run the monorepo toolchain spike, and start the D-U-N-S application.*
+*Next step: finish Phase 4 (push notifications, account deletion), then decide whether Phase 5 (driver app + live tracking) is still wanted.*
