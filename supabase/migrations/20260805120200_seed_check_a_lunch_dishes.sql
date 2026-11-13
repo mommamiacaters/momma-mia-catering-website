@@ -99,7 +99,10 @@ select 1, d.name, s.id, d.price_cents, d.legacy_type, true
    select 1 from public.menu_items existing
     where existing.category_id = 1
       and lower(btrim(existing.name)) = lower(btrim(d.name))
- );
+ )
+   -- Category 1 (Check-a-Lunch) was created by the seed script, not a migration,
+   -- so on an empty database (CI replay) there is nothing to attach dishes to.
+   and exists (select 1 from public.categories c where c.id = 1);
 
 -- Backfill sub_category_id for anything the recategorise pass missed because the
 -- row was inserted just now under a name it didn't know about.
