@@ -18,8 +18,8 @@ const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
       return;
     }
     setSubmitting(true);
@@ -112,7 +112,7 @@ const RegisterPage: React.FC = () => {
                     Password
                   </label>
                   <input id="password" type="password" autoComplete="new-password" required value={password}
-                    onChange={(e) => setPassword(e.target.value)} className={inputClass} placeholder="At least 6 characters" />
+                    onChange={(e) => setPassword(e.target.value)} className={inputClass} placeholder="At least 8 characters" />
                 </div>
 
                 <button
